@@ -1,0 +1,443 @@
+
+APX IQ — MASTER ENGINEERING SPECIFICATION (VERSION 10.0)
+=======================================================
+
+Status: FINAL & EXECUTABLE SYSTEM BLUEPRINT
+Purpose: Single definitive source of truth for Antigravity AI to build APX IQ end-to-end.
+Scope: Architecture, UDP ingestion, database design, APIs, ML systems, UI, DevOps, workflows, constraints, and success criteria.
+
+=====================================================================
+1) PRODUCT IDENTITY & CORE MISSION
+=====================================================================
+
+Product Name:
+APX IQ
+
+Definition:
+APX IQ is a real-time motorsport intelligence platform that ingests binary telemetry from the EA F1 game via UDP, transforms it into structured data, stores it in hybrid databases, applies analytics and machine learning, and exposes insights through enterprise-grade dashboards and APIs.
+
+Core Mission:
+- Build a real product, not a demo.
+- Maintain a stable backend core from the start.
+- Enable progressive feature and UI reveals across reviews.
+- Ensure system is scalable, explainable, and extensible.
+
+=====================================================================
+2) SYSTEM ARCHITECTURE (END-TO-END)
+=====================================================================
+
+Macro Pipeline:
+
+EA F1 Game Engine
+ → UDP Telemetry Stream
+ → Ingestion Gateway
+ → Packet Router
+ → Binary Decoder
+ → Normalization & Enrichment Engine
+ → Write Buffer / Queue
+ → Hybrid Storage Layer
+ → Analytics Engine
+ → ML Intelligence Layer
+ → API Gateway
+ → Frontend UI & External Integrations
+
+Core Architectural Principles:
+- Layered modular architecture
+- Loose coupling between components
+- Append-only telemetry storage
+- Stable relational schema core
+- Extensible analytics layer
+- Feature gating at UI and API layers
+- Local-first development, cloud-burst compute
+
+=====================================================================
+3) UDP TELEMETRY SYSTEM (EA F1 OFFICIAL MODEL)
+=====================================================================
+
+3.1 Protocol Properties
+
+Protocol: UDP
+Default Port: 20777
+Encoding: Binary structured packets (little-endian)
+Frequency: Configurable (default ~20Hz)
+Packet Families:
+- Motion Packet
+- Session Packet
+- Lap Data Packet
+- Event Packet
+- Participant Packet
+- Car Telemetry Packet
+- Car Status Packet
+
+3.2 Ingestion Components
+
+Modules:
+- UDP Socket Listener
+- Packet Type Identifier
+- Binary Struct Decoder
+- Session Context Manager
+- Validation Engine
+- Normalization Engine
+- Write Queue / Buffer
+- Persistence Adapter
+
+3.3 Operational Flow
+
+Receive UDP Bytes
+ → Identify Packet Header & Type
+ → Decode Binary Struct Fields
+ → Attach Session & Driver Context
+ → Validate Field Ranges & Types
+ → Normalize Units & Keys
+ → Push to Queue
+ → Persist to Databases
+
+3.4 Error Handling Rules
+
+- Packet loss tolerated (UDP nature)
+- Invalid packets discarded with logging
+- Session state maintained independently
+- No blocking writes to DB from UDP thread
+
+=====================================================================
+4) DATABASE ARCHITECTURE (FROZEN CORE)
+=====================================================================
+
+4.1 Relational Database (PostgreSQL / MySQL)
+
+Core Tables (Immutable Schema):
+
+drivers(
+  driver_id PK,
+  name,
+  team_id FK,
+  nationality,
+  created_at
+)
+
+teams(
+  team_id PK,
+  name,
+  created_at
+)
+
+cars(
+  car_id PK,
+  team_id FK,
+  model,
+  created_at
+)
+
+sessions(
+  session_id PK,
+  session_type,
+  track_name,
+  weather,
+  start_time,
+  created_at
+)
+
+laps(
+  lap_id PK,
+  session_id FK,
+  driver_id FK,
+  lap_number,
+  lap_time,
+  sector_1_time,
+  sector_2_time,
+  sector_3_time
+)
+
+pit_stops(
+  pit_id PK,
+  session_id FK,
+  driver_id FK,
+  lap_number,
+  duration
+)
+
+events(
+  event_id PK,
+  session_id FK,
+  event_type,
+  timestamp
+)
+
+users(
+  user_id PK,
+  role,
+  username,
+  created_at
+)
+
+Indexes:
+- sessions(session_type, start_time)
+- laps(session_id, driver_id, lap_number)
+- drivers(team_id)
+
+------------------------------------------------------------
+
+4.2 Time-Series Telemetry Schema (Append-Only)
+
+telemetry_raw(
+  timestamp,
+  session_id,
+  driver_id,
+  speed,
+  rpm,
+  throttle,
+  brake,
+  gear,
+  steering,
+  drs,
+  ers,
+  tire_temp_fl,
+  tire_temp_fr,
+  tire_temp_rl,
+  tire_temp_rr,
+  fuel_level
+)
+
+telemetry_derived(
+  timestamp,
+  session_id,
+  driver_id,
+  lap_delta,
+  avg_speed,
+  tire_deg_rate,
+  consistency_index
+)
+
+------------------------------------------------------------
+
+4.3 Analytics Tables
+
+driver_metrics(
+  session_id,
+  driver_id,
+  consistency_score,
+  aggression_score,
+  avg_lap_time
+)
+
+lap_metrics(
+  session_id,
+  driver_id,
+  lap_number,
+  lap_quality_score
+)
+
+strategy_metrics(
+  session_id,
+  driver_id,
+  optimal_pit_lap,
+  predicted_race_time
+)
+
+=====================================================================
+5) API CONTRACTS
+=====================================================================
+
+Base Path: /api/v1
+
+Endpoints:
+
+GET /sessions
+GET /sessions/{id}
+GET /drivers
+GET /drivers/{id}
+GET /laps?session_id=
+GET /telemetry?session_id=&driver_id=
+GET /metrics/driver
+GET /metrics/strategy
+GET /health
+
+API Rules:
+- JSON responses
+- Stable schemas
+- Pagination for telemetry
+- Versioning mandatory
+
+=====================================================================
+6) ANALYTICS & ML SYSTEM
+=====================================================================
+
+6.1 Feature Engineering
+
+Input Sources:
+- telemetry_raw
+- telemetry_derived
+- laps
+- driver_metrics
+
+Derived Features:
+- lap consistency
+- throttle-brake patterns
+- tire degradation curves
+- speed variance
+- sector performance deltas
+
+6.2 ML Pipeline
+
+Stages:
+1. Data Extraction
+2. Feature Engineering
+3. Model Training (cloud burst)
+4. Model Evaluation
+5. Artifact Storage
+6. Inference Engine
+7. Monitoring
+
+Models:
+
+Lap Time Prediction:
+- Type: Regression
+- Output: predicted lap time
+
+Driver Style Clustering:
+- Type: KMeans
+- Output: driving style clusters
+
+Strategy Optimization:
+- Type: Simulation + heuristics
+- Output: optimal pit windows
+
+Anomaly Detection:
+- Type: Isolation Forest
+- Output: abnormal behavior detection
+
+=====================================================================
+7) UI SYSTEM BLUEPRINT
+=====================================================================
+
+7.1 Basic UI (Review 1)
+
+Screens:
+- Session Overview
+- Driver Telemetry Table
+- Lap Chart
+- Leaderboard
+
+Characteristics:
+- Minimal design
+- Core metrics only
+- Functional priority
+
+------------------------------------------------------------
+
+7.2 Enterprise UI (Review 2 & 3)
+
+Dashboards:
+- Strategist Dashboard
+- Engineer Dashboard
+- System Health Dashboard
+
+Components:
+- KPI cards
+- Real-time telemetry graphs
+- Multi-driver comparison charts
+- Strategy simulation panels
+- Filters & drilldowns
+
+Design Language:
+- Dark theme
+- Enterprise spacing
+- High-density analytics layout
+
+=====================================================================
+8) FEATURE GATING STRATEGY
+=====================================================================
+
+Review 1:
+- Core backend
+- Basic UI
+- Minimal analytics
+
+Review 2:
+- Enterprise UI
+- Driver analytics
+- Strategy intelligence
+
+Review 3:
+- ML models
+- Performance optimizations
+- Full system demo
+
+=====================================================================
+9) DEVELOPMENT WORKFLOW
+=====================================================================
+
+Local Environment:
+- UDP ingestion
+- DB via Docker
+- API development
+- UI development
+
+Cloud Environment:
+- ML training
+- Stress testing
+- Final demo deployments
+
+Principle:
+Cloud is burst compute, not permanent runtime.
+
+=====================================================================
+10) NON-FUNCTIONAL REQUIREMENTS
+=====================================================================
+
+Performance:
+- UDP processing latency < 50ms
+- DB write throughput scalable
+
+Reliability:
+- Graceful handling of packet loss
+- Session state persistence
+
+Scalability:
+- Modular services
+- Extensible schema
+
+Explainability:
+- System must be explainable in DBMS terms
+
+=====================================================================
+11) BUILD PRIORITIES FOR ANTIGRAVITY AI
+=====================================================================
+
+Phase 1:
+- UDP ingestion pipeline
+- Core DB schema
+- Basic API layer
+
+Phase 2:
+- Analytics layer
+- Basic UI
+
+Phase 3:
+- Enterprise UI
+- ML pipeline
+
+Phase 4:
+- Optimization and polish
+
+=====================================================================
+12) SUCCESS CRITERIA
+=====================================================================
+
+System is considered complete when:
+
+- Real-time telemetry is ingested and stored correctly.
+- Relational and time-series data coexist seamlessly.
+- APIs serve structured race intelligence.
+- Enterprise dashboards display actionable insights.
+- ML models generate meaningful predictions.
+- Backend remains stable across review phases.
+
+=====================================================================
+13) FINAL PRODUCT STATEMENT
+=====================================================================
+
+APX IQ is not a college DBMS project.
+It is a real-time motorsport intelligence platform built with enterprise-grade architecture and product-first engineering principles.
+
+This document is the FINAL authoritative blueprint for all APX IQ development.

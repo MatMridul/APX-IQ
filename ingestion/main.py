@@ -3,7 +3,6 @@ import logging
 import signal
 from .listener import TelemetryListener
 from .decoder import PacketDecoder
-from .packet_structs import PacketHeader
 
 # Configure Logging
 logging.basicConfig(

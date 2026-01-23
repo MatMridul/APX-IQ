@@ -1,0 +1,193 @@
+
+APX IQ — F1 PIT WALL UI SCREENS + MICRO-INTERACTIONS + LOGO INTRO (ULTIMATE)
+==========================================================================
+
+Status: FINAL CINEMATIC UI BLUEPRINT
+Purpose: Pixel-level dashboard screens, micro-interaction system, and F1-style startup animation for APX IQ.
+Audience: Antigravity AI, frontend engineers, motion designers.
+
+=====================================================================
+1) ENGINEER DASHBOARD — PIXEL-LEVEL SCREEN SPEC
+=====================================================================
+
+Layout Grid: 12-column, high-density telemetry grid.
+
+Header Bar (Top 8% height)
+------------------------------------------------------------
+| APX IQ LOGO | SESSION: RACE | LAP: 23/57 | TRACK: MONZA | STATUS |
+------------------------------------------------------------
+
+Main Telemetry Zone (Center 70% height)
+
+Row 1:
+------------------------------------------------------------
+| SPEED GRAPH (40%) | RPM GRAPH (40%) | LAP TIME PANEL (20%) |
+------------------------------------------------------------
+
+Row 2:
+------------------------------------------------------------
+| DRIVER A PANEL (33%) | DRIVER B PANEL (33%) | DELTA PANEL (34%) |
+------------------------------------------------------------
+
+Row 3:
+------------------------------------------------------------
+| TIRE DATA (33%) | FUEL DATA (33%) | MINI TRACK MAP (34%) |
+------------------------------------------------------------
+
+Footer (Bottom 12% height)
+------------------------------------------------------------
+| UDP RATE | DB LATENCY | ML STATUS | ERROR LOG |
+------------------------------------------------------------
+
+Visual Rules:
+- Background: APX_BLACK
+- Panels: APX_CARBON
+- Borders: APX_GOLD (thin)
+- Active metrics: APX_GOLD
+- Secondary text: APX_SILVER
+
+=====================================================================
+2) STRATEGIST DASHBOARD — PIXEL-LEVEL SCREEN SPEC
+=====================================================================
+
+Header Bar: Same as Engineer Dashboard.
+
+Main Strategy Zone:
+
+Row 1:
+------------------------------------------------------------
+| PIT WINDOW TIMELINE (60%) | RACE OUTCOME PROBABILITY (40%) |
+------------------------------------------------------------
+
+Row 2:
+------------------------------------------------------------
+| TIRE DEGRADATION CURVES (50%) | GAP & POSITION MATRIX (50%) |
+------------------------------------------------------------
+
+Row 3:
+------------------------------------------------------------
+| STRATEGY SIMULATION PANEL (100%) |
+------------------------------------------------------------
+
+Visual Rules:
+- Pit windows highlighted in gold zones.
+- Predictions fade in with gold glow.
+- Critical strategy warnings in APX_RED.
+
+=====================================================================
+3) SYSTEM DASHBOARD — PIXEL-LEVEL SCREEN SPEC
+=====================================================================
+
+Main System Zone:
+
+------------------------------------------------------------
+| UDP THROUGHPUT GRAPH | PACKET LOSS RATE | INGESTION STATUS |
+------------------------------------------------------------
+| DB WRITE SPEED       | QUERY LATENCY    | CACHE HIT RATE   |
+------------------------------------------------------------
+| ML INFERENCE TIME    | MODEL STATUS     | ALERTS PANEL     |
+------------------------------------------------------------
+
+Visual Rules:
+- Normal state: subtle gold oscillation.
+- Warning state: orange pulses.
+- Critical state: red shockwave animation.
+
+=====================================================================
+4) MICRO-INTERACTION SYSTEM (F1-GRADE UX)
+=====================================================================
+
+4.1 Hover Interactions
+- Panels emit faint gold edge glow.
+- Metrics slightly increase brightness.
+- Cursor proximity triggers micro pulse.
+
+4.2 Click Interactions
+- Gold ripple effect from click origin.
+- Panel compresses by 2px and rebounds.
+- Telemetry values momentarily intensify.
+
+4.3 Data Update Interactions
+- Updated values slide upward by 2px.
+- Gold pulse indicates change.
+- Graph points briefly glow.
+
+4.4 Alert Interactions
+- Red flash overlay (100ms).
+- Panel vibration (1–2px jitter).
+- Sound cue (optional future feature).
+
+4.5 Focus Interactions
+- Selected driver panel gains gold border.
+- Other panels dim slightly.
+
+=====================================================================
+5) F1-STYLE APX IQ STARTUP ANIMATION (LOGO INTRO)
+=====================================================================
+
+Scene 1 — Darkness (0–0.5s)
+- Screen fully black.
+- Faint engine hum sound (optional).
+
+Scene 2 — Telemetry Awakening (0.5–1.5s)
+- Thin gold lines appear like telemetry signals.
+- Lines move horizontally across screen.
+- Data points blink into existence.
+
+Scene 3 — Race Start Lights (1.5–3.5s)
+- 5 red lights appear sequentially at center top.
+- Lights turn green simultaneously.
+- Gold shockwave spreads across screen.
+
+Scene 4 — APX IQ Logo Reveal (3.5–5s)
+- APX IQ logo emerges from center with gold glow.
+- Carbon texture fades in behind logo.
+- Subtitle appears:
+  “Real-Time Motorsport Intelligence Platform”
+
+Scene 5 — Dashboard Boot (5–6s)
+- UI panels slide into position from edges.
+- Telemetry graphs start animating.
+- System enters live mode.
+
+=====================================================================
+6) IMPLEMENTATION NOTES FOR ANTIGRAVITY
+=====================================================================
+
+Animation Stack:
+- GSAP for cinematic sequences.
+- Framer Motion for UI transitions.
+- CSS variables for dynamic glow effects.
+
+Performance Constraints:
+- Startup animation must complete within 6 seconds.
+- Telemetry updates capped at 20 FPS.
+- Animations must not block data rendering.
+
+=====================================================================
+7) CORE DESIGN PHILOSOPHY
+=====================================================================
+
+APX IQ frontend must feel like:
+- A Formula 1 control room
+- A military command center
+- A real-time intelligence system
+
+Not a SaaS dashboard.
+Not a student project.
+Not a generic admin panel.
+
+=====================================================================
+8) FINAL CINEMATIC IDENTITY STATEMENT
+=====================================================================
+
+APX IQ is not just software.
+
+It is a digital Formula 1 pit wall.
+
+Black = Control
+Gold = Intelligence
+Motion = Speed
+Data = Power
+
+This document is the FINAL cinematic UI blueprint for APX IQ.

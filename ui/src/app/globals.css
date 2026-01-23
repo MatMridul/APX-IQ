@@ -1,0 +1,135 @@
+:root {
+  /* APX IQ Cinematic Palette */
+  --color-apx-black: 0 0% 0%;
+  /* #000000 */
+  --color-apx-carbon: 0 0% 9%;
+  /* #171717 - Panel Background */
+  --color-apx-carbon-light: 0 0% 15%;
+  /* Lighter Carbon for hover */
+
+  /* Metallic Gold Gradient Colors */
+  --gold-dark: #bf953f;
+  --gold-light: #fcf6ba;
+  --gold-mid: #b38728;
+  --gold-gradient: linear-gradient(135deg, var(--gold-dark), var(--gold-light), var(--gold-dark));
+
+  /* Legacy/Fallback Gold for non-gradient contexts */
+  --color-apx-gold: 46 83% 57%;
+  /* #F3D250 - Brighter, less mustard */
+  --color-apx-gold-dim: 46 50% 35%;
+  /* Dimmed Gold */
+
+  --color-apx-silver: 0 0% 75%;
+  /* #BFBFBF - Secondary Text */
+  --color-apx-red: 0 100% 50%;
+  /* Brighter Red */
+  --color-apx-green: 120 100% 35%;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Roboto Mono', monospace;
+  /* Tech/Telemetry Font */
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
+  background-color: hsl(var(--color-apx-black));
+  color: hsl(var(--color-apx-silver));
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* APX Cinematic Utilities */
+.container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Metallic Gold Text */
+.text-gold {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  display: inline-block;
+  /* Required for clip to work on some elements smoothly */
+}
+
+.text-red {
+  color: hsl(var(--color-apx-red));
+}
+
+.text-silver {
+  color: hsl(var(--color-apx-silver));
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Panel Styling (Carbon Fiber Aesthetic) */
+.apx-panel {
+  background-color: hsl(var(--color-apx-carbon));
+  /* Metallic Border Effect using box-shadow to simulate inset/outset */
+  border: 1px solid rgba(191, 149, 63, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 0, 0, 0.8);
+  border-radius: 2px;
+  padding: 1.25rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.apx-panel::before {
+  /* Shiny Top Edge Highlight */
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-light), transparent);
+  opacity: 0.7;
+}
+
+.apx-panel:hover {
+  border-color: rgba(252, 246, 186, 0.6);
+  /* Lighter gold on hover */
+  box-shadow: 0 0 20px rgba(191, 149, 63, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Animations */
+@keyframes gold-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(191, 149, 63, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(191, 149, 63, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(191, 149, 63, 0);
+  }
+}
+
+.animate-pulse-gold {
+  animation: gold-pulse 2s infinite;
+}

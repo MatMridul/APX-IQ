@@ -23,7 +23,9 @@ export const useTelemetry = () => {
 
     useEffect(() => {
         // Connect to WebSocket
-        ws.current = new WebSocket('ws://localhost:8000/ws');
+        // Connect to WebSocket using current hostname (supports localhost and LAN IP)
+        const wsUrl = `ws://${window.location.hostname}:8000/ws`;
+        ws.current = new WebSocket(wsUrl);
 
         ws.current.onopen = () => {
             console.log('APX IQ Telemetry Stream: Connected');

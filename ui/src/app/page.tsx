@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { TRACK_IDS } from "@/utils/constants";
 import { formatLapTime } from "@/utils/format";
 import { useTelemetry } from "@/hooks/useTelemetry";
@@ -150,46 +151,52 @@ export default function Home() {
           }}>
 
             {/* Engineer Panel */}
-            <div className="apx-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>ENGINEER</h3>
-                <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ACCESS GRANTED]</span>
+            <Link href="/dashboard" className="contents">
+              <div className="apx-panel cursor-pointer hover:border-gold hover:scale-[1.02] transition-all duration-300">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>ENGINEER</h3>
+                  <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ACCESS GRANTED]</span>
+                </div>
+                <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
+                  Real-time telemetry analysis. Speed, RPM, Gears, and G-Force vectoring monitoring.
+                </p>
+                <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
+                  &gt; WAITING FOR TELEMETRY...
+                </div>
               </div>
-              <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
-                Real-time telemetry analysis. Speed, RPM, Gears, and G-Force vectoring monitoring.
-              </p>
-              <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
-                &gt; WAITING FOR TELEMETRY...
-              </div>
-            </div>
+            </Link>
 
             {/* Strategist Panel */}
-            <div className="apx-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>STRATEGIST</h3>
-                <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ACCESS GRANTED]</span>
+            <Link href="/dashboard" className="contents">
+              <div className="apx-panel cursor-pointer hover:border-gold hover:scale-[1.02] transition-all duration-300">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>STRATEGIST</h3>
+                  <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ACCESS GRANTED]</span>
+                </div>
+                <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
+                  Pit window prediction, tire degradation curves, and race outcome probability models.
+                </p>
+                <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
+                  &gt; LAUNCH_SIMULATION.EXE
+                </div>
               </div>
-              <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
-                Pit window prediction, tire degradation curves, and race outcome probability models.
-              </p>
-              <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
-                &gt; LAUNCH_SIMULATION.EXE
-              </div>
-            </div>
+            </Link>
 
             {/* System Panel */}
-            <div className="apx-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>SYSTEM</h3>
-                <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ADMIN]</span>
+            <Link href="/dashboard" className="contents">
+              <div className="apx-panel cursor-pointer hover:border-gold hover:scale-[1.02] transition-all duration-300">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>SYSTEM</h3>
+                  <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ADMIN]</span>
+                </div>
+                <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
+                  UDP Packet health, database latency metrics, and congestion control monitoring.
+                </p>
+                <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
+                  &gt; VIEW_LOGS.EXE
+                </div>
               </div>
-              <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
-                UDP Packet health, database latency metrics, and congestion control monitoring.
-              </p>
-              <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
-                &gt; VIEW_LOGS.EXE
-              </div>
-            </div>
+            </Link>
 
           </div>
         )}

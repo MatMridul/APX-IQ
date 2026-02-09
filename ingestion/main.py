@@ -67,12 +67,19 @@ async def packet_processor(listener: TelemetryListener):
                     continue
 
                 # --- Detect Game Version ---
-                pkt_version = packet.m_header.m_packetFormat
+                pkt_header = packet.m_header if hasattr(packet, 'm_header') else packet
+                pkt_version = pkt_header.m_packetFormat
+                
+                # DEBUG LOGGING
+                if packets_to_process % 200 == 0:
+                   logger.info(f"Processing Packet: ID={pkt_header.m_packetId} Format={pkt_version}")
+
                 if app.get('game_version') != pkt_version:
                     app['game_version'] = pkt_version
                     version_str = f"F1 {str(pkt_version)[-2:]}"
                     logger.info(f"Detected Game Version: {version_str}")
                     await sio.emit('game_version', {'version': version_str})
+                
                 
 
 
@@ -89,9 +96,9 @@ async def packet_processor(listener: TelemetryListener):
                 
                 # Dispatch logic
                 if packet_type_id == 6: # Car Telemetry
-                    # Throttle high-frequency telemetry emits
-                    if now - last_telemetry_emit < telemetry_rate_limit:
-                        continue
+                    # Throttle removed for max speed
+                    # if now - last_telemetry_emit < telemetry_rate_limit:
+                    #     continue
 
                     # Get Player Car
                     player_idx = packet.m_header.m_playerCarIndex
@@ -106,6 +113,7 @@ async def packet_processor(listener: TelemetryListener):
                         "drs": telemetry.m_drs,
                         "tyreTemps": list(telemetry.m_tyresSurfaceTemperature)
                     }
+                    # logger.info(f"Emitting Telemetry: Speed={payload['speed']} RPM={payload['rpm']}")
                     await sio.emit('telemetry_update', payload)
                     last_telemetry_emit = now
 
@@ -113,6 +121,11 @@ async def packet_processor(listener: TelemetryListener):
                     player_idx = packet.m_header.m_playerCarIndex
                     lap_data = packet.m_lapData[player_idx]
                     
+                    # Calculate Delta to Car in Front (Minutes + MS)
+                    delta_min = lap_data.m_deltaToCarInFrontMinutesPart
+                    delta_ms = lap_data.m_deltaToCarInFrontMSPart
+                    delta_total_seconds = (delta_min * 60) + (delta_ms / 1000.0)
+
                     payload = {
                         "currentLapTime": lap_data.m_currentLapTimeInMS,
                         "lastLapTime": lap_data.m_lastLapTimeInMS,
@@ -120,7 +133,8 @@ async def packet_processor(listener: TelemetryListener):
                         "sector2": (lap_data.m_sector2TimeMinutesPart * 60000) + lap_data.m_sector2TimeMSPart,
                         "position": lap_data.m_carPosition,
                         "lap": lap_data.m_currentLapNum,
-                        "totalDistance": lap_data.m_totalDistance
+                        "totalDistance": lap_data.m_totalDistance,
+                        "deltaToFront": delta_total_seconds
                     }
                     await sio.emit('lap_update', payload)
 
@@ -153,7 +167,8 @@ async def packet_processor(listener: TelemetryListener):
         await asyncio.sleep(0.01)
 
 async def start_background_tasks(app):
-    app['listener'] = TelemetryListener(port=20777)
+    # Bind to 0.0.0.0 to allow external devices (Gaming Laptop) to connect
+    app['listener'] = TelemetryListener(host="0.0.0.0", port=20777)
     await app['listener'].start()
     app['processor'] = asyncio.create_task(packet_processor(app['listener']))
 

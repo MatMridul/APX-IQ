@@ -15,13 +15,14 @@ class UDPListenerProtocol(asyncio.DatagramProtocol):
 
     def datagram_received(self, data, addr):
         # Push raw data to queue for non-blocking processing
+        # print(f"DEBUG: Received {len(data)} bytes from {addr}")
         try:
             self.queue.put_nowait((data, addr))
         except asyncio.QueueFull:
             logger.warning("Packet Queue Full! Dropping packet.")
 
 class TelemetryListener:
-    def __init__(self, host: str = "0.0.0.0", port: int = 20777):
+    def __init__(self, host: str = "127.0.0.1", port: int = 20777):
         self.host = host
         self.port = port
         self.queue = asyncio.Queue(maxsize=100000)

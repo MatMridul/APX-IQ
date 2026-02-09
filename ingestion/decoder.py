@@ -28,8 +28,10 @@ class PacketDecoder:
             return PacketDecoder._decode_25(data)
         elif packet_format == 2022:
             return PacketDecoder._decode_22(data)
+            return PacketDecoder._decode_22(data)
         else:
-            logger.debug(f"Unknown Packet Format: {packet_format}. Ignoring.")
+            # logger.debug(f"Unknown Packet Format: {packet_format}. Ignoring.")
+            print(f"DEBUG: Unknown Packet Format: {packet_format}")
             return None
 
     @staticmethod

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSocket } from './useSocket';
 
 export type TelemetryData = {
@@ -19,6 +19,7 @@ export type LapData = {
     position: number;
     lap: number;
     totalDistance: number;
+    deltaToFront?: number;
 };
 
 export type SessionData = {
@@ -44,6 +45,12 @@ export const useTelemetry = () => {
     const [carStatus, setCarStatus] = useState<CarStatusData | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
+    // Refs to hold latest data without triggering re-renders immediately
+    const telemetryRef = useRef<TelemetryData | null>(null);
+    const lapRef = useRef<LapData | null>(null);
+    const sessionRef = useRef<SessionData | null>(null);
+    const carStatusRef = useRef<CarStatusData | null>(null);
+
     useEffect(() => {
         if (!socket) return;
 
@@ -57,10 +64,11 @@ export const useTelemetry = () => {
             setIsConnected(false);
         };
 
-        const onTelemetry = (data: TelemetryData) => setTelemetry(data);
-        const onLap = (data: LapData) => setLapData(data);
-        const onSession = (data: SessionData) => setSession(data);
-        const onCarStatus = (data: CarStatusData) => setCarStatus(data);
+        // Socket listeners only update refs
+        const onTelemetry = (data: TelemetryData) => { telemetryRef.current = data; };
+        const onLap = (data: LapData) => { lapRef.current = data; };
+        const onSession = (data: SessionData) => { sessionRef.current = data; };
+        const onCarStatus = (data: CarStatusData) => { carStatusRef.current = data; };
 
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
@@ -80,6 +88,29 @@ export const useTelemetry = () => {
             socket.off('car_status_update', onCarStatus);
         };
     }, [socket]);
+
+    // Animation Frame Loop to sync state updates with screen refresh rate
+    useEffect(() => {
+        let frameId: number;
+
+        const loop = () => {
+            if (telemetryRef.current) {
+                // Determine if we should update (simple reference check isn't enough for deep objects, 
+                // but setting state with same value in React is cheap. 
+                // However, creating a new object literal every time in the parent would trigger this.
+                // Here we trust React's batching + RAF throttling.
+                setTelemetry(telemetryRef.current);
+            }
+            if (lapRef.current) setLapData(lapRef.current);
+            if (sessionRef.current) setSession(sessionRef.current);
+            if (carStatusRef.current) setCarStatus(carStatusRef.current);
+
+            frameId = requestAnimationFrame(loop);
+        };
+
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, []);
 
     return { telemetry, lapData, session, carStatus, isConnected };
 };

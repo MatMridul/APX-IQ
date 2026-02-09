@@ -210,8 +210,10 @@ export default function DashboardPage() {
                                 <span className="text-5xl font-mono text-white font-bold">{formatLapTime(lapData?.lastLapTime)}</span>
                             </div>
                             <div className="flex flex-col items-center gap-2">
-                                <span className="text-base text-silver font-bold tracking-wider">DELTA</span>
-                                <span className="text-5xl font-mono text-green-500 font-bold">-0.124</span>
+                                <span className="text-base text-silver font-bold tracking-wider">GAP AHEAD</span>
+                                <span className="text-5xl font-mono text-gold font-bold">
+                                    {lapData?.deltaToFront !== undefined ? `+${lapData.deltaToFront.toFixed(3)}` : '-.---'}
+                                </span>
                             </div>
                             <div className="flex flex-col items-center gap-2">
                                 <span className="text-base text-silver font-bold tracking-wider">POS</span>
@@ -229,17 +231,19 @@ export default function DashboardPage() {
                         </div>
                     </CarbonPanel>
 
-                    <CarbonPanel title="PEDAL INPUTS" className="col-span-6 flex gap-4 px-6 py-4 relative group h-full">
-                        <div className="flex-1 flex flex-col h-full bg-black/20 rounded border border-white/5 p-2 gap-2">
-                            <span className="text-center text-xs font-bold text-green-500 tracking-wider">THROTTLE</span>
-                            <div className="flex-1 w-full relative">
-                                <BarGauge value={Math.round((telemetry?.throttle ?? 0) * 100)} color="green" vertical />
+                    <CarbonPanel title="PEDAL INPUTS" className="col-span-6 relative group h-full" contentClassName="p-0">
+                        <div className="flex gap-1 w-full h-full px-1 pb-1"> {/* Reduced gap, minimal padding */}
+                            <div className="flex-1 flex flex-col h-full gap-0">
+                                <span className="text-center text-xs font-black text-green-500 tracking-widest bg-black/40 py-1 mb-1 rounded-t">THROTTLE</span>
+                                <div className="flex-1 w-full relative">
+                                    <BarGauge value={Math.round((telemetry?.throttle ?? 0) * 100)} color="green" vertical />
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex-1 flex flex-col h-full bg-black/20 rounded border border-white/5 p-2 gap-2">
-                            <span className="text-center text-xs font-bold text-red-500 tracking-wider">BRAKE</span>
-                            <div className="flex-1 w-full relative">
-                                <BarGauge value={Math.round((telemetry?.brake ?? 0) * 100)} color="red" vertical />
+                            <div className="flex-1 flex flex-col h-full gap-0">
+                                <span className="text-center text-xs font-black text-red-500 tracking-widest bg-black/40 py-1 mb-1 rounded-t">BRAKE</span>
+                                <div className="flex-1 w-full relative">
+                                    <BarGauge value={Math.round((telemetry?.brake ?? 0) * 100)} color="red" vertical />
+                                </div>
                             </div>
                         </div>
                     </CarbonPanel>
@@ -266,30 +270,34 @@ export default function DashboardPage() {
                     </CarbonPanel>
 
                     {/* --- ROW 3: SYSTEMS --- */}
-                    <CarbonPanel title="TYRE TEMPS" className="col-span-4 flex items-center justify-around">
-                        {['FL', 'FR', 'RL', 'RR'].map((tyre, i) => (
-                            <div key={tyre} className="flex flex-col items-center gap-2">
-                                {/* Visual Tyre Rep */}
-                                <div className="w-12 h-16 rounded-md border border-white/20 bg-black relative overflow-hidden flex items-end">
-                                    <div className={`w-full h-full transition-colors duration-500 opacity-60 ${getTyreColor(telemetry?.tyreTemps?.[i] ?? 0)}`} />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                    <CarbonPanel title="TYRE TEMPS" className="col-span-4">
+                        <div className="flex items-center justify-around h-full w-full">
+                            {['FL', 'FR', 'RL', 'RR'].map((tyre, i) => (
+                                <div key={tyre} className="flex flex-col items-center gap-2">
+                                    {/* Visual Tyre Rep */}
+                                    <div className="w-12 h-16 rounded-md border border-white/20 bg-black relative overflow-hidden flex items-end">
+                                        <div className={`w-full h-full transition-colors duration-500 opacity-60 ${getTyreColor(telemetry?.tyreTemps?.[i] ?? 0)}`} />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-silver">{tyre}</span>
+                                    <MetricValue label="" value={telemetry?.tyreTemps?.[i] ?? 0} unit="°C" size="sm" />
                                 </div>
-                                <span className="text-[10px] font-bold text-silver">{tyre}</span>
-                                <MetricValue label="" value={telemetry?.tyreTemps?.[i] ?? 0} unit="°C" size="sm" />
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </CarbonPanel>
 
-                    <CarbonPanel title="FUEL LOAD" className="col-span-4 flex flex-col justify-center gap-6 px-8">
-                        <div className="flex justify-between items-end">
-                            <MetricValue label="REMAINING" value={carStatus?.fuelInTank ? carStatus.fuelInTank.toFixed(2) : '-.--'} unit="KG" size="md" />
-                            <MetricValue label="LAPS LEFT" value={carStatus?.fuelRemainingLaps && carStatus.fuelRemainingLaps > -10 && carStatus.fuelRemainingLaps < 200 ? carStatus.fuelRemainingLaps.toFixed(1) : '-.-'} unit="LAPS" size="sm" color={carStatus?.fuelRemainingLaps && carStatus.fuelRemainingLaps < 2 && carStatus.fuelRemainingLaps > -10 ? "red" : "green"} />
-                        </div>
-                        <div className="w-full h-6 bg-black rounded border border-gold/30 overflow-hidden relative shadow-[0_0_10px_rgba(207,163,73,0.1)]">
-                            <div className="absolute inset-0 flex items-center pl-2 text-[10px] font-bold z-10 text-white mix-blend-difference">
-                                {carStatus?.fuelInTank && carStatus?.fuelRemainingLaps ? 'OK' : 'CALC'}
+                    <CarbonPanel title="FUEL LOAD" className="col-span-4 px-8">
+                        <div className="flex flex-col justify-center gap-6 h-full">
+                            <div className="flex justify-between items-end">
+                                <MetricValue label="REMAINING" value={carStatus?.fuelInTank ? carStatus.fuelInTank.toFixed(2) : '-.--'} unit="KG" size="md" />
+                                <MetricValue label="LAPS LEFT" value={carStatus?.fuelRemainingLaps && carStatus.fuelRemainingLaps > -10 && carStatus.fuelRemainingLaps < 200 ? carStatus.fuelRemainingLaps.toFixed(1) : '-.-'} unit="LAPS" size="sm" color={carStatus?.fuelRemainingLaps && carStatus.fuelRemainingLaps < 2 && carStatus.fuelRemainingLaps > -10 ? "red" : "green"} />
                             </div>
-                            <div className="h-full bg-gradient-to-r from-blue-900 to-blue-500" style={{ width: '100%' }} />
+                            <div className="w-full h-6 bg-black rounded border border-gold/30 overflow-hidden relative shadow-[0_0_10px_rgba(207,163,73,0.1)]">
+                                <div className="absolute inset-0 flex items-center pl-2 text-[10px] font-bold z-10 text-white mix-blend-difference">
+                                    {carStatus?.fuelInTank ? 'OK' : 'CALC'}
+                                </div>
+                                <div className="h-full bg-gradient-to-r from-blue-900 to-blue-500" style={{ width: `${Math.min(((carStatus?.fuelInTank ?? 0) / 110) * 100, 100)}%` }} />
+                            </div>
                         </div>
                     </CarbonPanel>
 

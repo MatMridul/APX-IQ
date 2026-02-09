@@ -42,8 +42,14 @@ class PacketDecoder:
                 return packet_structs_25.PacketMotionData.from_buffer_copy(data)
             elif packet_id == packet_structs_25.PACKET_ID_LAP_DATA:
                 return packet_structs_25.PacketLapData.from_buffer_copy(data)
+            elif packet_id == packet_structs_25.PACKET_ID_SESSION:
+                return packet_structs_25.PacketSessionData.from_buffer_copy(data)
+            elif packet_id == packet_structs_25.PACKET_ID_PARTICIPANTS:
+                return packet_structs_25.PacketParticipantsData.from_buffer_copy(data)
             elif packet_id == packet_structs_25.PACKET_ID_CAR_TELEMETRY:
                 return packet_structs_25.PacketCarTelemetryData.from_buffer_copy(data)
+            elif packet_id == packet_structs_25.PACKET_ID_CAR_STATUS:
+                return packet_structs_25.PacketCarStatusData.from_buffer_copy(data)
             else:
                 return header 
         except ValueError as e:
@@ -58,10 +64,28 @@ class PacketDecoder:
         try:
             if packet_id == packet_structs_22.PACKET_ID_MOTION:
                 return packet_structs_22.PacketMotionData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_SESSION:
+                return packet_structs_22.PacketSessionData.from_buffer_copy(data)
             elif packet_id == packet_structs_22.PACKET_ID_LAP_DATA:
                 return packet_structs_22.PacketLapData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_EVENT:
+                return packet_structs_22.PacketEventData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_PARTICIPANTS:
+                return packet_structs_22.PacketParticipantsData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_CAR_SETUPS:
+                return packet_structs_22.PacketCarSetupData.from_buffer_copy(data)
             elif packet_id == packet_structs_22.PACKET_ID_CAR_TELEMETRY:
                 return packet_structs_22.PacketCarTelemetryData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_CAR_STATUS:
+                return packet_structs_22.PacketCarStatusData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_FINAL_CLASSIFICATION:
+                return packet_structs_22.PacketFinalClassificationData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_LOBBY_INFO:
+                return packet_structs_22.PacketLobbyInfoData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_CAR_DAMAGE:
+                return packet_structs_22.PacketCarDamageData.from_buffer_copy(data)
+            elif packet_id == packet_structs_22.PACKET_ID_SESSION_HISTORY:
+                return packet_structs_22.PacketSessionHistoryData.from_buffer_copy(data)
             else:
                 return header 
         except ValueError as e:

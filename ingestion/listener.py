@@ -24,7 +24,7 @@ class TelemetryListener:
     def __init__(self, host: str = "0.0.0.0", port: int = 20777):
         self.host = host
         self.port = port
-        self.queue = asyncio.Queue(maxsize=1000)
+        self.queue = asyncio.Queue(maxsize=100000)
         self.transport = None
         self.protocol = None
 

@@ -1,8 +1,11 @@
 "use client";
+import { TRACK_IDS } from "@/utils/constants";
+import { formatLapTime } from "@/utils/format";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import ConnectionStatus from "@/components/f1/ConnectionStatus";
 
 export default function Home() {
-  const { telemetry, session, isConnected } = useTelemetry();
+  const { telemetry, session, isConnected, lapData } = useTelemetry();
 
   return (
     <main style={{
@@ -14,26 +17,40 @@ export default function Home() {
     }}>
 
       {/* Top Header / Telemetry Bar */}
-      <header style={{
+      <header className="grid grid-cols-12 items-center px-8" style={{
         height: '60px',
         borderBottom: '1px solid hsl(var(--color-apx-gold) / 0.3)',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 2rem',
-        justifyContent: 'space-between',
         background: 'hsl(var(--color-apx-carbon))'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* LEFT: LOGO */}
+        <div className="col-span-3 flex items-center">
           <h1 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>APX IQ</h1>
-          <span className="font-mono" style={{ fontSize: '0.75rem', color: 'hsl(var(--color-apx-gold-dim))' }}>
-            // SESSION: {session ? `${session.uid} (Track: ${session.trackId})` : 'WAITING...'}
-          </span>
         </div>
 
-        <div className="font-mono" style={{ fontSize: '0.8rem', display: 'flex', gap: '2rem' }}>
-          <span>SYS_STATUS: <span className={isConnected ? "text-gold" : "text-red"}>{isConnected ? "ONLINE" : "OFFLINE"}</span></span>
-          <span>DB_LATENCY: <span className="text-gold">12ms</span></span>
-          <span>UDP_PORT: <span className="text-silver">20777</span></span>
+        {/* CENTER: SESSION INFO */}
+        <div className="col-span-6 flex items-center justify-center" style={{ gap: '10rem' }}>
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-silver/60 font-bold tracking-wider">SESSION</span>
+            <span className="text-lg font-bold text-white leading-none">RACE</span>
+          </div>
+          <div className="h-8 w-[1px] bg-white/10" />
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-silver/60 font-bold tracking-wider">TRACK</span>
+            <span className="text-lg font-bold text-white leading-none uppercase">
+              {session?.trackId !== undefined ? TRACK_IDS[session.trackId] ?? 'UNKNOWN' : 'WAITING...'}
+            </span>
+          </div>
+        </div>
+
+        {/* RIGHT: CONNECTION STATUS */}
+        <div className="col-span-3 flex items-center justify-end" style={{ gap: '4rem', fontSize: '0.8rem' }}>
+          <div className="flex flex-col text-right">
+            <span className="text-[10px] text-silver/60 font-bold tracking-wider">LAP</span>
+            <span className="text-2xl font-mono font-bold text-gold leading-none">
+              {lapData?.lap ?? 0}<span className="text-sm text-silver">/{session?.totalLaps ?? '-'}</span>
+            </span>
+          </div>
+          <ConnectionStatus />
         </div>
       </header>
 
@@ -61,26 +78,64 @@ export default function Home() {
 
         {/* Live Telemetry Panel (Replaces Engineer Panel for now) */}
         {telemetry && (
-          <div className="apx-panel" style={{ width: '100%', maxWidth: '800px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', textAlign: 'center' }}>
-            <div>
-              <div className="font-mono text-silver" style={{ fontSize: '0.8rem' }}>SPEED</div>
-              <div className="text-gold" style={{ fontSize: '2.5rem', fontWeight: 700 }}>{telemetry.speed} <span style={{ fontSize: '1rem' }}>KPH</span></div>
-            </div>
-            <div>
-              <div className="font-mono text-silver" style={{ fontSize: '0.8rem' }}>RPM</div>
-              <div className="text-gold" style={{ fontSize: '2.5rem', fontWeight: 700 }}>{telemetry.rpm}</div>
-            </div>
-            <div>
-              <div className="font-mono text-silver" style={{ fontSize: '0.8rem' }}>GEAR</div>
-              <div className="text-gold" style={{ fontSize: '2.5rem', fontWeight: 700 }}>{telemetry.gear}</div>
-            </div>
-            <div>
-              <div className="font-mono text-silver" style={{ fontSize: '0.8rem' }}>DRS</div>
-              <div className={telemetry.drs ? "text-green-500" : "text-silver"} style={{ fontSize: '2.5rem', fontWeight: 700 }}>
-                {telemetry.drs ? "OPEN" : "CLOSED"}
+          <>
+            <div className="apx-panel" style={{ width: '100%', maxWidth: '1000px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '2rem', textAlign: 'center', padding: '3rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>SPEED</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'center' }}>
+                  <div className="text-gold" style={{ fontSize: '8rem', fontWeight: 700, lineHeight: 1 }}>{Math.round(telemetry.speed)}</div>
+                  <div className="text-silver/50" style={{ fontSize: '2rem', fontWeight: 700 }}>KPH</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>RPM</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'center' }}>
+                  <div className="text-white" style={{ fontSize: '8rem', fontWeight: 700, lineHeight: 1 }}>{Math.round(telemetry.rpm)}</div>
+                  <div className="text-silver/50" style={{ fontSize: '2rem', fontWeight: 700 }}>REV</div>
+                </div>
+              </div>
+              <div>
+                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>GEAR</div>
+                <div className="text-white" style={{ fontSize: '5rem', fontWeight: 700, lineHeight: 1 }}>{telemetry.gear === 0 ? 'N' : telemetry.gear === -1 ? 'R' : telemetry.gear}</div>
+              </div>
+              <div>
+                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>DRS</div>
+                <div className={telemetry.drs ? "text-green-500" : "text-silver"} style={{ fontSize: '5rem', fontWeight: 700, lineHeight: 1 }}>
+                  {telemetry.drs ? "ON" : "OFF"}
+                </div>
               </div>
             </div>
-          </div>
+
+            {/* Lap Timing Panel */}
+            <div className="apx-panel" style={{ width: '100%', maxWidth: '1000px', padding: '2rem', textAlign: 'center', marginTop: '2rem' }}>
+              <div style={{ marginBottom: '2rem' }}>
+                <div className="font-mono text-gold mb-2" style={{ fontSize: '1rem', letterSpacing: '0.2em' }}>CURRENT LAP</div>
+                <div className="text-white font-mono" style={{ fontSize: '6rem', fontWeight: 700, lineHeight: 1 }}>
+                  {lapData?.currentLapTime ? (lapData.currentLapTime / 1000).toFixed(3) : '0.000'}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem' }}>
+                <div>
+                  <div className="font-mono text-silver mb-1" style={{ fontSize: '1rem' }}>LAST LAP</div>
+                  <div className="text-white font-mono" style={{ fontSize: '3rem', fontWeight: 700 }}>
+                    {formatLapTime(lapData?.lastLapTime)}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-mono text-silver mb-1" style={{ fontSize: '1rem' }}>DELTA</div>
+                  <div className="text-green-500 font-mono" style={{ fontSize: '3rem', fontWeight: 700 }}>
+                    -0.124
+                  </div>
+                </div>
+                <div>
+                  <div className="font-mono text-silver mb-1" style={{ fontSize: '1rem' }}>POS</div>
+                  <div className="text-gold font-mono" style={{ fontSize: '3rem', fontWeight: 700 }}>
+                    {lapData?.position ?? '-'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
 

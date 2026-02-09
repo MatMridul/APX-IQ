@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import signal
+import socketio
+from aiohttp import web
 from .listener import TelemetryListener
 from .decoder import PacketDecoder
 
@@ -11,68 +13,159 @@ logging.basicConfig(
 )
 logger = logging.getLogger("APXIQ.Ingestion")
 
+# Socket.IO Server
+sio = socketio.AsyncServer(async_mode='aiohttp', cors_allowed_origins='*')
+app = web.Application()
+app['game_version'] = None
+sio.attach(app)
+
+@sio.event
+async def connect(sid, environ):
+    logger.info(f"Client connected: {sid}")
+    # Send current game version if known
+    if 'game_version' in app and app['game_version']:
+         version_str = f"F1 {str(app['game_version'])[-2:]}"
+         await sio.emit('game_version', {'version': version_str}, room=sid)
+
+@sio.event
+async def disconnect(sid):
+    logger.info(f"Client disconnected: {sid}")
+
 async def packet_processor(listener: TelemetryListener):
     """
-    Consumes packets from the queue and decodes them.
+    Consumes packets from the queue, decodes them, and broadcasts via WebSocket.
     """
     logger.info("Packet Processor started.")
-    while True:
-        data, addr = await listener.get_packet()
-        
-        # Decode
-        packet = PacketDecoder.decode(data)
-        
-        if packet:
-            # Inspection Logic (Simulated Pipeline)
-            packet_type_id = packet.m_header.m_packetId if hasattr(packet, 'm_header') else packet.m_packetId
-            
-            # Simple Log for now
-            # In production, this would dispatch to the Router -> Normalizer -> DB
-            if packet_type_id == 0: # Motion
-               pass # Too noisy to log every motion packet
-            elif packet_type_id == 2: # Lap Data
-               logger.info(f"Received Lap Data. Frame: {packet.m_header.m_frameIdentifier}")
-            else:
-               logger.debug(f"Received Packet ID: {packet_type_id} from {addr}")
-
-async def main():
-    listener = TelemetryListener(port=20777)
     
-    # Handle Shutdown
+    last_telemetry_emit = 0
+    last_version_emit = 0
+    telemetry_rate_limit = 0.016  # ~16ms (60Hz emit rate)
+    
     loop = asyncio.get_running_loop()
-    stop_event = asyncio.Event()
-    
-    def signal_handler():
-        logger.info("Shutdown signal received.")
-        stop_event.set()
 
-    # Register signals (Windows might need limitations check, asyncio supports limited signals on Windows)
-    # Using try/except for signal registration as Windows has specific limits
-    try:
-        loop.add_signal_handler(signal.SIGINT, signal_handler)
-        loop.add_signal_handler(signal.SIGTERM, signal_handler)
-    except NotImplementedError:
-        # Windows doesn't support add_signal_handler for SIGINT in ProactorEventLoop sometimes?
-        # We'll just rely on KeyboardInterrupt in run for local dev
-        pass
-
-    try:
-        await listener.start()
-        processor_task = asyncio.create_task(packet_processor(listener))
-        
-        # Wait until stop
-        # On Windows, simple sleep loop to allow Ctrl+C if signal handler failed
-        while not stop_event.is_set():
-            await asyncio.sleep(1)
+    while True:
+        try:
+            # Batch process up to 100 packets to catch up
+            # We must verify queue is not empty before get_nowait, or catch QueueEmpty
+            packets_to_process = 100
             
-    except asyncio.CancelledError:
-        pass
-    finally:
-        listener.stop()
-        logger.info("Ingestion Service Shutdown.")
+            while packets_to_process > 0:
+                if listener.queue.empty():
+                    break
+                
+                try:
+                    data, addr = listener.queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+
+                packets_to_process -= 1
+                
+                # Decode
+                packet = PacketDecoder.decode(data)
+                
+                if not packet:
+                    continue
+
+                # --- Detect Game Version ---
+                pkt_version = packet.m_header.m_packetFormat
+                if app.get('game_version') != pkt_version:
+                    app['game_version'] = pkt_version
+                    version_str = f"F1 {str(pkt_version)[-2:]}"
+                    logger.info(f"Detected Game Version: {version_str}")
+                    await sio.emit('game_version', {'version': version_str})
+                
+
+
+                packet_type_id = packet.m_header.m_packetId if hasattr(packet, 'm_header') else packet.m_packetId
+                packet_format = packet.m_header.m_packetFormat if hasattr(packet, 'm_header') else 2022
+                
+                now = loop.time()
+                
+                # Emit Game Version (Throttled)
+                if now - last_version_emit > 5.0:
+                    game_version = "F1 25" if packet_format == 2025 else "F1 22"
+                    await sio.emit('game_version', {'version': game_version})
+                    last_version_emit = now
+                
+                # Dispatch logic
+                if packet_type_id == 6: # Car Telemetry
+                    # Throttle high-frequency telemetry emits
+                    if now - last_telemetry_emit < telemetry_rate_limit:
+                        continue
+
+                    # Get Player Car
+                    player_idx = packet.m_header.m_playerCarIndex
+                    telemetry = packet.m_carTelemetryData[player_idx]
+                    
+                    payload = {
+                        "speed": telemetry.m_speed,
+                        "throttle": telemetry.m_throttle,
+                        "brake": telemetry.m_brake,
+                        "gear": telemetry.m_gear,
+                        "rpm": telemetry.m_engineRPM,
+                        "drs": telemetry.m_drs,
+                        "tyreTemps": list(telemetry.m_tyresSurfaceTemperature)
+                    }
+                    await sio.emit('telemetry_update', payload)
+                    last_telemetry_emit = now
+
+                elif packet_type_id == 2: # Lap Data
+                    player_idx = packet.m_header.m_playerCarIndex
+                    lap_data = packet.m_lapData[player_idx]
+                    
+                    payload = {
+                        "currentLapTime": lap_data.m_currentLapTimeInMS,
+                        "lastLapTime": lap_data.m_lastLapTimeInMS,
+                        "sector1": (lap_data.m_sector1TimeMinutesPart * 60000) + lap_data.m_sector1TimeMSPart,
+                        "sector2": (lap_data.m_sector2TimeMinutesPart * 60000) + lap_data.m_sector2TimeMSPart,
+                        "position": lap_data.m_carPosition,
+                        "lap": lap_data.m_currentLapNum,
+                        "totalDistance": lap_data.m_totalDistance
+                    }
+                    await sio.emit('lap_update', payload)
+
+                elif packet_type_id == 7: # Car Status
+                    player_idx = packet.m_header.m_playerCarIndex
+                    car_status = packet.m_carStatusData[player_idx]
+                    
+                    payload = {
+                        "fuelInTank": car_status.m_fuelInTank,
+                        "fuelRemainingLaps": car_status.m_fuelRemainingLaps,
+                        "maxRPM": car_status.m_maxRPM,
+                        "drsAllowed": car_status.m_drsAllowed,
+                        "tyreCompound": car_status.m_visualTyreCompound
+                    }
+                    await sio.emit('car_status_update', payload)
+
+                elif packet_type_id == 1: # Session
+                    payload = {
+                        "trackId": packet.m_trackId,
+                        "weather": packet.m_weather,
+                        "totalLaps": packet.m_totalLaps,
+                        "uid": str(packet.m_header.m_sessionUID)
+                    }
+                    await sio.emit('session_update', payload)
+
+        except Exception as e:
+            logger.error(f"Error in packet processor: {e}")
+            
+        # Yield control briefly to allow IO tasks to run
+        await asyncio.sleep(0.01)
+
+async def start_background_tasks(app):
+    app['listener'] = TelemetryListener(port=20777)
+    await app['listener'].start()
+    app['processor'] = asyncio.create_task(packet_processor(app['listener']))
+
+async def cleanup_background_tasks(app):
+    app['listener'].stop()
+    app['processor'].cancel()
+    await app['processor']
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
+    # Setup background tasks for aiohttp
+    app.on_startup.append(start_background_tasks)
+    app.on_cleanup.append(cleanup_background_tasks)
+    
+    # Run App
+    web.run_app(app, port=3001)

@@ -200,7 +200,7 @@ export default function DashboardPage() {
                         <div className="flex flex-col items-center w-full mt-4">
                             <span className="text-sm font-bold text-gold tracking-[0.2em] mb-4">CURRENT LAP</span>
                             <span className="text-[7rem] font-mono font-bold text-white leading-none tabular-nums">
-                                {lapData?.currentLapTime ? (lapData.currentLapTime / 1000).toFixed(3) : '0.000'}
+                                {formatLapTime(lapData?.currentLapTime)}
                             </span>
                         </div>
 

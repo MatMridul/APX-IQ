@@ -55,20 +55,32 @@ export const useTelemetry = () => {
         if (!socket) return;
 
         const onConnect = () => {
-            console.log('Connected to Telemetry Stream');
+            console.log('✅ Connected to Telemetry Stream');
             setIsConnected(true);
         };
 
         const onDisconnect = () => {
-            console.log('Disconnected from Telemetry Stream');
+            console.log('❌ Disconnected from Telemetry Stream');
             setIsConnected(false);
         };
 
         // Socket listeners only update refs
-        const onTelemetry = (data: TelemetryData) => { telemetryRef.current = data; };
-        const onLap = (data: LapData) => { lapRef.current = data; };
-        const onSession = (data: SessionData) => { sessionRef.current = data; };
-        const onCarStatus = (data: CarStatusData) => { carStatusRef.current = data; };
+        const onTelemetry = (data: TelemetryData) => {
+            console.log('📡 Telemetry received:', data);
+            telemetryRef.current = data;
+        };
+        const onLap = (data: LapData) => {
+            console.log('🏁 Lap data received:', data);
+            lapRef.current = data;
+        };
+        const onSession = (data: SessionData) => {
+            console.log('🎮 Session data received:', data);
+            sessionRef.current = data;
+        };
+        const onCarStatus = (data: CarStatusData) => {
+            console.log('🚗 Car status received:', data);
+            carStatusRef.current = data;
+        };
 
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
@@ -77,7 +89,10 @@ export const useTelemetry = () => {
         socket.on('session_update', onSession);
         socket.on('car_status_update', onCarStatus);
 
-        if (socket.connected) setIsConnected(true);
+        if (socket.connected) {
+            console.log('✅ Socket already connected');
+            setIsConnected(true);
+        }
 
         return () => {
             socket.off('connect', onConnect);

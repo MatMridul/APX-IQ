@@ -15,9 +15,11 @@ class UDPListenerProtocol(asyncio.DatagramProtocol):
 
     def datagram_received(self, data, addr):
         # Push raw data to queue for non-blocking processing
-        # print(f"DEBUG: Received {len(data)} bytes from {addr}")
         try:
             self.queue.put_nowait((data, addr))
+            # Log every 60th packet
+            if self.queue.qsize() % 60 == 0:
+                logger.info(f"📡 UDP packet received from {addr} | Queue: {self.queue.qsize()}")
         except asyncio.QueueFull:
             logger.warning("Packet Queue Full! Dropping packet.")
 

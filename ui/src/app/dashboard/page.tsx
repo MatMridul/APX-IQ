@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTelemetry } from '@/hooks/useTelemetry';
 import { CarbonPanel, MetricValue, BarGauge } from '@/components/f1/Primitives';
 import { LineChart, Line, ResponsiveContainer, YAxis, ReferenceLine } from 'recharts';
-import { Activity, Signal } from 'lucide-react';
+import { Activity, Signal, Brain } from 'lucide-react';
+import Link from 'next/link';
 
 // --- Components ---
 
@@ -151,13 +152,19 @@ export default function DashboardPage() {
                         </div>
 
                         {/* RIGHT: DATA & STATUS */}
-                        <div className="col-span-3 flex items-center justify-end" style={{ gap: '4rem' }}>
+                        <div className="col-span-3 flex items-center justify-end" style={{ gap: '2rem' }}>
                             <div className="flex flex-col text-right">
                                 <span className="text-[10px] text-silver/60 font-bold tracking-wider">LAP</span>
                                 <span className="text-2xl font-mono font-bold text-gold leading-none">
                                     {lapData?.lap ?? 0}<span className="text-sm text-silver">/{session?.totalLaps ?? '-'}</span>
                                 </span>
                             </div>
+                            <Link href="/dashboard/intelligence">
+                                <button className="px-4 py-2 bg-gold/20 hover:bg-gold/30 border border-gold/50 rounded flex items-center gap-2 text-gold font-bold transition-all">
+                                    <Brain size={16} />
+                                    <span className="text-xs tracking-wider">INTELLIGENCE</span>
+                                </button>
+                            </Link>
                             <div className={`px-4 py-1.5 rounded flex items-center gap-2 border ${isConnected ? 'border-green-500/50 bg-green-500/10' : 'border-red-500/50 bg-red-500/10'}`}>
                                 <Signal size={16} className={isConnected ? "text-green-500 animate-pulse" : "text-red-500"} />
                                 <span className={`text-xs font-bold ${isConnected ? "text-green-400" : "text-red-400"}`}>{isConnected ? 'LIVE FEED' : 'NO SIGNAL'}</span>

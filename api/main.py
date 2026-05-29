@@ -4,7 +4,13 @@ from typing import List
 import asyncio
 import logging
 import json
+import sys
+from pathlib import Path
 import uvicorn
+
+# Add project root to path for absolute imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 # Ingestion Imports
 from ingestion.listener import TelemetryListener
@@ -26,6 +32,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Intelligence Layer Router
+from api.intelligence_router import router as intelligence_router
+app.include_router(intelligence_router)
+
+# Telemetry Router
+from api.telemetry_router import router as telemetry_router
+app.include_router(telemetry_router)
 
 # -------------------------------------------------------------------------
 # Global State (Shared between API and Ingestion)
@@ -93,8 +107,9 @@ async def broadcast_worker():
 
 @app.on_event("startup")
 async def startup_event():
-    # Run ingestion as background tasks within the FastAPI loop
-    asyncio.create_task(ingestion_worker())
+    # NOTE: Ingestion is handled by the dedicated ingestion service (run_ingestion.py)
+    # The API server only provides REST endpoints, not UDP ingestion
+    # asyncio.create_task(ingestion_worker())  # DISABLED - using dedicated service
     asyncio.create_task(broadcast_worker())
 
 # -------------------------------------------------------------------------

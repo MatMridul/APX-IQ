@@ -1,138 +1,176 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+"""
+APX IQ — FastAPI Application
+==============================
+
+Startup order:
+  1. Load .env
+  2. Configure structured logging
+  3. Connect database pool
+  4. Mount routers
+  5. Start background broadcast worker
+"""
+
 import asyncio
-import logging
 import json
+import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import List
+
 import uvicorn
+from dotenv import load_dotenv
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-# Add project root to path for absolute imports
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# ─── Bootstrap ────────────────────────────────────────────────────────────────
 
-# Ingestion Imports
-from ingestion.listener import TelemetryListener
-from ingestion.router import PacketRouter
-from ingestion.decoder import PacketDecoder
+# Load .env before anything reads os.getenv
+load_dotenv()
+
+# Project root on sys.path for absolute imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Structured logging must be configured before any logger is created
+from core.logging_config import configure_logging, get_logger
+configure_logging()
+log = get_logger("APXIQ.API")
+
+from core.database import db
 from core.session_manager import SessionManager
+from ingestion.router import PacketRouter
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("APXIQ.API")
+# ─── Lifespan ─────────────────────────────────────────────────────────────────
 
-app = FastAPI(title="APX IQ API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan — runs startup code, then yields, then shutdown."""
+    log.info("apxiq_starting", version="1.0")
 
-# CORS for Frontend
+    # Database
+    await db.connect()
+
+    # Background broadcast worker
+    app.state.broadcast_task = asyncio.create_task(broadcast_worker())
+
+    yield
+
+    # Cleanup
+    log.info("apxiq_shutting_down")
+    app.state.broadcast_task.cancel()
+    try:
+        await app.state.broadcast_task
+    except asyncio.CancelledError:
+        pass
+    await db.close()
+    log.info("apxiq_stopped")
+
+
+# ─── App ──────────────────────────────────────────────────────────────────────
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+
+app = FastAPI(
+    title="APX IQ API",
+    version="1.0.0",
+    description="Real-time F1 telemetry analysis platform",
+    lifespan=lifespan,
+)
+
+# Rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS — env-based origin whitelist
+_raw_origins = os.getenv("CORS_ORIGINS", "*")
+cors_origins  = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Intelligence Layer Router
-from api.intelligence_router import router as intelligence_router
-app.include_router(intelligence_router)
+# ─── Routers ──────────────────────────────────────────────────────────────────
 
-# Telemetry Router
-from api.telemetry_router import router as telemetry_router
+from api.intelligence_router import router as intelligence_router
+from api.telemetry_router     import router as telemetry_router
+
+app.include_router(intelligence_router)
 app.include_router(telemetry_router)
 
-# -------------------------------------------------------------------------
-# Global State (Shared between API and Ingestion)
-# -------------------------------------------------------------------------
+# ─── WebSocket broadcast state ────────────────────────────────────────────────
+
 class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
+    def __init__(self) -> None:
+        self._connections: List[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
+    async def connect(self, ws: WebSocket) -> None:
+        await ws.accept()
+        self._connections.append(ws)
+        log.info("ws_client_connected", total=len(self._connections))
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    def disconnect(self, ws: WebSocket) -> None:
+        self._connections.discard(ws) if hasattr(self._connections, "discard") \
+            else (self._connections.remove(ws) if ws in self._connections else None)
+        log.info("ws_client_disconnected", total=len(self._connections))
 
-    async def broadcast(self, message: dict):
-        # Broadcast to all connected clients
-        if not self.active_connections:
+    async def broadcast(self, message: dict) -> None:
+        if not self._connections:
             return
-            
-        json_msg = json.dumps(message)
-        for connection in self.active_connections:
+        payload = json.dumps(message)
+        dead: List[WebSocket] = []
+        for ws in list(self._connections):
             try:
-                await connection.send_text(json_msg)
+                await ws.send_text(payload)
             except Exception:
-                pass # Handle disconnects gracefully in loop
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(ws)
 
-manager = ConnectionManager()
-broadcast_queue = asyncio.Queue(maxsize=1000)
+
+manager       = ConnectionManager()
+broadcast_queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
 session_manager = SessionManager()
-packet_router = PacketRouter(session_manager, broadcast_queue)
+packet_router   = PacketRouter(session_manager, broadcast_queue)
 
-# -------------------------------------------------------------------------
-# Background Tasks
-# -------------------------------------------------------------------------
 
-async def ingestion_worker():
-    """
-    Runs the UDP Listener and routes packets.
-    """
-    logger.info("Starting Ingestion Worker...")
-    listener = TelemetryListener(port=20777)
-    await listener.start()
-    
-    try:
-        while True:
-            data, addr = await listener.get_packet()
-            packet = PacketDecoder.decode(data)
-            if packet:
-                await packet_router.route(packet)
-    except asyncio.CancelledError:
-        logger.info("Ingestion Worker Cancelled")
-    finally:
-        listener.stop()
-
-async def broadcast_worker():
-    """
-    Consumes messages from Router and sends to WebSockets.
-    """
-    logger.info("Starting Broadcast Worker...")
+async def broadcast_worker() -> None:
+    log.info("broadcast_worker_started")
     while True:
         msg = await broadcast_queue.get()
         await manager.broadcast(msg)
         broadcast_queue.task_done()
 
-@app.on_event("startup")
-async def startup_event():
-    # NOTE: Ingestion is handled by the dedicated ingestion service (run_ingestion.py)
-    # The API server only provides REST endpoints, not UDP ingestion
-    # asyncio.create_task(ingestion_worker())  # DISABLED - using dedicated service
-    asyncio.create_task(broadcast_worker())
 
-# -------------------------------------------------------------------------
-# Endpoints
-# -------------------------------------------------------------------------
+# ─── Endpoints ────────────────────────────────────────────────────────────────
 
-@app.get("/health")
+@app.get("/health", tags=["System"])
 async def health_check():
     return {
         "status": "online",
-        "ingestion": "running",
+        "db_connected":   db.is_connected,
         "session_active": session_manager.is_active,
-        "active_clients": len(manager.active_connections)
+        "active_clients": len(manager._connections),
     }
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            await websocket.receive_text() # Keep alive / wait for commands
+            await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("API_PORT", 8000))
+    uvicorn.run("api.main:app", host="0.0.0.0", port=port, reload=True)

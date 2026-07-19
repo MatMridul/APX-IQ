@@ -12,15 +12,15 @@ Endpoints:
     - GET  /telemetry/session/current    — Get current session info
 """
 
-import logging
 from typing import Optional, List
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
-# import asyncpg  # Reserved for future database migration (Phase 5C)
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, field_validator
 
-logger = logging.getLogger("APXIQ.API.Telemetry")
+from core.logging_config import get_logger
+
+log = get_logger("APXIQ.API.Telemetry")
 
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
 
@@ -122,8 +122,7 @@ class InMemoryLapStorage:
             "created_at": datetime.now(),
         }
         
-        logger.info(f"Saved lap {lap_id}: Lap {lap_data.lap_number}, {len(lap_data.telemetry)} points")
-        return lap_id
+        log.info("lap_saved", lap_id=lap_id, lap_number=lap_data.lap_number, points=len(lap_data.telemetry))        return lap_id
     
     def get_lap(self, lap_id: int) -> Optional[dict]:
         """Get a lap by ID."""
@@ -270,7 +269,7 @@ async def save_lap(lap_data: SaveLapRequest):
         )
     
     lap_id = _lap_storage.save_lap(lap_data)
-    
+    log.info("lap_save_request", lap_number=lap_data.lap_number, points=len(lap_data.telemetry))
     return {
         "lap_id": lap_id,
         "message": f"Lap {lap_data.lap_number} saved successfully",

@@ -12,13 +12,13 @@ import React, { PropsWithChildren } from "react";
 
 export const DashboardViewport: React.FC<PropsWithChildren> = ({ children }) => {
   return (
-    <div className="w-screen h-screen bg-[#030305] flex items-center justify-center p-2 overflow-hidden select-none">
+    <div className="w-screen h-screen bg-[#020203] flex items-center justify-center p-1 sm:p-1.5 overflow-hidden select-none">
       {/* 16:9 Aspect Ratio Frame Container */}
       <div
-        className="relative shadow-2xl rounded-2xl overflow-hidden"
+        className="relative shadow-2xl overflow-hidden w-full h-full"
         style={{
-          width: "min(calc(100vw - 16px), calc((100vh - 16px) * 16 / 9))",
-          height: "min(calc((100vw - 16px) * 9 / 16), calc(100vh - 16px))",
+          maxWidth: "min(calc(100vw - 8px), calc((100vh - 8px) * 16 / 9))",
+          maxHeight: "min(calc((100vw - 8px) * 9 / 16), calc(100vh - 8px))",
           aspectRatio: "16 / 9",
         }}
       >

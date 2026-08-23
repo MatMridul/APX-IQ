@@ -17,6 +17,7 @@
 
 import React from "react";
 import { DashboardHeader } from "./DashboardHeader";
+import { RaceCarTelemetry } from "./RaceCarTelemetry";
 
 export const DashboardCanvas: React.FC = () => {
   return (
@@ -40,13 +41,8 @@ export const DashboardCanvas: React.FC = () => {
       </div>
 
       {/* ── 02: CAR & WHEEL TELEMETRY REGION (top: 15.0%, left: 6.7%, w: 20.8%, h: 65.4%) ── */}
-      <div className="absolute top-[15.0%] left-[6.7%] w-[20.8%] h-[65.4%] border border-dashed border-[#B7A06A]/30 flex flex-col items-center justify-center pointer-events-none z-10">
-        <span className="text-[10px] font-mono text-[#B7A06A]/70 uppercase tracking-widest font-bold">
-          [CAR & WHEEL REGION]
-        </span>
-        <span className="text-[8px] font-mono text-silver/40">
-          x: 6.7%, y: 15.0%, w: 20.8%, h: 65.4%
-        </span>
+      <div className="absolute top-[15.0%] left-[6.7%] w-[20.8%] h-[65.4%] z-10">
+        <RaceCarTelemetry />
       </div>
 
       {/* ── 03: CENTRAL TELEMETRY CLUSTER HERO (top: 23.0%, left: 30.7%, w: 36.8%, h: 48.5%) ── */}

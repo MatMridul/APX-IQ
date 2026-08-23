@@ -10,6 +10,7 @@ import {
   createChart,
   ColorType,
   LineStyle,
+  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type LineData,
@@ -18,12 +19,12 @@ import { apxColors } from "@/lib/theme";
 import type { HistoryPoint } from "@/hooks/useTelemetry";
 
 interface SpeedChartProps {
-  history:  HistoryPoint[];
-  avgSpeed: number;
-  maxSpeed: number;
+  history:   HistoryPoint[];
+  avgSpeed?: number;
+  maxSpeed?: number;
 }
 
-export function SpeedChart({ history, avgSpeed, maxSpeed }: SpeedChartProps) {
+export function SpeedChart({ history, avgSpeed = 0, maxSpeed = 0 }: SpeedChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef     = useRef<IChartApi | null>(null);
   const seriesRef    = useRef<ISeriesApi<"Line"> | null>(null);
@@ -40,8 +41,8 @@ export function SpeedChart({ history, avgSpeed, maxSpeed }: SpeedChartProps) {
         textColor:  apxColors.silver,
       },
       grid: {
-        vertLines:  { color: "rgba(255,255,255,0.04)" },
-        horzLines:  { color: "rgba(255,255,255,0.04)" },
+        vertLines: { color: "rgba(255,255,255,0.04)" },
+        horzLines: { color: "rgba(255,255,255,0.06)" },
       },
       rightPriceScale: { visible: false },
       leftPriceScale:  { visible: false },
@@ -63,7 +64,7 @@ export function SpeedChart({ history, avgSpeed, maxSpeed }: SpeedChartProps) {
     });
 
     // Main speed series
-    const speedSeries = chart.addLineSeries({
+    const speedSeries = chart.addSeries(LineSeries, {
       color:       apxColors.chartSpeed,
       lineWidth:   2,
       crosshairMarkerVisible: false,
@@ -72,7 +73,7 @@ export function SpeedChart({ history, avgSpeed, maxSpeed }: SpeedChartProps) {
     });
 
     // Avg line
-    const avgSeries = chart.addLineSeries({
+    const avgSeries = chart.addSeries(LineSeries, {
       color:      apxColors.silver + "80",
       lineWidth:  1,
       lineStyle:  LineStyle.Dashed,
@@ -82,7 +83,7 @@ export function SpeedChart({ history, avgSpeed, maxSpeed }: SpeedChartProps) {
     });
 
     // Max line
-    const maxSeries = chart.addLineSeries({
+    const maxSeries = chart.addSeries(LineSeries, {
       color:      apxColors.alert + "90",
       lineWidth:  1,
       lineStyle:  LineStyle.Dotted,

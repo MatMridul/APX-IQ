@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
-import { Badge } from "@/components/ui/badge";
 import { Activity, Gamepad2 } from "lucide-react";
 
 export default function ConnectionStatus() {

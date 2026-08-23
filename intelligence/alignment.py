@@ -26,7 +26,7 @@ Usage:
     # Both DataFrames now have identical 'distance_m' columns
 """
 
-import logging
+from core.logging_config import get_logger
 from typing import Optional
 
 import numpy as np
@@ -35,7 +35,7 @@ from scipy.interpolate import PchipInterpolator
 
 from .constants import ALIGNMENT_GRID_POINTS
 
-logger = logging.getLogger("APXIQ.Intelligence.Alignment")
+log = get_logger("APXIQ.Intelligence.Alignment")
 
 
 class DistanceAligner:
@@ -121,7 +121,7 @@ class DistanceAligner:
         # Create the shared equidistant grid
         shared_grid = np.linspace(grid_min, grid_max, self.grid_points)
 
-        logger.info(
+        log.info(
             f"Aligning onto shared grid: {grid_min:.0f}m → {grid_max:.0f}m "
             f"({self.grid_points} points, ~{(grid_max - grid_min) / self.grid_points:.1f}m spacing)"
         )
@@ -179,7 +179,7 @@ class DistanceAligner:
         valid_grid = grid[mask]
 
         if len(valid_grid) < 10:
-            logger.warning(
+            log.warning(
                 f"[{label}] Only {len(valid_grid)} valid grid points. "
                 f"Data range: [{d_min:.0f}, {d_max:.0f}]"
             )
@@ -209,7 +209,7 @@ class DistanceAligner:
                     interpolator = PchipInterpolator(distances, values)
                     result[channel] = interpolator(valid_grid)
                 except ValueError as e:
-                    logger.warning(
+                    log.warning(
                         f"[{label}] PCHIP failed for {channel}: {e}. "
                         f"Falling back to linear interpolation."
                     )
@@ -226,7 +226,7 @@ class DistanceAligner:
 
         aligned_df = pd.DataFrame(result)
 
-        logger.debug(
+        log.debug(
             f"[{label}] Aligned: {len(df)} raw → {len(aligned_df)} grid points"
         )
         return aligned_df
@@ -262,7 +262,7 @@ class DistanceAligner:
             return 0.0
         ratio = user_max_distance / ghost_max_distance
         if abs(ratio - 1.0) > 0.05:
-            logger.warning(
+            log.warning(
                 f"Track length mismatch: user={user_max_distance:.0f}m, "
                 f"ghost={ghost_max_distance:.0f}m (ratio={ratio:.3f}). "
                 f"Alignment quality may be degraded."

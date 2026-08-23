@@ -1,32 +1,34 @@
 "use client";
 
 /**
- * Intelligence Page
+ * APX IQ Mission Control — Post-Race Telemetry & Strategy Suite
  *
  * Architecture:
- *  - All API calls go through React Query hooks (useIntelligence.ts)
- *  - UI sections are isolated components (components/f1/intelligence/)
- *  - This page is purely orchestration: state + layout
- *  - Zero raw fetch() calls here
+ *  - Left: Strategy Control Console & FastF1 Target Driver Battle Selector
+ *  - Center: High-Precision Multi-Line Telemetry Delta Chart (User vs Ghost)
+ *  - Right: Interactive Mechanical Setup Adjustment Sliders & AI Race Engineer Briefing
  */
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { ArrowLeft, Brain, Activity, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Brain, Activity, Loader2, Sparkles, FileText, ChevronDown } from "lucide-react";
 
-import { Panel }          from "@/components/f1/primitives/Panel";
-import { Badge }          from "@/components/f1/primitives/Badge";
-import { StatusPanel }    from "@/components/f1/intelligence/StatusPanel";
-import { LapSelector }    from "@/components/f1/intelligence/LapSelector";
-import { GhostSelector }  from "@/components/f1/intelligence/GhostSelector";
-import { ReportView }     from "@/components/f1/intelligence/ReportView";
+import { StrategyConsole } from "@/components/f1/intelligence/StrategyConsole";
+import { TelemetryDeltaChart } from "@/components/f1/intelligence/TelemetryDeltaChart";
+import { SetupMatrixSliders } from "@/components/f1/intelligence/SetupMatrixSliders";
+import { AiEngineerBriefingBox } from "@/components/f1/intelligence/AiEngineerBriefingBox";
+import { ReportView } from "@/components/f1/intelligence/ReportView";
+import { Badge } from "@/components/f1/primitives/Badge";
+import { cn } from "@/lib/utils";
 
 import {
   useGenerateReport,
   useSaveReport,
   useProfileHardware,
   useReportHistory,
+  useGhostLap,
+  useLapTelemetry,
 } from "@/hooks/useIntelligence";
 
 import {
@@ -36,308 +38,203 @@ import {
   type LapReport,
 } from "@/lib/api/intelligence";
 
-import { useLapTelemetry } from "@/hooks/useIntelligence";
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function IntelligencePage() {
-  // ── Local UI state ───────────────────────────────────────────────────────
-  const [selectedLapId,   setSelectedLapId]   = useState<number | null>(null);
-  const [useMockData,     setUseMockData]     = useState(true);
-  const [ghostLap,        setGhostLap]        = useState<GhostLap | null>(null);
-  const [hardwareProfile, setHardwareProfile] = useState<HardwareProfile | null>(null);
-  const [report,          setReport]          = useState<LapReport | null>(null);
+  // ── Local State ───────────────────────────────────────────────────────────
+  const [year, setYear] = useState(2024);
+  const [trackId, setTrackId] = useState(5); // Monaco / Imola
+  const [driver, setDriver] = useState("VER");
+  const [ghostEnabled, setGhostEnabled] = useState(false);
+  const [useMockData, setUseMockData] = useState(true);
+  const [selectedLapId, setSelectedLapId] = useState<number | null>(null);
 
-  // ── React Query hooks ────────────────────────────────────────────────────
+  const [hardwareProfile, setHardwareProfile] = useState<HardwareProfile | null>(null);
+  const [report, setReport] = useState<LapReport | null>(null);
+  const [historyReport, setHistoryReport] = useState<LapReport | null>(null);
+  const [showFullDoc, setShowFullDoc] = useState(false);
+
+  const activeReport = report ?? historyReport;
+
+  // ── React Query Hooks ────────────────────────────────────────────────────
+  const { data: ghostData, isFetching: isGhostLoading, refetch: fetchGhost } = useGhostLap(
+    trackId,
+    year,
+    driver,
+    ghostEnabled
+  );
+
   const { data: lapTelemetry } = useLapTelemetry(useMockData ? null : selectedLapId);
-  const generateReport  = useGenerateReport();
-  const saveReport      = useSaveReport();
+  const generateReport = useGenerateReport();
+  const saveReport = useSaveReport();
   const profileHardware = useProfileHardware();
   const { data: history = [] } = useReportHistory(10);
 
+  // ── Derived Telemetry Traces ─────────────────────────────────────────────
+  const mockPayload = buildMockPayload();
+  const userTrace = !useMockData && lapTelemetry?.telemetry ? lapTelemetry.telemetry : mockPayload.user_telemetry;
+  const ghostTrace = ghostData?.telemetry?.length ? ghostData.telemetry : mockPayload.ghost_telemetry;
+
   // ── Handlers ─────────────────────────────────────────────────────────────
-
-  const handleGenerate = async () => {
-    let payload;
-
-    if (useMockData || !selectedLapId || !lapTelemetry) {
-      payload = buildMockPayload();
-    } else {
-      const ghostTelemetry = ghostLap?.telemetry?.length
-        ? ghostLap.telemetry
-        : lapTelemetry.telemetry.map((t) => ({
-            ...t,
-            speed_kph: t.speed_kph * 1.02,
-            throttle:  Math.min(1, t.throttle * 1.05),
-          }));
-
-      payload = {
-        user_telemetry:  lapTelemetry.telemetry,
-        ghost_telemetry: ghostTelemetry,
-        grid_points:     1000,
-      };
-    }
-
-    generateReport.mutate(payload, {
-      onSuccess: (data) => setReport(data),
-    });
+  const handleLoadGhost = () => {
+    setGhostEnabled(true);
+    fetchGhost();
   };
 
-  const handleProfileHardware = () => {
-    if (!selectedLapId) return;
-    profileHardware.mutate(selectedLapId, {
-      onSuccess: (profile) => setHardwareProfile(profile),
+  const handleGenerate = () => {
+    const payload = {
+      user_telemetry: userTrace,
+      ghost_telemetry: ghostTrace,
+      grid_points: 1000,
+    };
+
+    generateReport.mutate(payload, {
+      onSuccess: (data) => {
+        setReport(data);
+      },
     });
   };
 
   const handleSaveReport = () => {
     if (!report) return;
     saveReport.mutate({
-      user_lap_id:      selectedLapId,
-      ghost_lap_id:     ghostLap?.ghost_lap_id ?? null,
-      session_uid:      null,
-      lap_number:       null,
-      report_type:      "lap_debrief",
-      title:            report.title,
-      markdown:         report.markdown,
-      summary:          report.summary,
-      key_findings:     report.key_findings,
-      generated_by:     report.generated_by,
+      user_lap_id: selectedLapId,
+      ghost_lap_id: ghostData?.ghost_lap_id ?? null,
+      session_uid: null,
+      lap_number: null,
+      report_type: "lap_debrief",
+      title: report.title,
+      markdown: report.markdown,
+      summary: report.summary,
+      key_findings: report.key_findings,
+      generated_by: report.generated_by,
       hardware_profile: hardwareProfile,
     });
   };
 
-  // ─── Render ──────────────────────────────────────────────────────────────
-
   return (
-    <div className="min-h-screen bg-apx-black text-silver p-6 flex flex-col gap-6">
-
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <Link href="/dashboard">
-              <button className="flex items-center gap-1.5 text-xs text-silver/60 hover:text-gold transition-colors">
-                <ArrowLeft size={13} /> DASHBOARD
-              </button>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-[#050507] text-silver font-sans p-5 flex flex-col gap-5 select-none">
+      
+      {/* ── TOP HEADER / MISSION CONTROL BAR ─────────────────────────────── */}
+      <header className="flex items-center justify-between px-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#121215] via-[#0A0A0D] to-[#121215] border border-white/10 shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+        
+        {/* Left: Branding & Back button */}
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-gold/10 hover:text-gold border border-white/10 hover:border-gold/30 rounded-xl text-xs text-silver/80 font-mono transition-all">
+              <ArrowLeft size={12} /> COCKPIT HUD
+            </button>
+          </Link>
+          <div className="h-6 w-[1px] bg-white/10" />
           <h1
-            className="text-5xl font-black text-white leading-none"
+            className="text-2xl font-black italic tracking-tighter text-white"
             style={{ fontFamily: "var(--font-rajdhani)" }}
           >
-            <span className="text-gold">INTELLIGENCE</span> LAYER
+            <span className="text-gold">APX</span> IQ <span className="text-white font-normal text-lg not-italic font-sans">Mission Control</span>
           </h1>
-          <p className="text-silver/50 text-sm mt-1">
-            AI-powered lap analysis & race engineering
-          </p>
         </div>
-        <Badge variant="gold" pulse>
-          <Brain size={11} /> ANALYSIS ENGINE
-        </Badge>
-      </div>
 
-      {/* ── Top row: 4 panels ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
-        <StatusPanel />
-
-        <LapSelector
-          selectedLapId={selectedLapId}
-          onSelect={setSelectedLapId}
-          useMockData={useMockData}
-          onMockToggle={setUseMockData}
-        />
-
-        <GhostSelector onGhostLoaded={setGhostLap} />
-
-        {/* Generate panel */}
-        <Panel title="REPORT GENERATION">
-          <div className="flex flex-col gap-3 h-full">
-            <p className="text-xs text-silver/60">
-              Generate an AI lap debrief comparing your inputs against the ghost.
-            </p>
-
-            {/* Status summary */}
-            <div className="flex flex-col gap-1 text-[10px] border border-white/10 rounded p-2 bg-white/5">
-              {[
-                ["User Lap", selectedLapId ? `Lap ${selectedLapId}` : useMockData ? "Mock" : "None"],
-                ["Ghost",    ghostLap ? `${ghostLap.driver} (${ghostLap.lap_time_s.toFixed(3)}s)` : "Simulated"],
-                ["Hardware", hardwareProfile ? hardwareProfile.tier_label : "Default"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between">
-                  <span className="text-silver/50">{k}:</span>
-                  <span className="text-white font-mono">{v}</span>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={handleGenerate}
-              disabled={generateReport.isPending || (!useMockData && !selectedLapId)}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gold hover:bg-gold/80 disabled:bg-silver/20 disabled:cursor-not-allowed text-black font-black rounded transition-all text-sm"
-            >
-              {generateReport.isPending
-                ? <><Loader2 size={16} className="animate-spin" /> GENERATING...</>
-                : <><Brain size={16} /> GENERATE DEBRIEF</>}
-            </button>
-
-            {generateReport.isPending && (
-              <p className="text-[10px] text-silver/50 text-center animate-pulse">
-                May take 30–60s with local LLM...
-              </p>
-            )}
-
-            {generateReport.isError && (
-              <div className="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500/30 rounded">
-                <AlertCircle size={12} className="text-red-400 shrink-0" />
-                <span className="text-xs text-red-400">
-                  {generateReport.error instanceof Error
-                    ? generateReport.error.message
-                    : "Generation failed"}
-                </span>
-              </div>
-            )}
+        {/* Center: Active Session / Circuit */}
+        <div className="flex items-center gap-6 font-mono text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-silver/50 uppercase text-[10px]">CIRCUIT:</span>
+            <span className="text-white font-bold">MONACO GP</span>
           </div>
-        </Panel>
-      </div>
-
-      {/* ── Hardware profiling row ───────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
-        <Panel title="HARDWARE PROFILING">
-          <div className="flex flex-col gap-3">
-            <p className="text-xs text-silver/60">
-              Analyse steering inputs to detect your controller type and scale coaching tips.
-            </p>
-
-            <button
-              onClick={handleProfileHardware}
-              disabled={profileHardware.isPending || !selectedLapId}
-              className="flex items-center justify-center gap-2 px-3 py-2 bg-gold/15 hover:bg-gold/25 disabled:opacity-50 border border-gold/40 rounded text-gold text-xs font-bold transition-all"
-            >
-              {profileHardware.isPending
-                ? <><Loader2 size={12} className="animate-spin" /> ANALYSING...</>
-                : <><Activity size={12} /> PROFILE HARDWARE</>}
-            </button>
-
-            {profileHardware.isError && (
-              <div className="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500/30 rounded">
-                <AlertCircle size={12} className="text-red-400 shrink-0" />
-                <span className="text-xs text-red-400">
-                  {profileHardware.error instanceof Error
-                    ? profileHardware.error.message
-                    : "Profiling failed"}
-                </span>
-              </div>
-            )}
-
-            {hardwareProfile && (
-              <div className="border-t border-white/10 pt-3 flex flex-col gap-2">
-                <div className="p-3 bg-gold/10 border border-gold/30 rounded">
-                  <div className="text-[10px] text-silver/50 mb-1">DETECTED</div>
-                  <div className="text-xl font-black text-gold" style={{ fontFamily: "var(--font-rajdhani)" }}>
-                    {hardwareProfile.tier_label}
-                  </div>
-                  <div className="text-xs text-silver/60">{hardwareProfile.detected_type}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {[
-                    ["Confidence",   `${(hardwareProfile.confidence * 100).toFixed(0)}%`],
-                    ["Steer Var",    hardwareProfile.steer_variance.toFixed(4)],
-                    ["Dominant Freq",`${hardwareProfile.dominant_freq_hz.toFixed(1)} Hz`],
-                    ["Brake Thresh", `${hardwareProfile.brake_threshold_m.toFixed(1)} m`],
-                  ].map(([k, v]) => (
-                    <div key={k} className="p-2 bg-white/5 rounded">
-                      <div className="text-silver/50 text-[10px] mb-0.5">{k}</div>
-                      <div className="text-white font-mono font-bold">{v}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {!hardwareProfile && !profileHardware.isPending && (
-              <p className="text-[10px] text-silver/40 italic">
-                Not profiled — using default coaching thresholds.
-              </p>
-            )}
+          <div className="h-4 w-[1px] bg-white/10" />
+          <div className="flex items-center gap-2">
+            <span className="text-silver/50 uppercase text-[10px]">ANALYSIS ENGINE:</span>
+            <span className="text-emerald-400 font-bold">FASTF1 FIA V2</span>
           </div>
-        </Panel>
+        </div>
 
-        {/* How it works */}
-        <Panel title="HOW IT WORKS">
-          <div className="grid grid-cols-3 gap-4 text-xs h-full">
-            {[
-              {
-                step: "1",
-                label: "ALIGNMENT",
-                desc: "Your lap and ghost are normalised onto a common distance grid using S-curve interpolation.",
-              },
-              {
-                step: "2",
-                label: "ANALYSIS",
-                desc: "Corner detection, delta computation and coaching rules identify where time is lost or gained.",
-              },
-              {
-                step: "3",
-                label: "SYNTHESIS",
-                desc: "AI generates a natural language debrief with actionable insights tailored to your hardware.",
-              },
-            ].map(({ step, label, desc }) => (
-              <div key={step} className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-3xl font-black text-gold/30"
-                    style={{ fontFamily: "var(--font-rajdhani)" }}
-                  >
-                    {step}
-                  </span>
-                  <span className="text-[10px] font-black text-gold uppercase tracking-widest">{label}</span>
-                </div>
-                <p className="text-silver/70 leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </div>
+        {/* Right: Actions */}
+        <div className="flex items-center gap-3">
+          <Badge variant="gold" pulse>
+            <Sparkles size={12} /> AI RACE ENGINEER ACTIVE
+          </Badge>
+        </div>
+      </header>
 
-      {/* ── Report ───────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {report && (
-          <ReportView
-            report={report}
-            onSave={handleSaveReport}
-            isSaving={saveReport.isPending}
+      {/* ── 3-COLUMN MISSION CONTROL WORKSPACE ─────────────────────────────── */}
+      <main className="grid grid-cols-12 gap-5 flex-1 items-start">
+        
+        {/* Column 1 (Left 3.5 cols): Strategy Control Console */}
+        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4">
+          <StrategyConsole
+            year={year}
+            onYearChange={setYear}
+            trackId={trackId}
+            onTrackChange={setTrackId}
+            driver={driver}
+            onDriverChange={setDriver}
+            isGhostLoading={isGhostLoading}
+            onLoadGhost={handleLoadGhost}
+            ghostLoaded={Boolean(ghostData?.telemetry?.length)}
+            ghostLapTime={ghostData?.lap_time_s}
+            onGenerateDebrief={handleGenerate}
+            isGenerating={generateReport.isPending}
+            useMockTelemetry={useMockData}
+            onToggleMock={setUseMockData}
           />
-        )}
-      </AnimatePresence>
+        </div>
 
-      {/* ── Report history ───────────────────────────────────────────────── */}
-      {!report && !generateReport.isPending && history.length > 0 && (
-        <Panel title="REPORT HISTORY">
-          <div className="flex flex-col gap-2">
-            {history.map((h) => (
+        {/* Column 2 (Center 5.5 cols): High-Precision Telemetry Speed / Throttle Delta */}
+        <div className="col-span-12 lg:col-span-6 flex flex-col gap-4">
+          <TelemetryDeltaChart
+            userTelemetry={userTrace}
+            ghostTelemetry={ghostTrace}
+          />
+
+          {/* If an active report is generated, provide toggle to view full written whitepaper/debrief */}
+          {activeReport && (
+            <div className="flex flex-col gap-3">
               <button
-                key={h.report_id}
-                onClick={() => {/* load from history */}}
-                className="w-full flex items-start justify-between p-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-gold/30 rounded transition-all text-left"
+                onClick={() => setShowFullDoc(!showFullDoc)}
+                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-gold/15 via-gold/5 to-transparent hover:bg-gold/20 border border-gold/40 rounded-2xl text-gold text-xs font-mono font-bold transition-all shadow-[0_0_15px_rgba(207,163,73,0.1)]"
               >
-                <div className="flex-1">
-                  <div className="text-sm text-white font-bold mb-0.5">{h.title}</div>
-                  <div className="text-xs text-silver/70 mb-1">{h.summary}</div>
-                  <div className="flex items-center gap-2 text-[10px] text-silver/50">
-                    <span>Lap {h.lap_number ?? "—"}</span>
-                    <span>·</span>
-                    <span className="font-mono">{h.generated_by}</span>
-                    <span>·</span>
-                    <span>{new Date(h.created_at).toLocaleString()}</span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <FileText size={14} />
+                  <span>{showFullDoc ? "HIDE FULL WRITTEN DEBRIEF" : "VIEW DETAILED RACE ENGINEER DEBRIEF"}</span>
                 </div>
-                <span className="text-gold text-xs mt-1">→</span>
+                <ChevronDown size={14} className={cn("transition-transform", showFullDoc && "rotate-180")} />
               </button>
-            ))}
-          </div>
-        </Panel>
-      )}
+
+              <AnimatePresence>
+                {showFullDoc && (
+                  <ReportView
+                    report={activeReport}
+                    onSave={handleSaveReport}
+                    isSaving={saveReport.isPending}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+
+        {/* Column 3 (Right 3 cols): Setup Matrix Sliders & AI Briefing Terminal */}
+        <div className="col-span-12 lg:col-span-3 flex flex-col gap-5">
+          <SetupMatrixSliders
+            initialFrontWing={3}
+            initialArb={10}
+            initialDiff={55}
+            initialBrakeBias={58}
+          />
+
+          <AiEngineerBriefingBox
+            findings={
+              report?.key_findings?.length
+                ? report.key_findings
+                : [
+                    "Engine temperature consistently high during final stint.",
+                    "Brake wear within acceptable thermal window.",
+                    "Fuel consumption tracking on target for next race.",
+                    "Trail-braking decay in Turn 4 gained +0.12s on apex entry.",
+                  ]
+            }
+            summary={report?.summary ?? "Optimal energy harvest across straight sections. Minimal front tyre degradation observed."}
+          />
+        </div>
+
+      </main>
 
     </div>
   );

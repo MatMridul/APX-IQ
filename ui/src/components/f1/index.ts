@@ -14,6 +14,3 @@ export * from './metrics';
 
 // Layout
 export * from './layout';
-
-// Legacy (keep for backwards compatibility, will be removed later)
-export { CarbonPanel, MetricValue as LegacyMetricValue, BarGauge as LegacyBarGauge } from './Primitives';

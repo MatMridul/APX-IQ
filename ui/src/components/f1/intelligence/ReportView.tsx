@@ -5,57 +5,97 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, CheckCircle, Save, Loader2 } from "lucide-react";
+import { Zap, CheckCircle, Save, Loader2, Award, ChevronRight, Gauge } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Panel } from "@/components/f1/primitives/Panel";
 import { Badge } from "@/components/f1/primitives/Badge";
 import type { LapReport } from "@/lib/api/intelligence";
 
 const MD_COMPONENTS = {
   h1: ({ children }: any) => (
-    <h1 className="text-2xl font-black text-gold mb-4 mt-6" style={{ fontFamily: "var(--font-rajdhani)" }}>{children}</h1>
+    <h1
+      className="text-2xl font-black text-white tracking-wide mb-4 mt-6 flex items-center gap-2 border-b border-gold/30 pb-2"
+      style={{ fontFamily: "var(--font-rajdhani)" }}
+    >
+      <span className="w-2 h-5 bg-gold rounded-sm inline-block" />
+      {children}
+    </h1>
   ),
   h2: ({ children }: any) => (
-    <h2 className="text-xl font-bold text-white mb-3 mt-5">{children}</h2>
+    <h2
+      className="text-lg font-bold text-gold uppercase tracking-wider mb-3 mt-6 flex items-center gap-2"
+      style={{ fontFamily: "var(--font-rajdhani)" }}
+    >
+      <ChevronRight size={16} className="text-gold" />
+      {children}
+    </h2>
   ),
   h3: ({ children }: any) => (
-    <h3 className="text-lg font-bold text-silver mb-2 mt-4">{children}</h3>
+    <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2 mt-4 text-silver">
+      {children}
+    </h3>
   ),
   p: ({ children }: any) => (
-    <p className="text-silver/90 mb-3 leading-relaxed">{children}</p>
+    <p className="text-silver/90 text-sm mb-4 leading-relaxed font-sans">{children}</p>
+  ),
+  hr: () => (
+    <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-gold/30 to-transparent my-6" />
   ),
   ul: ({ children }: any) => (
-    <ul className="list-disc list-inside space-y-1 mb-3 text-silver/90">{children}</ul>
+    <ul className="space-y-2 mb-4 text-silver/90 text-sm">{children}</ul>
   ),
-  li: ({ children }: any) => <li className="ml-4">{children}</li>,
+  li: ({ children }: any) => (
+    <li className="flex items-start gap-2 text-sm text-silver/90">
+      <span className="w-1.5 h-1.5 rounded-full bg-gold mt-2 shrink-0 shadow-[0_0_6px_rgba(207,163,73,0.8)]" />
+      <div>{children}</div>
+    </li>
+  ),
   strong: ({ children }: any) => (
     <strong className="text-gold font-bold">{children}</strong>
   ),
   code: ({ children }: any) => (
-    <code className="bg-white/10 px-1.5 py-0.5 rounded text-gold font-mono text-sm">
+    <code className="bg-gold/10 border border-gold/30 px-2 py-0.5 rounded text-gold font-mono text-xs">
       {children}
     </code>
   ),
   table: ({ children }: any) => (
-    <table className="w-full border-collapse border border-white/20 my-4">{children}</table>
+    <div className="w-full overflow-x-auto my-5 rounded-lg border border-gold/25 bg-black/60 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+      <table className="w-full text-left border-collapse text-xs font-mono">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: any) => (
+    <thead className="bg-white/5 border-b border-gold/30 text-gold font-bold tracking-wider uppercase text-[11px]">
+      {children}
+    </thead>
+  ),
+  tbody: ({ children }: any) => (
+    <tbody className="divide-y divide-white/5">{children}</tbody>
+  ),
+  tr: ({ children }: any) => (
+    <tr className="hover:bg-gold/[0.04] transition-colors">{children}</tr>
   ),
   th: ({ children }: any) => (
-    <th className="border border-white/20 px-3 py-2 bg-white/5 text-gold font-bold text-left">
-      {children}
-    </th>
+    <th className="px-4 py-3 text-gold font-bold whitespace-nowrap">{children}</th>
   ),
   td: ({ children }: any) => (
-    <td className="border border-white/20 px-3 py-2 text-silver">{children}</td>
+    <td className="px-4 py-3 text-silver/90 leading-normal">{children}</td>
+  ),
+  blockquote: ({ children }: any) => (
+    <blockquote className="border-l-2 border-gold bg-gold/5 px-4 py-2 my-4 text-xs text-silver/80 italic rounded-r">
+      {children}
+    </blockquote>
   ),
 };
 
 interface ReportViewProps {
-  report:    LapReport;
-  onSave:    () => void;
-  isSaving?: boolean;
+  report:       LapReport;
+  onSave:       () => void;
+  isSaving?:    boolean;
+  isStreaming?: boolean;
 }
 
-export function ReportView({ report, onSave, isSaving }: ReportViewProps) {
+export function ReportView({ report, onSave, isSaving, isStreaming }: ReportViewProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -64,54 +104,62 @@ export function ReportView({ report, onSave, isSaving }: ReportViewProps) {
       transition={{ duration: 0.4 }}
     >
       <Panel title={report.title}>
-        {/* Header row */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <Zap size={14} className="text-gold" />
-            <span className="text-xs text-silver/60">
-              Generated by{" "}
-              <span className="text-gold font-mono">{report.generated_by}</span>
-            </span>
+        {/* Header telemetry control bar */}
+        <div className="flex items-center justify-between mb-5 pb-3 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-gold/10 border border-gold/30">
+              <Zap size={13} className="text-gold" />
+              <span className="text-xs font-mono text-gold font-bold">
+                {report.generated_by.toUpperCase()}
+              </span>
+            </div>
+            {isStreaming && (
+              <span className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" /> STREAMING REAL-TIME DEBRIEF
+              </span>
+            )}
           </div>
           <button
             onClick={onSave}
-            disabled={isSaving}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/15 hover:bg-gold/25 disabled:opacity-50 border border-gold/40 rounded text-gold text-xs font-bold transition-all"
+            disabled={isSaving || isStreaming}
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-gold text-black hover:bg-gold/90 disabled:opacity-50 font-bold rounded text-xs shadow-[0_0_12px_rgba(207,163,73,0.3)] transition-all"
           >
             {isSaving
-              ? <><Loader2 size={11} className="animate-spin" /> SAVING...</>
-              : <><Save size={11} /> SAVE</>}
+              ? <><Loader2 size={12} className="animate-spin" /> SAVING...</>
+              : <><Save size={12} /> SAVE REPORT</>}
           </button>
         </div>
 
-        {/* Summary */}
-        <div className="mb-5 p-4 bg-white/5 rounded border border-gold/20">
-          <div className="text-[10px] text-gold font-black mb-2 tracking-widest uppercase">
-            Executive Summary
+        {/* Executive Summary Card */}
+        <div className="mb-6 p-4 bg-gradient-to-br from-gold/10 to-transparent rounded-lg border border-gold/30 shadow-[0_0_15px_rgba(207,163,73,0.08)]">
+          <div className="flex items-center gap-2 text-xs text-gold font-black mb-2 tracking-widest uppercase">
+            <Award size={14} className="text-gold" />
+            Executive Race Engineer Briefing
           </div>
-          <p className="text-white text-sm leading-relaxed">{report.summary}</p>
+          <p className="text-white text-sm leading-relaxed font-sans font-medium">{report.summary}</p>
         </div>
 
-        {/* Key findings */}
+        {/* Key findings bullets */}
         {report.key_findings.length > 0 && (
-          <div className="mb-5">
-            <div className="text-[10px] text-gold font-black mb-2 tracking-widest uppercase">
-              Key Findings
+          <div className="mb-6 bg-black/40 p-4 rounded-lg border border-white/10">
+            <div className="text-[11px] text-silver/60 font-bold mb-3 tracking-widest uppercase flex items-center gap-1.5">
+              <Gauge size={13} className="text-gold" />
+              Critical Time Loss & Gain Factors
             </div>
-            <ul className="flex flex-col gap-1.5">
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {report.key_findings.map((f, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <CheckCircle size={14} className="text-green-500 mt-0.5 shrink-0" />
-                  <span className="text-silver text-sm">{f}</span>
+                <li key={i} className="flex items-start gap-2 bg-white/[0.02] p-2 rounded border border-white/5">
+                  <CheckCircle size={14} className="text-gold mt-0.5 shrink-0" />
+                  <span className="text-silver text-xs font-mono">{f}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
 
-        {/* Full markdown report */}
-        <div className="prose prose-invert prose-sm max-w-none border-t border-white/10 pt-4">
-          <ReactMarkdown components={MD_COMPONENTS}>
+        {/* Full markdown report with styled GFM tables */}
+        <div className="border-t border-white/10 pt-4">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
             {report.markdown}
           </ReactMarkdown>
         </div>

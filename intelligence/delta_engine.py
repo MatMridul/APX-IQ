@@ -26,7 +26,7 @@ Usage:
     # result.cumulative_time_delta_ms[-1] = total time lost on this lap
 """
 
-import logging
+from core.logging_config import get_logger
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -34,7 +34,7 @@ import pandas as pd
 
 from .corner_detector import CornerMap
 
-logger = logging.getLogger("APXIQ.Intelligence.DeltaEngine")
+log = get_logger("APXIQ.Intelligence.DeltaEngine")
 
 
 # =========================================================================
@@ -235,7 +235,7 @@ class DeltaEngine:
             best_corner_index=best_corner,
         )
 
-        logger.info(
+        log.info(
             f"Delta computed: Total={total_time:+.0f}ms, "
             f"Avg speed delta={result.avg_speed_delta_kph:+.1f} km/h, "
             f"Brake points analyzed: {len(brake_deltas)}"
@@ -420,7 +420,7 @@ class DeltaEngine:
                     ),
                 })
 
-        logger.info(
+        log.info(
             f"Found {len(regions)} significant time-loss regions "
             f"(threshold={threshold_ms}ms)"
         )

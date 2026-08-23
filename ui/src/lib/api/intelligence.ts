@@ -152,6 +152,18 @@ export async function profileHardware(steerTrace: number[]): Promise<HardwarePro
   return res.json();
 }
 
+export async function fetchTrackLayout(
+  trackId: number,
+  year = 2024,
+  driver = "VER",
+): Promise<any> {
+  const res = await fetch(
+    `${BASE}/intelligence/track/${trackId}/layout?year=${year}&driver=${driver}&session_type=Q`,
+  );
+  if (!res.ok) throw new Error(`Failed to load track layout: ${res.statusText}`);
+  return res.json();
+}
+
 export async function generateLapReport(payload: GenerateReportPayload): Promise<LapReport> {
   const res = await fetch(`${BASE}/intelligence/report/lap`, {
     method: "POST",
@@ -160,6 +172,33 @@ export async function generateLapReport(payload: GenerateReportPayload): Promise
   });
   if (!res.ok) throw new Error(`Report generation failed: ${res.status} ${res.statusText}`);
   return res.json();
+}
+
+export async function generateLapReportStream(
+  payload: GenerateReportPayload,
+  onChunk: (chunk: string) => void,
+): Promise<string> {
+  const res = await fetch(`${BASE}/intelligence/report/lap/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Streaming failed: ${res.status}`);
+  if (!res.body) throw new Error("No response body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let fullMarkdown = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    fullMarkdown += text;
+    onChunk(text);
+  }
+
+  return fullMarkdown;
 }
 
 export async function saveReport(payload: SaveReportPayload): Promise<{ report_id: number }> {

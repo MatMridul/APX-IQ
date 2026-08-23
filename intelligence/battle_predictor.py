@@ -29,13 +29,13 @@ Usage:
     # prediction.overtake_lap = 4 → "You'll catch them in 4 laps"
 """
 
-import logging
+from core.logging_config import get_logger
 from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
 
-logger = logging.getLogger("APXIQ.Intelligence.BattlePredictor")
+log = get_logger("APXIQ.Intelligence.BattlePredictor")
 
 
 # =========================================================================
@@ -288,7 +288,7 @@ class BattlePredictor:
             risk_level=risk,
         )
 
-        logger.info(
+        log.info(
             f"Race projection: P{current_position} → P{predicted_position} "
             f"(risk={risk}, ahead={gap_ahead_s:.1f}s at {ahead_pace:+.2f}s/lap, "
             f"behind={gap_behind_s:.1f}s at {behind_pace:+.2f}s/lap)"

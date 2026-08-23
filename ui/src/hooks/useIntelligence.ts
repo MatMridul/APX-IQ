@@ -26,6 +26,7 @@ import {
   generateLapReport,
   saveReport,
   profileHardware,
+  fetchTrackLayout,
   type GenerateReportPayload,
   type SaveReportPayload,
 } from "@/lib/api/intelligence";
@@ -171,3 +172,14 @@ export function useCheckHealth() {
       queryFn:  fetchBackendStatus,
     });
 }
+
+/** Track 2D Ribbon Layout hook */
+export function useTrackLayout(trackId: number, year = 2024, driver = "VER") {
+  return useQuery({
+    queryKey: ["intelligence", "track", trackId, year, driver],
+    queryFn:  () => fetchTrackLayout(trackId, year, driver),
+    staleTime: Infinity,
+    retry: 1,
+  });
+}
+

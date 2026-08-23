@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import {
   createChart,
   ColorType,
+  AreaSeries,
   type IChartApi,
   type ISeriesApi,
   type AreaData,
@@ -57,7 +58,7 @@ export function ThrottleBrakeChart({ history }: ThrottleBrakeChartProps) {
     });
 
     // Throttle — green area
-    const throttleSeries = chart.addAreaSeries({
+    const throttleSeries = chart.addSeries(AreaSeries, {
       lineColor:    apxColors.chartThrottle,
       topColor:     apxColors.chartThrottle + "40",
       bottomColor:  apxColors.chartThrottle + "00",
@@ -68,7 +69,7 @@ export function ThrottleBrakeChart({ history }: ThrottleBrakeChartProps) {
     });
 
     // Brake — red area, rendered on top
-    const brakeSeries = chart.addAreaSeries({
+    const brakeSeries = chart.addSeries(AreaSeries, {
       lineColor:    apxColors.chartBrake,
       topColor:     apxColors.chartBrake + "50",
       bottomColor:  apxColors.chartBrake + "00",

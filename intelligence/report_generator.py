@@ -30,7 +30,7 @@ Usage:
     gen = ReportGenerator(backend="ollama", ollama_model="gpt-oss:20b")
 """
 
-import logging
+from core.logging_config import get_logger
 import os
 import httpx
 from dataclasses import dataclass, field
@@ -42,7 +42,7 @@ from .corner_detector import CornerMap
 from .delta_engine import DeltaResult
 from .hardware_profiler import HardwareProfile
 
-logger = logging.getLogger("APXIQ.Intelligence.ReportGenerator")
+log = get_logger("APXIQ.Intelligence.ReportGenerator")
 
 
 # =========================================================================
@@ -123,7 +123,7 @@ class ReportGenerator:
             # Auto-detect: Ollama → Gemini → Template
             self._auto_detect_backend(gemini_api_key)
 
-        logger.info(
+        log.info(
             f"ReportGenerator initialized: backend={self._active_backend}"
             + (f", model={self._ollama_model}" if self._active_backend == "ollama" else "")
             + (f", model={self._gemini_model}" if self._active_backend == "gemini" else "")
@@ -135,13 +135,13 @@ class ReportGenerator:
             if self._check_ollama():
                 self._active_backend = "ollama"
             else:
-                logger.warning("Ollama requested but not reachable. Falling back.")
+                log.warning("Ollama requested but not reachable. Falling back.")
                 self._auto_detect_backend(gemini_api_key)
         elif backend == "gemini":
             if self._setup_gemini(gemini_api_key):
                 self._active_backend = "gemini"
             else:
-                logger.warning("Gemini requested but not available. Falling back.")
+                log.warning("Gemini requested but not available. Falling back.")
                 self._active_backend = "template"
         else:
             self._active_backend = "template"
@@ -151,7 +151,7 @@ class ReportGenerator:
         # Priority 1: Ollama (local)
         if self._check_ollama():
             self._active_backend = "ollama"
-            logger.info(f"Auto-detected Ollama at {self._ollama_url}")
+            log.info(f"Auto-detected Ollama at {self._ollama_url}")
             return
 
         # Priority 2: Gemini (cloud)
@@ -161,7 +161,7 @@ class ReportGenerator:
 
         # Priority 3: Template (always available)
         self._active_backend = "template"
-        logger.info("No LLM backends available. Using template mode.")
+        log.info("No LLM backends available. Using template mode.")
 
     def _check_ollama(self) -> bool:
         """Check if Ollama is running and the model is available."""
@@ -180,7 +180,7 @@ class ReportGenerator:
                         if m["name"].startswith(self._ollama_model.split(":")[0]):
                             self._ollama_model = m["name"]
                             return True
-                logger.warning(
+                log.warning(
                     f"Ollama running but model '{self._ollama_model}' not found. "
                     f"Available: {available}"
                 )
@@ -196,13 +196,13 @@ class ReportGenerator:
         try:
             from google import genai
             self._gemini_client = genai.Client(api_key=key)
-            logger.info("Gemini API configured successfully")
+            log.info("Gemini API configured successfully")
             return True
         except ImportError:
-            logger.warning("google-genai not installed. Skipping Gemini.")
+            log.warning("google-genai not installed. Skipping Gemini.")
             return False
         except Exception as e:
-            logger.warning(f"Gemini setup failed: {e}")
+            log.warning(f"Gemini setup failed: {e}")
             return False
 
     @property
@@ -269,6 +269,70 @@ class ReportGenerator:
             return self._generate_template_report(
                 ReportType.LAP_DEBRIEF, data
             )
+
+    async def stream_lap_debrief(
+        self,
+        delta: DeltaResult,
+        user_corners: CornerMap,
+        ghost_corners: CornerMap,
+        coaching_tips: list[CoachingTip],
+        hardware: Optional[HardwareProfile] = None,
+        track_name: str = "Unknown Track",
+        driver_code: str = "VER",
+    ):
+        """
+        Stream the AI lap debrief token by token (Server-Sent Events / SSE compatible).
+        """
+        import json
+        data = self._build_lap_data(
+            delta, user_corners, ghost_corners,
+            coaching_tips, hardware, track_name, driver_code,
+        )
+        prompt = self._build_prompt(ReportType.LAP_DEBRIEF, data)
+
+        if self._active_backend == "ollama":
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    async with client.stream(
+                        "POST",
+                        f"{self._ollama_url}/api/generate",
+                        json={
+                            "model": self._ollama_model,
+                            "prompt": prompt,
+                            "stream": True,
+                            "options": {"temperature": 0.7, "num_predict": 2048},
+                        },
+                    ) as response:
+                        async for line in response.aiter_lines():
+                            if line:
+                                try:
+                                    chunk = json.loads(line)
+                                    token = chunk.get("response", "")
+                                    if token:
+                                        yield token
+                                except Exception:
+                                    pass
+                return
+            except Exception as e:
+                log.warning("Ollama streaming failed, falling back to template: %s", e)
+
+        elif self._active_backend == "gemini":
+            try:
+                response = self._gemini_client.models.generate_content_stream(
+                    model=self._gemini_model,
+                    contents=prompt,
+                )
+                for chunk in response:
+                    if chunk.text:
+                        yield chunk.text
+                return
+            except Exception as e:
+                log.warning("Gemini streaming failed, falling back to template: %s", e)
+
+        # Fallback to local template stream
+        report = self._generate_template_report(ReportType.LAP_DEBRIEF, data)
+        for token in report.markdown.split(" "):
+            yield token + " "
 
     async def generate_race_summary(
         self,
@@ -352,8 +416,8 @@ class ReportGenerator:
             )
 
         except Exception as e:
-            logger.error(f"AI generation failed ({self._active_backend}): {e}")
-            logger.info("Falling back to template mode.")
+            log.error(f"AI generation failed ({self._active_backend}): {e}")
+            log.info("Falling back to template mode.")
             return self._generate_template_report(report_type, data)
 
     async def _call_ollama(self, prompt: str) -> str:
@@ -393,34 +457,39 @@ class ReportGenerator:
         """Build the structured prompt for the LLM."""
 
         if report_type == ReportType.LAP_DEBRIEF:
-            return f"""You are an expert Formula 1 race engineer providing a post-lap debrief to a sim racer.
+            return f"""You are an elite Formula 1 race engineer providing an in-depth post-lap telemetry debrief and car setup recommendations.
 
-## Context
-- Track: {data['track_name']}
-- Ghost reference: {data['driver_code']}'s fastest lap
-- Hardware: {data.get('hardware_type', 'Unknown')}
-- Total time delta: {data['total_delta_ms']:+.0f}ms ({data['total_delta_ms']/1000:+.3f}s)
-- Average speed difference: {data['avg_speed_delta']:.1f} km/h
+```json
+{{
+  "track_name": "{data['track_name']}",
+  "ghost_reference": "{data['driver_code']}'s fastest qualifying lap",
+  "hardware_tier": "{data.get('hardware_type', 'Unknown')}",
+  "total_delta_ms": {data['total_delta_ms']},
+  "avg_speed_delta_kph": {data['avg_speed_delta']},
+  "total_corners": {data.get('total_corners', 0)},
+  "worst_corner_index": {data.get('worst_corner', 'null')},
+  "best_corner_index": {data.get('best_corner', 'null')}
+}}
+```
 
-## Corner-by-Corner Analysis
+## Corner Performance Data
 {data['corner_summary']}
 
-## Coaching Tips Already Identified
+## Coaching Heuristics & Anomalies
 {data['tips_text']}
 
-## Time Loss Regions
+## Time Loss Zones
 {data['loss_regions_text']}
 
 ## Instructions
-Generate a detailed, professional debrief report in markdown format. Include:
-1. **Executive Summary** — One paragraph overview of lap performance
-2. **Corner Analysis** — Go through the most impactful corners
-3. **Braking Performance** — Analyze brake point accuracy
-4. **Throttle Application** — Where throttle usage can improve
-5. **Key Takeaways** — 3-5 bullet-point actionable items for the next lap
+Generate a comprehensive, professional race engineer debrief in markdown. Structure the report with the following exact sections:
+1. **Executive Summary** — Performance overview vs reference ghost.
+2. **Corner-by-Corner Breakdown** — Critical entry, apex, and exit time loss points with exact km/h and meter numbers.
+3. **Thermal & Energy Management** — Analysis of tyre surface temps, brake fade/glazing, and MGU-K battery energy deployment.
+4. **Car Setup & Tuning Recommendations** — Concrete mechanical suggestions to improve lap time (e.g., front/rear wing flap angle adjustments, anti-roll bar stiffness, brake bias balance %, and differential settings).
+5. **Key Takeaways** — 3 to 5 actionable bullet points for the next flying lap.
 
-Use a professional but encouraging tone. Reference specific corner numbers and concrete numbers (km/h, meters, milliseconds).
-Scale your expectations to the driver's hardware ({data.get('hardware_type', 'Unknown')}).
+Tone: Serious, analytical, data-grounded, and encouraging.
 """
 
         elif report_type == ReportType.RACE_SUMMARY:
@@ -512,20 +581,48 @@ Keep it concise, data-driven, and actionable.
         # Build tips section
         tips_section = data.get("tips_text", "No coaching tips available.")
 
+        # Build motorsport setup recommendations based on telemetry deficits
+        avg_speed_diff = data.get("avg_speed_delta", 0.0)
+        wing_adj = "+1 Click Front Wing Flap (increase front aerodynamic turn-in authority)" if avg_speed_diff < -3.0 else "Baseline Aero Balanced"
+        arb_adj = "Soften Front ARB by 1 click (relieves mechanical understeer on entry)" if total_ms > 400 else "Maintain Current Roll Bar Stiffness"
+        diff_adj = "Lower On-Throttle Diff to 52% (enhances exit rotation and stops rear traction slip)" if total_ms > 200 else "55% (Optimal Exit Drive)"
+        bias_adj = "54.5% (Shift 1.0% rearward to prevent front lockups)" if total_ms > 150 else "55.5% (Stable Threshold Braking)"
+
         markdown = f"""# Lap Debrief — {data['track_name']}
 
 ## Executive Summary
 
-Your lap was **{delta_abs/1000:.3f}s {delta_sign}** the ghost reference
-({data['driver_code']}'s fastest lap). Average speed difference:
-**{data['avg_speed_delta']:+.1f} km/h**.
+Your lap was **{delta_abs/1000:.3f}s {delta_sign}** the ghost reference ({data['driver_code']}'s qualifying lap).
+Average speed delta: **{data['avg_speed_delta']:+.1f} km/h**.
 Hardware detected: **{data.get('hardware_type', 'Unknown')}**.
+
+---
+
+## 4-Phase Corner Telemetry Analysis
+
+| Phase | Vehicle Dynamics Focus | Target Delta Driver Action |
+|---|---|---|
+| **1. Entry & Braking** | Threshold deceleration & Trail-braking decay | Bleed off brake linearly before adding steering lock |
+| **2. Mid-Corner Apex** | Minimum apex speed (V-min) & lateral load | Carry +3 km/h rolling speed across apex kerb |
+| **3. Exit Traction** | Throttle pick-up gradient & rear slip | Smooth throttle progression to avoid carcass thermal spiking |
+| **4. Straight & Energy** | Top speed (V-max) & MGU-K deployment | Optimize exit drive to avoid battery clipping on straights |
 
 ---
 
 ## Corner-by-Corner Breakdown
 
 {corner_section}
+
+---
+
+## Mechanical & Aerodynamic Car Setup Matrix
+
+| Component | Recommended Adjustment | Vehicle Dynamics Rationale |
+|---|---|---|
+| **Aero Balance** | `{wing_adj}` | Neutralizes mid-corner push in high-speed sweepers |
+| **Anti-Roll Bars** | `{arb_adj}` | Enhances mechanical compliance and front-axle bite |
+| **Differential** | `{diff_adj}` | Prevents rear tyre micro-spin on initial throttle pick-up |
+| **Brake Bias** | `{bias_adj}` | Maximizes deceleration G-force without straight-line lockup |
 
 ---
 
@@ -547,7 +644,7 @@ Hardware detected: **{data.get('hardware_type', 'Unknown')}**.
         else:
             default_finding = (
                 f"Overall delta of {delta_abs/1000:.3f}s — "
-                f"focus on the biggest time-loss zones."
+                f"focus on trail-braking and exit traction."
             )
             findings.append(default_finding)
             markdown += f"- {default_finding}\n"

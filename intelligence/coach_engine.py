@@ -31,18 +31,20 @@ Usage:
         print(f"[{tip.severity}] {tip.message}")
 """
 
-import logging
+from core.logging_config import get_logger
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+
+import numpy as np
 
 from .corner_detector import CornerMap
 from .delta_engine import DeltaResult, BrakePointDelta
 from .hardware_profiler import HardwareProfile
 from .constants import BRAKE_THRESHOLD_SCALING, HARDWARE_CONTROLLER
 
-logger = logging.getLogger("APXIQ.Intelligence.Coach")
+log = get_logger("APXIQ.Intelligence.Coach")
 
 
 # =========================================================================
@@ -64,6 +66,10 @@ class CoachingCategory(Enum):
     LINE = "line"
     CONSISTENCY = "consistency"
     OVERALL = "overall"
+    THERMAL = "thermal"
+    ENERGY = "energy"
+    TRAIL_BRAKE = "trail_brake"
+    TECHNIQUE = "technique"
 
 
 @dataclass
@@ -128,7 +134,7 @@ class CoachEngine:
         # Cooldown tracking: {rule_key: last_fire_timestamp}
         self._cooldowns: dict[str, float] = {}
 
-        logger.info(
+        log.info(
             f"Coach initialized: hardware={self.hardware_type}, "
             f"brake_threshold={self.brake_threshold_m}m"
         )
@@ -138,6 +144,7 @@ class CoachEngine:
         delta: DeltaResult,
         user_corners: Optional[CornerMap] = None,
         ghost_corners: Optional[CornerMap] = None,
+        user_telemetry_df: Optional[object] = None,
     ) -> list[CoachingTip]:
         """
         Run all coaching rules against the current delta data.
@@ -146,6 +153,7 @@ class CoachEngine:
             delta: DeltaResult from the DeltaEngine.
             user_corners: User's corner map.
             ghost_corners: Ghost's corner map.
+            user_telemetry_df: Optional DataFrame containing raw user telemetry.
 
         Returns:
             List of CoachingTip objects, sorted by priority (highest first).
@@ -169,6 +177,12 @@ class CoachEngine:
         loss_regions = engine.get_time_loss_regions(delta, threshold_ms=30.0)
         tips.extend(self._analyze_time_loss_regions(loss_regions))
 
+        # Rule 6: Thermal & Technique Analysis
+        if user_telemetry_df is not None:
+            tips.extend(self._analyze_thermals(user_telemetry_df))
+            tips.extend(self._analyze_trail_braking(user_telemetry_df, user_corners))
+            tips.extend(self._analyze_energy(user_telemetry_df, delta))
+
         # Rule 5: Overall lap summary
         tips.append(self._generate_lap_summary(delta))
 
@@ -179,7 +193,192 @@ class CoachEngine:
         # Cap at max tips
         tips = tips[:self.MAX_TIPS_PER_PASS]
 
-        logger.info(f"Coach produced {len(tips)} tips this pass")
+        log.info(f"Coach produced {len(tips)} tips this pass")
+        return tips
+
+    def _analyze_thermals(self, df) -> list[CoachingTip]:
+        """
+        Rule: Check for surface vs core thermal dissociation and rotor glazing.
+        """
+        tips = []
+        if not hasattr(df, "columns"):
+            return tips
+
+        # 1. Thermal Dissociation (Surface vs Core Carcass)
+        if "tyres_surface_temp" in df.columns:
+            try:
+                surf_temps = df["tyres_surface_temp"].dropna()
+                inner_temps = df["tyres_inner_temp"].dropna() if "tyres_inner_temp" in df.columns else None
+
+                if len(surf_temps) > 0:
+                    last_surf = surf_temps.iloc[-1]
+                    last_inner = inner_temps.iloc[-1] if (inner_temps is not None and len(inner_temps) > 0) else None
+
+                    if isinstance(last_surf, (list, tuple)) and len(last_surf) >= 4:
+                        rl_s, rr_s = last_surf[2], last_surf[3]
+                        max_rear_s = max(rl_s, rr_s)
+
+                        # Core comparison if inner temps available
+                        if isinstance(last_inner, (list, tuple)) and len(last_inner) >= 4:
+                            rl_i, rr_i = last_inner[2], last_inner[3]
+                            max_rear_i = max(rl_i, rr_i)
+                            diff = max_rear_s - max_rear_i
+
+                            if diff > 12.0 and max_rear_s > 104:
+                                tips.append(CoachingTip(
+                                    category=CoachingCategory.THERMAL,
+                                    severity=Severity.WARNING,
+                                    message=(
+                                        f"Rear tyre surface graining ({max_rear_s:.0f}°C surface vs {max_rear_i:.0f}°C core). "
+                                        "Over-sliding on corner exit — smooth out throttle pick-up."
+                                    ),
+                                    time_impact_ms=150.0,
+                                    data={"surface_temp": max_rear_s, "core_temp": max_rear_i, "delta": diff},
+                                ))
+                                return tips
+
+                        if max_rear_s > 106:
+                            tips.append(CoachingTip(
+                                category=CoachingCategory.THERMAL,
+                                severity=Severity.WARNING,
+                                message=(
+                                    f"Rear tyre overheating ({max_rear_s:.0f}°C). "
+                                    "Smooth out corner exit throttle to prevent wheelspin."
+                                ),
+                                time_impact_ms=120.0,
+                                data={"max_rear_temp": max_rear_s},
+                            ))
+            except Exception:
+                pass
+
+        # 2. Brake temperature check
+        if "brakes_temp" in df.columns:
+            try:
+                temps = df["brakes_temp"].dropna()
+                if len(temps) > 0:
+                    last_sample = temps.iloc[-1]
+                    if isinstance(last_sample, (list, tuple)) and len(last_sample) >= 2:
+                        fl, fr = last_sample[0], last_sample[1]
+                        max_front = max(fl, fr)
+                        if max_front > 920:
+                            tips.append(CoachingTip(
+                                category=CoachingCategory.THERMAL,
+                                severity=Severity.CRITICAL,
+                                message=(
+                                    f"Brake rotor glazing ({max_front:.0f}°C). "
+                                    "Brake 10m earlier to manage thermal fade."
+                                ),
+                                time_impact_ms=250.0,
+                                data={"max_front_brake_temp": max_front},
+                            ))
+                        elif max_front < 190 and max_front > 10:
+                            tips.append(CoachingTip(
+                                category=CoachingCategory.THERMAL,
+                                severity=Severity.INFO,
+                                message=(
+                                    f"Brakes below operating window ({max_front:.0f}°C). "
+                                    "Warm rotors under deceleration to avoid front lockups."
+                                ),
+                                time_impact_ms=50.0,
+                                data={"max_front_brake_temp": max_front},
+                            ))
+            except Exception:
+                pass
+
+        return tips
+
+    def _analyze_trail_braking(self, df, corners: Optional[CornerMap]) -> list[CoachingTip]:
+        """
+        Rule: Evaluate Kamm's friction circle envelope during corner entry (Brake pressure vs Steer angle).
+        """
+        tips = []
+        if not hasattr(df, "columns") or corners is None or not corners.corners:
+            return tips
+
+        if "brake" not in df.columns or "steer" not in df.columns or "distance_m" not in df.columns:
+            return tips
+
+        try:
+            dist = df["distance_m"].to_numpy()
+            brake = df["brake"].to_numpy()
+            steer = np.abs(df["steer"].to_numpy())
+
+            for c in corners.corners[:4]: # Check top corners
+                apex_m = c.apex_distance_m
+                entry_mask = (dist >= apex_m - 80) & (dist <= apex_m - 10)
+                if not np.any(entry_mask):
+                    continue
+
+                entry_brakes = brake[entry_mask]
+                entry_steers = steer[entry_mask]
+
+                if len(entry_brakes) < 5:
+                    continue
+
+                # 1. Check for abrupt off-brake snap (dropping >70% brake in <10m before apex)
+                brake_drop = float(np.max(entry_brakes) - entry_brakes[-1])
+                if brake_drop > 0.70 and float(np.mean(entry_steers)) < 0.10:
+                    tips.append(CoachingTip(
+                        category=CoachingCategory.TRAIL_BRAKE,
+                        severity=Severity.WARNING,
+                        message=(
+                            f"Turn {c.index}: Abrupt brake release on entry. "
+                            "Trail off brake pressure smoothly to preserve front aerodynamic load."
+                        ),
+                        corner_index=c.index,
+                        distance_m=apex_m - 40,
+                        time_impact_ms=85.0,
+                        data={"corner": c.index, "brake_drop": brake_drop},
+                    ))
+                    break
+
+                # 2. Check for oversaturating friction circle (heavy brake >70% while heavy steering >0.35)
+                high_steer_high_brake = np.any((entry_brakes > 0.70) & (entry_steers > 0.35))
+                if high_steer_high_brake:
+                    tips.append(CoachingTip(
+                        category=CoachingCategory.TRAIL_BRAKE,
+                        severity=Severity.WARNING,
+                        message=(
+                            f"Turn {c.index}: Friction circle oversaturation. "
+                            "Bleed off brake below 30% before adding steering lock to stop understeer."
+                        ),
+                        corner_index=c.index,
+                        distance_m=apex_m - 30,
+                        time_impact_ms=110.0,
+                        data={"corner": c.index},
+                    ))
+                    break
+        except Exception:
+            pass
+
+        return tips
+
+    def _analyze_energy(self, df, delta: DeltaResult) -> list[CoachingTip]:
+        """
+        Rule: Check for straight-line speed deficit caused by MGU-K battery energy derate and Lift-and-Coast markers.
+        """
+        tips = []
+        if not hasattr(df, "columns") or "ers_store_energy" not in df.columns:
+            return tips
+
+        try:
+            energy_series = df["ers_store_energy"].dropna()
+            if len(energy_series) > 0:
+                min_energy = energy_series.min()
+                if min_energy < 300_000 and delta.avg_speed_delta_kph < -5:
+                    tips.append(CoachingTip(
+                        category=CoachingCategory.ENERGY,
+                        severity=Severity.WARNING,
+                        message=(
+                            "MGU-K battery depleted (<8% SOC) on main straight. "
+                            "Time loss caused by early engine derating."
+                        ),
+                        time_impact_ms=200.0,
+                        data={"min_ers_energy": min_energy},
+                    ))
+        except Exception:
+            pass
+
         return tips
 
     # -----------------------------------------------------------------

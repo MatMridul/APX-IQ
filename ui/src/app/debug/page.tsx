@@ -2,11 +2,17 @@
 
 import { useSocket } from '@/hooks/useSocket';
 import { useTelemetry } from '@/hooks/useTelemetry';
+import { useTelemetryStore } from '@/store/telemetryStore';
 import { useEffect, useState } from 'react';
 
 export default function DebugPage() {
     const socket = useSocket();
-    const { telemetry, lapData, session, carStatus, isConnected } = useTelemetry();
+    useTelemetry();
+    const telemetry = useTelemetryStore((s) => s.telemetry);
+    const lapData = useTelemetryStore((s) => s.lapData);
+    const session = useTelemetryStore((s) => s.session);
+    const carStatus = useTelemetryStore((s) => s.carStatus);
+    const isConnected = useTelemetryStore((s) => s.isConnected);
     const [socketConnected, setSocketConnected] = useState(false);
     const [socketId, setSocketId] = useState<string | null>(null);
 

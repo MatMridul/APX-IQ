@@ -26,7 +26,7 @@ Usage:
     # Returns list of Corner objects with entry/apex/exit distances
 """
 
-import logging
+from core.logging_config import get_logger
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -40,7 +40,7 @@ from .constants import (
     CORNER_MIN_DISTANCE_BETWEEN,
 )
 
-logger = logging.getLogger("APXIQ.Intelligence.CornerDetector")
+log = get_logger("APXIQ.Intelligence.CornerDetector")
 
 
 # =========================================================================
@@ -204,7 +204,7 @@ class CornerDetector:
         apex_indices = apex_indices[valid_mask]
 
         if len(apex_indices) == 0:
-            logger.warning("No corners detected in speed trace.")
+            log.warning("No corners detected in speed trace.")
             return CornerMap(track_distance_m=distances[-1] if len(distances) > 0 else 0)
 
         # Build Corner objects with entry/exit detection
@@ -231,7 +231,7 @@ class CornerDetector:
             fastest_corner_idx=int(np.argmax(apex_speeds)) + 1,
         )
 
-        logger.info(
+        log.info(
             f"Detected {len(corners)} corners. "
             f"Slowest: T{corner_map.slowest_corner_idx} "
             f"({min(apex_speeds):.0f} km/h), "
@@ -381,7 +381,7 @@ class CornerDetector:
             }
             comparisons.append(comparison)
 
-        logger.info(
+        log.info(
             f"Corner comparison: {len(comparisons)} matched out of "
             f"{len(user_map.corners)} user / {len(ghost_map.corners)} ghost"
         )

@@ -3,273 +3,95 @@ Telemetry API Router
 ====================
 
 Endpoints for accessing recorded lap telemetry and managing lap data.
+Storage is handled by the LapService (injected via app.state).
 
 Endpoints:
-    - GET  /telemetry/laps/completed     — List all completed laps with telemetry
-    - GET  /telemetry/lap/{lap_id}       — Get full telemetry for a specific lap
-    - GET  /telemetry/lap/{lap_id}/steering — Get steering trace for hardware profiling
-    - POST /telemetry/lap/save           — Save a completed lap to database
-    - GET  /telemetry/session/current    — Get current session info
+    GET    /telemetry/laps/completed           — List all completed laps
+    GET    /telemetry/lap/{lap_id}             — Full telemetry for a specific lap
+    GET    /telemetry/lap/{lap_id}/steering    — Steering trace for hardware profiling
+    POST   /telemetry/lap/save                 — Save a completed lap
+    GET    /telemetry/session/current          — Current session info
+    DELETE /telemetry/laps/clear               — Clear all laps (guarded by admin key)
 """
 
 from typing import Optional, List
-from datetime import datetime
+from fastapi import APIRouter, HTTPException, Request, Header
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, field_validator
-
+from api.models.shared import (
+    TelemetryPoint,
+    LapInfo,
+    LapTelemetryResponse,
+    SaveLapRequest,
+)
 from core.logging_config import get_logger
+from core.config import settings
 
 log = get_logger("APXIQ.API.Telemetry")
 
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
 
-# =========================================================================
-# Database Connection (Placeholder - will be injected)
-# =========================================================================
 
-# TODO: Replace with proper database connection pool
-# For now, we'll use a simple connection string
-DATABASE_URL = "postgresql://localhost/apxiq"  # Update with actual connection
+def _get_lap_service(request: Request):
+    """Retrieve the LapService injected by the API lifespan."""
+    return request.app.state.lap_service
 
-async def get_db_connection():
-    """Get database connection (dependency injection)."""
-    # TODO: Implement connection pooling
-    # For now, return None and we'll implement in-memory storage
-    return None
-
-
-# =========================================================================
-# Request / Response Models
-# =========================================================================
-
-class TelemetryPoint(BaseModel):
-    """Single telemetry data point."""
-    distance_m: float
-    speed_kph: float
-    throttle: float = 0.0
-    brake: float = 0.0
-    steer: float = 0.0
-    gear: int = 0
-    rpm: int = 0
-    drs: bool = False
-    x: float = 0.0
-    y: float = 0.0
-    z: float = 0.0
-
-
-class LapInfo(BaseModel):
-    """Lap metadata."""
-    lap_id: int
-    session_uid: int
-    lap_number: int
-    lap_time_ms: Optional[int] = None
-    sector_1_time_ms: Optional[int] = None
-    sector_2_time_ms: Optional[int] = None
-    sector_3_time_ms: Optional[int] = None
-    is_valid: bool = True
-    telemetry_points: int
-    max_distance_m: float
-    created_at: datetime
-
-
-class LapTelemetryResponse(BaseModel):
-    """Full lap telemetry response."""
-    lap_info: LapInfo
-    telemetry: List[TelemetryPoint]
-
-
-class SaveLapRequest(BaseModel):
-    """Request to save a completed lap."""
-    session_uid: int
-    lap_number: int
-    lap_time_ms: Optional[int] = None
-    sector_1_time_ms: Optional[int] = None
-    sector_2_time_ms: Optional[int] = None
-    sector_3_time_ms: Optional[int] = None
-    is_valid: bool = True
-    telemetry: List[TelemetryPoint]
-
-
-# =========================================================================
-# In-Memory Storage (Temporary - will be replaced with database)
-# =========================================================================
-
-class InMemoryLapStorage:
-    """Temporary in-memory storage for laps until database is connected."""
-    
-    def __init__(self):
-        self._laps: dict[int, dict] = {}
-        self._next_id = 1
-    
-    def save_lap(self, lap_data: SaveLapRequest) -> int:
-        """Save a lap and return its ID."""
-        lap_id = self._next_id
-        self._next_id += 1
-        
-        self._laps[lap_id] = {
-            "lap_id": lap_id,
-            "session_uid": lap_data.session_uid,
-            "lap_number": lap_data.lap_number,
-            "lap_time_ms": lap_data.lap_time_ms,
-            "sector_1_time_ms": lap_data.sector_1_time_ms,
-            "sector_2_time_ms": lap_data.sector_2_time_ms,
-            "sector_3_time_ms": lap_data.sector_3_time_ms,
-            "is_valid": lap_data.is_valid,
-            "telemetry": [t.model_dump() for t in lap_data.telemetry],
-            "telemetry_points": len(lap_data.telemetry),
-            "max_distance_m": max(t.distance_m for t in lap_data.telemetry) if lap_data.telemetry else 0.0,
-            "created_at": datetime.now(),
-        }
-        
-        log.info("lap_saved", lap_id=lap_id, lap_number=lap_data.lap_number, points=len(lap_data.telemetry))        return lap_id
-    
-    def get_lap(self, lap_id: int) -> Optional[dict]:
-        """Get a lap by ID."""
-        return self._laps.get(lap_id)
-    
-    def get_all_laps(self) -> List[dict]:
-        """Get all laps."""
-        return list(self._laps.values())
-    
-    def get_laps_by_session(self, session_uid: int) -> List[dict]:
-        """Get all laps for a session."""
-        return [lap for lap in self._laps.values() if lap["session_uid"] == session_uid]
-
-
-# Global storage instance
-_lap_storage = InMemoryLapStorage()
-
-
-# =========================================================================
-# Endpoints
-# =========================================================================
 
 @router.get("/laps/completed", response_model=List[LapInfo])
 async def get_completed_laps(
+    request: Request,
     session_uid: Optional[int] = None,
     min_telemetry_points: int = 100,
 ):
     """
     Get all completed laps with telemetry data.
-    
-    Args:
-        session_uid: Filter by session (optional)
-        min_telemetry_points: Minimum number of telemetry points required
-    
-    Returns:
-        List of lap metadata
     """
-    laps = _lap_storage.get_all_laps()
-    
-    # Filter by session if specified
-    if session_uid is not None:
-        laps = [lap for lap in laps if lap["session_uid"] == session_uid]
-    
-    # Filter by minimum telemetry points
-    laps = [lap for lap in laps if lap["telemetry_points"] >= min_telemetry_points]
-    
-    # Sort by lap number
-    laps.sort(key=lambda x: (x["session_uid"], x["lap_number"]))
-    
-    # Convert to response model
-    return [
-        LapInfo(
-            lap_id=lap["lap_id"],
-            session_uid=lap["session_uid"],
-            lap_number=lap["lap_number"],
-            lap_time_ms=lap["lap_time_ms"],
-            sector_1_time_ms=lap["sector_1_time_ms"],
-            sector_2_time_ms=lap["sector_2_time_ms"],
-            sector_3_time_ms=lap["sector_3_time_ms"],
-            is_valid=lap["is_valid"],
-            telemetry_points=lap["telemetry_points"],
-            max_distance_m=lap["max_distance_m"],
-            created_at=lap["created_at"],
-        )
-        for lap in laps
-    ]
+    service = _get_lap_service(request)
+    laps = await service.list_laps(
+        session_uid=session_uid,
+        min_telemetry_points=min_telemetry_points,
+    )
+    return laps
 
 
 @router.get("/lap/{lap_id}", response_model=LapTelemetryResponse)
-async def get_lap_telemetry(lap_id: int):
+async def get_lap_telemetry(lap_id: int, request: Request):
     """
     Get full telemetry data for a specific lap.
-    
-    Args:
-        lap_id: Lap ID
-    
-    Returns:
-        Lap metadata and full telemetry array
     """
-    lap = _lap_storage.get_lap(lap_id)
-    
-    if lap is None:
+    service = _get_lap_service(request)
+    result = await service.get_lap(lap_id)
+    if result is None:
         raise HTTPException(status_code=404, detail=f"Lap {lap_id} not found")
-    
-    return LapTelemetryResponse(
-        lap_info=LapInfo(
-            lap_id=lap["lap_id"],
-            session_uid=lap["session_uid"],
-            lap_number=lap["lap_number"],
-            lap_time_ms=lap["lap_time_ms"],
-            sector_1_time_ms=lap["sector_1_time_ms"],
-            sector_2_time_ms=lap["sector_2_time_ms"],
-            sector_3_time_ms=lap["sector_3_time_ms"],
-            is_valid=lap["is_valid"],
-            telemetry_points=lap["telemetry_points"],
-            max_distance_m=lap["max_distance_m"],
-            created_at=lap["created_at"],
-        ),
-        telemetry=[TelemetryPoint(**t) for t in lap["telemetry"]],
-    )
+    return result
 
 
 @router.get("/lap/{lap_id}/steering")
-async def get_lap_steering_trace(lap_id: int):
+async def get_lap_steering_trace(lap_id: int, request: Request):
     """
-    Get steering trace for hardware profiling.
-    
-    Args:
-        lap_id: Lap ID
-    
-    Returns:
-        Array of steering values (-1.0 to 1.0)
+    Get the steering trace for a lap — used by the hardware profiler.
     """
-    lap = _lap_storage.get_lap(lap_id)
-    
-    if lap is None:
+    service = _get_lap_service(request)
+    result = await service.get_lap(lap_id)
+    if result is None:
         raise HTTPException(status_code=404, detail=f"Lap {lap_id} not found")
-    
-    steer_trace = [t["steer"] for t in lap["telemetry"]]
-    
+
+    steer_trace = [t.steer for t in result.telemetry]
     return {
         "lap_id": lap_id,
-        "lap_number": lap["lap_number"],
+        "lap_number": result.lap_info.lap_number,
         "steer_trace": steer_trace,
         "sample_count": len(steer_trace),
     }
 
 
 @router.post("/lap/save")
-async def save_lap(lap_data: SaveLapRequest):
+async def save_lap(lap_data: SaveLapRequest, request: Request):
     """
     Save a completed lap to storage.
-    
-    Args:
-        lap_data: Lap metadata and telemetry
-    
-    Returns:
-        Saved lap ID
     """
-    if len(lap_data.telemetry) < 10:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Insufficient telemetry data: {len(lap_data.telemetry)} points (minimum 10)"
-        )
-    
-    lap_id = _lap_storage.save_lap(lap_data)
-    log.info("lap_save_request", lap_number=lap_data.lap_number, points=len(lap_data.telemetry))
+    service = _get_lap_service(request)
+    lap_id = await service.save_lap(lap_data)
+    log.info("lap_saved", lap_id=lap_id, lap_number=lap_data.lap_number, points=len(lap_data.telemetry))
     return {
         "lap_id": lap_id,
         "message": f"Lap {lap_data.lap_number} saved successfully",
@@ -278,39 +100,35 @@ async def save_lap(lap_data: SaveLapRequest):
 
 
 @router.get("/session/current")
-async def get_current_session():
+async def get_current_session(request: Request):
     """
-    Get current session information.
-    
-    Returns:
-        Current session metadata
+    Get current session information from the SessionManager.
     """
-    # TODO: Get from session manager
-    # For now, return placeholder
+    session_manager = getattr(request.app.state, "session_manager", None)
+    if session_manager is None:
+        return {"session_uid": None, "track_id": None, "is_active": False}
+
     return {
-        "session_uid": None,
-        "track_id": None,
-        "session_type": None,
-        "is_active": False,
-        "message": "Session tracking not yet implemented",
+        "session_uid": session_manager.active_session_uid,
+        "track_id": session_manager.track_id,
+        "session_type": session_manager.session_type,
+        "is_active": session_manager.is_active,
     }
 
 
 @router.delete("/laps/clear")
-async def clear_all_laps():
+async def clear_all_laps(
+    request: Request,
+    x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
+):
     """
-    Clear all stored laps (for testing/debugging).
-    
-    Returns:
-        Number of laps cleared
+    Clear all stored laps. Guarded by admin key in non-development environments.
     """
-    global _lap_storage
-    count = len(_lap_storage._laps)
-    _lap_storage = InMemoryLapStorage()
-    
-    logger.info(f"Cleared {count} laps from storage")
-    
-    return {
-        "message": f"Cleared {count} laps",
-        "laps_cleared": count,
-    }
+    admin_key = getattr(settings, "admin_api_key", None)
+    if admin_key and x_admin_key != admin_key:
+        raise HTTPException(status_code=403, detail="Unauthorized: Invalid X-Admin-Key header")
+
+    service = _get_lap_service(request)
+    count = await service.clear()
+    log.info("laps_cleared", count=count)
+    return {"message": f"Cleared {count} laps", "laps_cleared": count}

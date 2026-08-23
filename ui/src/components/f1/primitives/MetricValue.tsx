@@ -35,7 +35,7 @@ export function MetricValue({
 }: MetricValueProps) {
   const ValueEl = animated ? motion.span : 'span';
   const animProps = animated
-    ? { key: String(value), initial: { opacity: 0.8, y: 2 }, animate: { opacity: 1, y: 0 } }
+    ? { initial: { opacity: 0.8, y: 2 }, animate: { opacity: 1, y: 0 } }
     : {};
 
   return (
@@ -47,6 +47,7 @@ export function MetricValue({
       )}
       <div className="flex items-baseline gap-1">
         <ValueEl
+          key={animated ? String(value) : undefined}
           {...animProps}
           className={cn(
             'font-mono font-bold leading-none tracking-tight',

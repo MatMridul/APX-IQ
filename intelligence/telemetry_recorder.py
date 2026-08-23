@@ -19,7 +19,7 @@ Design Decision — Correlating Multiple Packet Types:
     snapshots is negligible (< 50ms at worst).
 """
 
-import logging
+from core.logging_config import get_logger
 from typing import Optional
 
 import numpy as np
@@ -31,7 +31,7 @@ from .constants import (
     HARDWARE_PROFILING_MIN_LAPS,
 )
 
-logger = logging.getLogger("APXIQ.Intelligence.Recorder")
+log = get_logger("APXIQ.Intelligence.Recorder")
 
 
 class TelemetryRecorder:
@@ -76,7 +76,7 @@ class TelemetryRecorder:
         # Steering trace accumulator for hardware profiling
         self._steer_trace_all: list[float] = []
 
-        logger.info("TelemetryRecorder state reset.")
+        log.info("TelemetryRecorder state reset.")
 
     def on_session_start(self, session_uid: int, track_id: int,
                          track_length: int):
@@ -89,7 +89,7 @@ class TelemetryRecorder:
             track_length: Track length in meters from Session packet (m_trackLength).
         """
         if self.session_uid != session_uid:
-            logger.info(
+            log.info(
                 f"New session started: UID={session_uid}, "
                 f"Track={track_id}, Length={track_length}m"
             )
@@ -226,7 +226,7 @@ class TelemetryRecorder:
         Sorts by distance, removes duplicates, and stores the result.
         """
         if len(self._current_lap_buffer) < 10:
-            logger.warning(
+            log.warning(
                 f"Lap {self._current_lap_num} has too few data points "
                 f"({len(self._current_lap_buffer)}), discarding."
             )
@@ -252,7 +252,7 @@ class TelemetryRecorder:
 
         self._completed_laps.append(lap_info)
 
-        logger.info(
+        log.info(
             f"Lap {self._current_lap_num} finalized: "
             f"{len(df)} points, max distance {df['distance_m'].max():.0f}m"
         )
@@ -266,7 +266,7 @@ class TelemetryRecorder:
         """
         if len(self._current_lap_buffer) > 10:
             self._finalize_lap()
-        logger.info(
+        log.info(
             f"Session ended. {len(self._completed_laps)} laps recorded."
         )
 

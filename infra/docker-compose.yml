@@ -17,14 +17,40 @@ services:
       - apx_iq_net
     restart: always
 
-  # Optional: Adminer for easy DB inspection
-  adminer:
-    image: adminer
-    restart: always
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile.api
+    container_name: apx_iq_api
     ports:
-      - "8080:8080"
+      - "8000:8000"
+    env_file: ../.env
+    depends_on:
+      - db
     networks:
       - apx_iq_net
+    restart: always
+
+  ingestion:
+    build:
+      context: ..
+      dockerfile: Dockerfile.ingestion
+    container_name: apx_iq_ingestion
+    network_mode: host  # Required for UDP broadcast (will not use apx_iq_net on Windows/Mac smoothly but will listen to host port 20777 directly)
+    env_file: ../.env
+    restart: always
+
+  ui:
+    build:
+      context: ../ui
+      dockerfile: Dockerfile
+    container_name: apx_iq_ui
+    ports:
+      - "3000:3000"
+    env_file: ../ui/.env.local
+    networks:
+      - apx_iq_net
+    restart: always
 
 networks:
   apx_iq_net:

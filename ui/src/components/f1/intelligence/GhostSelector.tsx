@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Panel } from "@/components/f1/primitives/Panel";
 import { useGhostLap } from "@/hooks/useIntelligence";
@@ -32,7 +32,11 @@ export function GhostSelector({ onGhostLoaded }: GhostSelectorProps) {
   );
 
   // Sync to parent when data arrives
-  if (ghost && !isFetching) onGhostLoaded(ghost);
+  useEffect(() => {
+    if (ghost && !isFetching) {
+      onGhostLoaded(ghost);
+    }
+  }, [ghost, isFetching, onGhostLoaded]);
 
   const load = () => {
     onGhostLoaded(null);

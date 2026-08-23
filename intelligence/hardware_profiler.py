@@ -27,7 +27,7 @@ Usage:
     # result.brake_threshold_m = 25  (meters tolerance for this tier)
 """
 
-import logging
+from core.logging_config import get_logger
 from dataclasses import dataclass
 from typing import Optional
 
@@ -45,7 +45,7 @@ from .constants import (
     HARDWARE_PROFILING_MIN_LAPS,
 )
 
-logger = logging.getLogger("APXIQ.Intelligence.HardwareProfiler")
+log = get_logger("APXIQ.Intelligence.HardwareProfiler")
 
 
 # =========================================================================
@@ -115,7 +115,7 @@ class HardwareProfiler:
             or None if insufficient data.
         """
         if len(steer_trace) < self.MIN_SAMPLES:
-            logger.warning(
+            log.warning(
                 f"Insufficient steer data for profiling: "
                 f"{len(steer_trace)} samples (need {self.MIN_SAMPLES})"
             )
@@ -140,7 +140,7 @@ class HardwareProfiler:
         if confidence < 0.5:
             fft_type = self._classify_by_frequency(dominant_freq)
             if fft_type and fft_type != detected_type:
-                logger.info(
+                log.info(
                     f"Variance says '{detected_type}' but FFT says "
                     f"'{fft_type}'. Using FFT (low variance confidence)."
                 )
@@ -159,7 +159,7 @@ class HardwareProfiler:
             sample_count=len(steer_trace),
         )
 
-        logger.info(
+        log.info(
             f"Hardware classified: {profile.tier_label} "
             f"(confidence={confidence:.0%}, variance={variance:.4f}, "
             f"freq={dominant_freq:.1f}Hz, brake_tol={brake_threshold}m)"

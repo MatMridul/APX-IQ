@@ -106,16 +106,7 @@ export function CircularRPMGauge({
       height={size}
       className="overflow-visible"
     >
-      {/* Translate everything to center */}
-      <g transform={`translate(${cx}, ${cy})`}>
-        {/* Background track */}
-        <path
-          d={trackArc(null as any) ?? ""}
-          fill="rgba(255,255,255,0.06)"
-          transform={`translate(-${cx}, -${cy})`}
-          style={{ transform: `translate(${cx}px, ${cy}px) translate(-${cx}px, -${cy}px)` }}
-        />
-      </g>
+
 
       {/* Using translate on paths directly */}
       <path

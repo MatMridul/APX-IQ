@@ -14,7 +14,7 @@ Usage:
     # [Distance, Speed, Throttle, Brake, nGear, RPM, DRS, X, Y, Z, Time]
 """
 
-import logging
+from core.logging_config import get_logger
 from typing import Optional
 
 import fastf1
@@ -23,7 +23,7 @@ import pandas as pd
 
 from .constants import MIN_YEAR, MAX_YEAR, TRACK_MAP, SESSION_TYPE_MAP
 
-logger = logging.getLogger("APXIQ.Intelligence.FastF1")
+log = get_logger("APXIQ.Intelligence.FastF1")
 
 
 class FastF1Client:
@@ -48,7 +48,7 @@ class FastF1Client:
                        are 50-100MB each, so caching is critical for performance.
         """
         fastf1.Cache.enable_cache(cache_dir)
-        logger.info(f"FastF1 client initialized. Cache: {cache_dir}")
+        log.info(f"FastF1 client initialized. Cache: {cache_dir}")
 
     def get_lap_telemetry(
         self,
@@ -96,7 +96,7 @@ class FastF1Client:
             )
 
         try:
-            logger.info(
+            log.info(
                 f"Loading telemetry: {year} {gp} {session_type} "
                 f"Driver={driver} Lap={lap}"
             )
@@ -108,7 +108,7 @@ class FastF1Client:
             # Select the driver's laps
             driver_laps = session.laps.pick_driver(driver)
             if driver_laps.empty:
-                logger.warning(f"No laps found for driver {driver}")
+                log.warning(f"No laps found for driver {driver}")
                 return None
 
             # Pick the specific lap
@@ -118,7 +118,7 @@ class FastF1Client:
                 lap_num = int(lap)
                 matching = driver_laps[driver_laps["LapNumber"] == lap_num]
                 if matching.empty:
-                    logger.warning(
+                    log.warning(
                         f"Lap {lap_num} not found for driver {driver}"
                     )
                     return None
@@ -132,14 +132,14 @@ class FastF1Client:
             if telemetry["Brake"].dtype == bool:
                 telemetry["Brake"] = telemetry["Brake"].astype(float)
 
-            logger.info(
+            log.info(
                 f"Telemetry loaded: {len(telemetry)} data points, "
                 f"max distance: {telemetry['Distance'].max():.0f}m"
             )
             return telemetry
 
         except Exception as e:
-            logger.error(f"Failed to load telemetry: {e}")
+            log.error(f"Failed to load telemetry: {e}")
             return None
 
     def get_available_sessions(self, year: int) -> list[dict]:
@@ -164,7 +164,7 @@ class FastF1Client:
             schedule = schedule[schedule["EventFormat"] != "testing"]
             return schedule.to_dict("records")
         except Exception as e:
-            logger.error(f"Failed to load schedule for {year}: {e}")
+            log.error(f"Failed to load schedule for {year}: {e}")
             return []
 
     def get_available_drivers(
@@ -187,7 +187,7 @@ class FastF1Client:
             drivers = session.laps["Driver"].unique().tolist()
             return sorted(drivers)
         except Exception as e:
-            logger.error(f"Failed to load drivers: {e}")
+            log.error(f"Failed to load drivers: {e}")
             return []
 
     def get_track_distance(
@@ -213,7 +213,7 @@ class FastF1Client:
             telemetry = fastest.get_telemetry().add_distance()
             return float(telemetry["Distance"].max())
         except Exception as e:
-            logger.error(f"Failed to get track distance: {e}")
+            log.error(f"Failed to get track distance: {e}")
             return None
 
     def fetch_ghost_lap(
@@ -237,16 +237,17 @@ class FastF1Client:
 
         # Build the standardized telemetry DataFrame for DB storage
         ghost_telemetry = pd.DataFrame({
-            "distance_m": telemetry["Distance"].values,
-            "speed_kph": telemetry["Speed"].values,
-            "throttle": telemetry["Throttle"].values / 100.0,  # Normalize to 0.0-1.0
-            "brake": telemetry["Brake"].astype(float).values,
-            "gear": telemetry["nGear"].values,
-            "rpm": telemetry["RPM"].values,
+            "distance_m": telemetry["Distance"].values.astype(float),
+            "speed_kph": telemetry["Speed"].values.astype(float),
+            "throttle": np.clip(telemetry["Throttle"].values / 100.0, 0.0, 1.0),
+            "brake": np.clip(telemetry["Brake"].astype(float).values, 0.0, 1.0),
+            "steer": np.zeros(len(telemetry), dtype=float),
+            "gear": np.round(telemetry["nGear"].fillna(0).values).astype(int),
+            "rpm": np.round(telemetry["RPM"].fillna(0).values).astype(int),
             "drs": telemetry["DRS"].values.astype(bool),
-            "x": telemetry["X"].values,
-            "y": telemetry["Y"].values,
-            "z": telemetry["Z"].values,
+            "x": telemetry["X"].values.astype(float),
+            "y": telemetry["Y"].values.astype(float),
+            "z": telemetry["Z"].values.astype(float),
         })
 
         # Get lap time if available
@@ -280,6 +281,60 @@ class FastF1Client:
                 "track_distance_m": float(telemetry["Distance"].max()),
             },
             "telemetry": ghost_telemetry,
+        }
+
+    def get_track_layout(
+        self,
+        year: int,
+        gp: str,
+        session_type: str = "Q",
+        driver: str = "VER",
+    ) -> Optional[dict]:
+        """
+        Fetch normalized 2D circuit geometry coordinates (X, Y) for UI rendering.
+        """
+        lap_data = self.fetch_ghost_lap(year, gp, session_type, driver)
+        if lap_data is None:
+            return None
+
+        telemetry = lap_data["telemetry"]
+        if "x" not in telemetry.columns or "y" not in telemetry.columns:
+            return None
+
+        x_coords = telemetry["x"].to_numpy()
+        y_coords = telemetry["y"].to_numpy()
+        dist = telemetry["distance_m"].to_numpy()
+        speed = telemetry["speed_kph"].to_numpy()
+
+        x_min, x_max = float(np.min(x_coords)), float(np.max(x_coords))
+        y_min, y_max = float(np.min(y_coords)), float(np.max(y_coords))
+        span_x = (x_max - x_min) or 1.0
+        span_y = (y_max - y_min) or 1.0
+
+        # Scale into a normalized 1000x1000 viewport with padding
+        padding = 50.0
+        scale = (1000.0 - 2 * padding) / max(span_x, span_y)
+
+        norm_points = []
+        for i in range(len(x_coords)):
+            norm_points.append({
+                "x": round(padding + (x_coords[i] - x_min) * scale, 2),
+                "y": round(padding + (y_coords[i] - y_min) * scale, 2),
+                "distance_m": round(float(dist[i]), 1),
+                "speed_kph": round(float(speed[i]), 1),
+            })
+
+        return {
+            "gp_name": gp,
+            "track_name": gp,
+            "year": year,
+            "circuit_length_m": float(np.max(dist)),
+            "points_count": len(norm_points),
+            "points": norm_points,
+            "bounds": {
+                "x_min": x_min, "x_max": x_max,
+                "y_min": y_min, "y_max": y_max,
+            }
         }
 
 

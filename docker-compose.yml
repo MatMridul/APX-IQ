@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: apx-api
+    ports:
+      - "8000:8000"
+    environment:
+      - API_PORT=8000
+      - INGESTION_PORT=3001
+      - LOG_FORMAT=pretty
+      - SECRET_KEY=apx-iq-production-secret-key
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile.ingestion
+    container_name: apx-ingestion
+    ports:
+      - "3001:3001"
+      - "20777:20777/udp"
+    environment:
+      - API_BASE_URL=http://api:8000
+      - INGESTION_PORT=3001
+      - UDP_PORT=20777
+      - APXIQ_STEALTH_MODE=false
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: apx-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=http://localhost:3001
+    depends_on:
+      - api
+      - ingestion
+    restart: unless-stopped

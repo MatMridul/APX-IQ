@@ -19,6 +19,7 @@ import { DashboardHeader } from "./DashboardHeader";
 import { RaceCarTelemetry } from "./RaceCarTelemetry";
 import { CentralTelemetry } from "./CentralTelemetry";
 import { BottomInstruments } from "./BottomInstruments";
+import { TrackMap } from "./TrackMap";
 
 export const DashboardCanvas: React.FC = () => {
   return (
@@ -28,9 +29,8 @@ export const DashboardCanvas: React.FC = () => {
         boxShadow: "inset 0 0 35px rgba(0,0,0,0.95), 0 0 45px rgba(0,0,0,0.9)",
       }}
     >
-      {/* ── Background: Subtle Carbon Weave Texture & Vignette ───────────── */}
-      <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#B7A06A_0.75px,transparent_0.75px)] [background-size:6px_6px]" />
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.85)_100%)]" />
+      {/* ── Background Circuit / Carbon Texture ────────────────────────────── */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#111115] via-[#08080A] to-[#040405] opacity-90" />
 
       {/* ── Internal Framing Lines ───────────────────────────────────────── */}
       {/* Vertical golden divider in bottom-center dividing Tyre/Brake and Speed Trace */}
@@ -57,13 +57,8 @@ export const DashboardCanvas: React.FC = () => {
       </div>
 
       {/* ── 05: TRACK MAP & SECTORS REGION (top: 20.5%, left: 69.5%, w: 28.5%, h: 49.0%) ── */}
-      <div className="absolute top-[20.5%] left-[69.5%] w-[28.5%] h-[49.0%] border border-dashed border-[#B7A06A]/25 rounded-lg flex flex-col items-center justify-center pointer-events-none z-10 bg-black/20">
-        <span className="text-[10px] font-mono text-[#D4AF37]/80 uppercase tracking-widest font-bold">
-          [TRACK MAP & SECTORS REGION]
-        </span>
-        <span className="text-[8px] font-mono text-silver/40 mt-1">
-          x: 69.5%, y: 20.5%, w: 28.5%, h: 49.0%
-        </span>
+      <div className="absolute top-[20.5%] left-[69.5%] w-[28.5%] h-[49.0%] z-10 flex items-center justify-center">
+        <TrackMap />
       </div>
 
       {/* ── 06: SPEED TELEMETRY TRACE REGION (top: 72.0%, left: 50.5%, w: 47.5%, h: 25.5%) ── */}

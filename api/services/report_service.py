@@ -73,25 +73,43 @@ class DatabaseReportService:
         self._pool = pool
 
     async def save_report(self, data: dict) -> int:
+        """
+        Persist a report with ALL available fields.
+        (audit B2: previous version silently dropped deltas, corner stats,
+         hardware profile and generation metadata.)
+        """
         import json
         async with self._pool.acquire() as conn:
             report_id = await conn.fetchval(
                 """
                 INSERT INTO intelligence_reports (
-                    report_type, title, markdown_content,
+                    user_lap_id, ghost_lap_id, session_uid, lap_number,
+                    report_type, title, markdown,
                     summary, key_findings, generated_by,
-                    session_uid, lap_number
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    generation_time_ms, total_time_delta_ms,
+                    avg_speed_delta_kph, corner_count,
+                    worst_corner_index, best_corner_index,
+                    hardware_profile
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
                 RETURNING report_id
                 """,
+                data.get("user_lap_id"),
+                data.get("ghost_lap_id"),
+                data.get("session_uid"),
+                data.get("lap_number"),
                 data.get("report_type", "lap_debrief"),
                 data.get("title"),
                 data.get("markdown"),
                 data.get("summary"),
                 json.dumps(data.get("key_findings", [])),
                 data.get("generated_by"),
-                data.get("session_uid"),
-                data.get("lap_number"),
+                data.get("generation_time_ms"),
+                data.get("total_time_delta_ms"),
+                data.get("avg_speed_delta_kph"),
+                data.get("corner_count"),
+                data.get("worst_corner_index"),
+                data.get("best_corner_index"),
+                json.dumps(data["hardware_profile"]) if data.get("hardware_profile") else None,
             )
         log.info("report_saved_to_db", report_id=report_id)
         return report_id
@@ -115,7 +133,8 @@ class DatabaseReportService:
             if report_type:
                 rows = await conn.fetch(
                     """
-                    SELECT report_id, report_type, title, summary, generated_by, created_at
+                    SELECT report_id, report_type, title, summary, generated_by,
+                           lap_number, total_time_delta_ms, created_at
                     FROM intelligence_reports
                     WHERE report_type = $1
                     ORDER BY created_at DESC LIMIT $2
@@ -126,7 +145,8 @@ class DatabaseReportService:
             else:
                 rows = await conn.fetch(
                     """
-                    SELECT report_id, report_type, title, summary, generated_by, created_at
+                    SELECT report_id, report_type, title, summary, generated_by,
+                           lap_number, total_time_delta_ms, created_at
                     FROM intelligence_reports
                     ORDER BY created_at DESC LIMIT $1
                     """,

@@ -39,12 +39,18 @@ def test_hardware_profiling(client):
 
 
 def test_career_progression_endpoint(client):
+    """Honest-metrics contract (audit B3): real values only, nulls + sufficiency marker."""
     res = client.get("/intelligence/career/progression")
     assert res.status_code == 200
     data = res.json()
     assert "total_sessions" in data
-    assert "coaching_adherence_rate" in data
+    assert "total_laps_recorded" in data
     assert "pace_progression" in data
+    assert "data_sufficiency" in data
+    assert set(data["data_sufficiency"]) == {"sufficient", "reports_with_delta", "required"}
+    # Fabricated placeholders must never come back
+    assert "coaching_adherence_rate" not in data
+    assert "consistency_index" not in data
 
 
 def test_destructive_endpoints_require_admin_when_configured(client, monkeypatch):

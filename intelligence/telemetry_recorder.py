@@ -70,11 +70,13 @@ class TelemetryRecorder:
         self._current_lap_num: int = 0
         self._last_lap_distance: float = 0.0
 
-        # Completed laps storage
-        self._completed_laps: list[dict] = []  # [{lap_num, dataframe}, ...]
+        # Completed laps storage (bounded — audit E5)
+        self._completed_laps: list[dict] = []  # [{lap_num, dataframe, ...}, ...]
+        self._max_completed_laps = 100
 
-        # Steering trace accumulator for hardware profiling
-        self._steer_trace_all: list[float] = []
+        # Steering trace accumulator for hardware profiling (bounded — audit E5)
+        from collections import deque
+        self._steer_trace_all: deque = deque(maxlen=200_000)
 
         log.info("TelemetryRecorder state reset.")
 
@@ -101,10 +103,10 @@ class TelemetryRecorder:
     def update_lap_data(self, player_idx: int, lap_data_packet):
         """
         Update the latest lap data snapshot from a Lap Data packet (ID=2).
-        
+
         Also handles lap boundary detection: if m_lapDistance drops
         significantly between ticks, we've crossed the start/finish line.
-        
+
         Args:
             player_idx: Index of the player car in the packet arrays.
             lap_data_packet: The decoded PacketLapData ctypes struct.
@@ -120,6 +122,9 @@ class TelemetryRecorder:
             "lap_num": current_lap_num,
             "is_valid": lap.m_currentLapInvalid == 0,
             "position": lap.m_carPosition,
+            # Timing — field names differ across game years
+            # (F1 2020: float seconds; 2021+: uint32 milliseconds).
+            **self._extract_times(lap),
         }
 
         # --- Lap Boundary Detection ---
@@ -219,11 +224,36 @@ class TelemetryRecorder:
         }
         self._current_lap_buffer.append(row)
 
+    @staticmethod
+    def _extract_times(lap) -> dict:
+        """
+        Version-safe timing extraction from a LapData struct.
+
+        F1 2020 uses float seconds (m_currentLapTime); 2021+ uses
+        uint32 milliseconds (m_currentLapTimeInMS). Sector times are
+        milliseconds in all supported formats. Normalizes everything to ms.
+        """
+        if hasattr(lap, "m_currentLapTimeInMS"):
+            current_ms = int(lap.m_currentLapTimeInMS)
+            last_ms = int(lap.m_lastLapTimeInMS)
+        else:  # F1 2020 float seconds
+            current_ms = int(round(getattr(lap, "m_currentLapTime", 0.0) * 1000))
+            last_ms = int(round(getattr(lap, "m_lastLapTime", 0.0) * 1000))
+        return {
+            "current_lap_time_ms": current_ms,
+            "last_lap_time_ms": last_ms,
+            "sector_1_ms": int(getattr(lap, "m_sector1TimeInMS", 0)),
+            "sector_2_ms": int(getattr(lap, "m_sector2TimeInMS", 0)),
+        }
+
     def _finalize_lap(self):
         """
         Finalize the current lap buffer into a completed lap DataFrame.
-        
+
         Sorts by distance, removes duplicates, and stores the result.
+        Lap timing comes from the game's own m_lastLapTime* value reported
+        on the first tick after crossing the line (audit B1: previously
+        laps were persisted with NULL times and is_valid hardcoded True).
         """
         if len(self._current_lap_buffer) < 10:
             log.warning(
@@ -241,10 +271,19 @@ class TelemetryRecorder:
             subset=["distance_m"], keep="last"
         ).reset_index(drop=True)
 
+        snap = self._latest_lap_data or {}
+        last_lap_ms = snap.get("last_lap_time_ms", 0) or 0
+
         lap_info = {
             "lap_num": self._current_lap_num,
             "session_uid": self.session_uid,
             "track_id": self.track_id,
+            # The just-completed lap's time, as reported by the game
+            "lap_time_ms": last_lap_ms if last_lap_ms > 0 else None,
+            "sector_1_ms": snap.get("sector_1_ms") or None,
+            "sector_2_ms": snap.get("sector_2_ms") or None,
+            # Validity of the lap we just closed = validity of its final tick
+            "is_valid": bool(snap.get("is_valid", True)),
             "data_points": len(df),
             "max_distance": float(df["distance_m"].max()),
             "dataframe": df,
@@ -254,7 +293,8 @@ class TelemetryRecorder:
 
         log.info(
             f"Lap {self._current_lap_num} finalized: "
-            f"{len(df)} points, max distance {df['distance_m'].max():.0f}m"
+            f"{len(df)} points, {lap_info['lap_time_ms']}ms, "
+            f"max distance {df['distance_m'].max():.0f}m"
         )
 
         # Reset buffer for next lap
@@ -273,18 +313,30 @@ class TelemetryRecorder:
     def get_completed_laps(self) -> list[dict]:
         """
         Return all completed lap DataFrames.
-        
+
         Returns:
             List of dicts, each containing:
-                - lap_num: int
-                - session_uid: int
-                - track_id: int
-                - data_points: int
-                - max_distance: float
-                - dataframe: pd.DataFrame with columns matching
-                             user_lap_telemetry schema
+                - lap_num, session_uid, track_id
+                - lap_time_ms, sector_1_ms, sector_2_ms, is_valid
+                - data_points, max_distance
+                - dataframe: pd.DataFrame matching user_lap_telemetry schema
         """
         return self._completed_laps
+
+    def prune_saved(self, keys: set) -> None:
+        """
+        Drop completed-lap entries whose (session_uid, lap_num) key was
+        acknowledged as persisted by the ingestion saver worker.
+        Keeps memory bounded across long sessions.  (audit B4/E5)
+        """
+        if keys:
+            self._completed_laps = [
+                lap for lap in self._completed_laps
+                if (lap.get("session_uid"), lap["lap_num"]) not in keys
+            ]
+        # Hard cap as a second line of defence
+        if len(self._completed_laps) > self._max_completed_laps:
+            self._completed_laps = self._completed_laps[-self._max_completed_laps:]
 
     def get_latest_lap(self) -> Optional[dict]:
         """Return the most recently completed lap, or None."""

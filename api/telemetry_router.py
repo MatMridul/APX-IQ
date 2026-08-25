@@ -21,6 +21,7 @@ from api.models.shared import (
     LapInfo,
     LapTelemetryResponse,
     SaveLapRequest,
+    SaveSessionRequest,
 )
 from core.logging_config import get_logger
 from core.config import settings
@@ -96,6 +97,34 @@ async def save_lap(lap_data: SaveLapRequest, request: Request):
         "message": f"Lap {lap_data.lap_number} saved successfully",
         "telemetry_points": len(lap_data.telemetry),
     }
+
+
+@router.post("/session/start")
+async def start_session(session_data: SaveSessionRequest, request: Request):
+    """
+    Register the active session. Called by ingestion when a Session
+    packet arrives; feeds both in-process state and the sessions table
+    (which lap saves FK-reference).
+    """
+    session_manager = getattr(request.app.state, "session_manager", None)
+    if session_manager is not None:
+        session_manager.start_session(
+            session_uid=session_data.session_uid,
+            track_id=session_data.track_id,
+            session_type=session_data.session_type,
+        )
+
+    # Persist parent row so DatabaseLapService FK is satisfied even if
+    # this call races ahead of the first lap save.
+    service = _get_lap_service(request)
+    if hasattr(service, "ensure_session"):
+        await service.ensure_session(
+            session_data.session_uid,
+            track_id=session_data.track_id,
+            track_length=session_data.track_length,
+        )
+
+    return {"status": "session_registered", "session_uid": session_data.session_uid}
 
 
 @router.get("/session/current")

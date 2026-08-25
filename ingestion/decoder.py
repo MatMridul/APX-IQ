@@ -12,8 +12,8 @@ Decodes binary F1 game UDP packets across all supported game versions:
 """
 
 import ctypes
-import logging
 
+from core.logging_config import get_logger
 from . import packet_structs_20
 from . import packet_structs_21
 from . import packet_structs_22
@@ -21,7 +21,7 @@ from . import packet_structs_23
 from . import packet_structs_24
 from . import packet_structs_25
 
-logger = logging.getLogger("APXIQ.Ingestion.Decoder")
+logger = get_logger("APXIQ.Ingestion.Decoder")
 
 FORMAT_MODULE_MAP = {
     2020: packet_structs_20,
@@ -54,7 +54,7 @@ class PacketDecoder:
         Returns the decoded packet object or None if invalid.
         """
         if len(data) < 24:
-            logger.warning("Packet too short to contain header (len=%d)", len(data))
+            logger.warning("packet_too_short", length=len(data))
             return None
 
         # Peek at m_packetFormat (first uint16)
@@ -62,7 +62,7 @@ class PacketDecoder:
         module = FORMAT_MODULE_MAP.get(packet_format)
 
         if module is None:
-            logger.debug("Unsupported Packet Format: %d. Ignoring.", packet_format)
+            logger.debug("unsupported_packet_format_ignored", format=packet_format)
             return None
 
         return PacketDecoder._decode_with_module(data, module, packet_format)
@@ -88,5 +88,6 @@ class PacketDecoder:
             else:
                 return header
         except ValueError as e:
-            logger.error("Failed to decode format %d packet ID %d: %s", packet_format, header.m_packetId if 'header' in locals() else -1, e)
+            failed_id = header.m_packetId if "header" in locals() else -1
+            logger.error("packet_decode_failed", format=packet_format, packet_id=failed_id, error=str(e))
             return None

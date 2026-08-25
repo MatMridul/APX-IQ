@@ -1,32 +1,30 @@
 """
 APX IQ Database Layer
-======================
+=====================
 
 Async PostgreSQL connection pool via asyncpg.
 All database access goes through this module.
 
-Usage:
-    from core.database import db, get_db
+Configuration comes from core.config.settings (audit E4: this module
+previously read os.getenv directly, bypassing central config).
 
-    # In FastAPI endpoint:
-    async with get_db() as conn:
-        row = await conn.fetchrow("SELECT * FROM laps WHERE lap_id=$1", lap_id)
+Usage:
+    from core.database import db
 
     # In app startup:
     await db.connect()
 
-    # In app shutdown:
-    await db.close()
+    # Services receive the raw pool (see api/main.py lifespan):
+    create_lap_service(pool=db._pool)
 """
 
-import logging
-import os
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
 import asyncpg
+from core.config import settings
+from core.logging_config import get_logger
 
-log = logging.getLogger("APXIQ.Database")
+log = get_logger("APXIQ.Database")
 
 # ─── Connection pool singleton ────────────────────────────────────────────────
 
@@ -42,11 +40,11 @@ class Database:
 
     async def connect(self) -> None:
         """Open connection pool. Called at app startup."""
-        dsn = os.getenv("DATABASE_URL")
+        dsn = settings.database_url
         if not dsn:
             log.warning(
-                "DATABASE_URL not set — running without database. "
-                "Data will not persist across restarts."
+                "database_url_not_set",
+                consequence="running without database — in-memory storage, data lost on restart",
             )
             return
 
@@ -57,10 +55,10 @@ class Database:
                 max_size=10,
                 command_timeout=30,
             )
-            log.info("Database pool connected ✓")
+            log.info("database_pool_connected")
         except Exception as exc:
-            log.error(f"Database connection failed: {exc}")
-            log.warning("Continuing without database — using in-memory storage")
+            log.error("database_connection_failed", error=str(exc))
+            log.warning("degraded_to_in_memory_storage")
             self._pool = None
 
     async def close(self) -> None:
@@ -68,33 +66,13 @@ class Database:
         if self._pool:
             await self._pool.close()
             self._pool = None
-            log.info("Database pool closed")
+            log.info("database_pool_closed")
 
-    @asynccontextmanager
-    async def acquire(self) -> AsyncGenerator[asyncpg.Connection, None]:
-        """Acquire a connection from the pool."""
-        if not self._pool:
-            raise RuntimeError("Database not connected")
-        async with self._pool.acquire() as conn:
-            yield conn
+    @property
+    def pool(self) -> Optional[asyncpg.Pool]:
+        """Direct pool access for service factories (None if unconnected)."""
+        return self._pool
 
 
 # Module-level singleton
 db = Database()
-
-
-# ─── FastAPI dependency ───────────────────────────────────────────────────────
-
-@asynccontextmanager
-async def get_db() -> AsyncGenerator[asyncpg.Connection, None]:
-    """
-    FastAPI dependency — yields a database connection.
-
-    Usage in endpoint:
-        async def my_endpoint(conn=Depends(get_db)):
-            ...
-
-    Raises RuntimeError if database is not connected (dev without Postgres).
-    """
-    async with db.acquire() as conn:
-        yield conn

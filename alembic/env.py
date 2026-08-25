@@ -1,4 +1,15 @@
-"""Alembic environment — reads DATABASE_URL from .env"""
+"""Alembic environment — reads DATABASE_URL from .env / environment.
+
+Driver note: migrations deliberately use the SYNC psycopg2 driver,
+because every migration file issues multi-statement SQL blocks, which
+asyncpg's prepared-statement protocol cannot execute. psycopg2 is a
+migration-only dependency (see requirements.txt); the application
+runtime remains fully async on asyncpg.
+
+Audit follow-up fixed here: previously neither alembic nor any sync
+driver was declared in requirements.txt at all — `alembic upgrade
+head` could not run on a machine built from requirements alone.
+"""
 
 import os
 from logging.config import fileConfig

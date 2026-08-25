@@ -2,44 +2,66 @@
 APX IQ Cache Layer
 ===================
 
-Async caching backed by Redis (if available) or in-memory fallback.
+Async caching backed by Redis (if configured) or an in-memory fallback.
+
 Used to cache expensive operations:
-    - Telemetry alignment results
+    - Telemetry alignment / analysis pipeline results
     - FastF1 ghost lap fetches
-    - Hardware profile classifications
+    - Track layout geometry
 
-Usage:
-    from core.cache import cache
+Audit repairs applied here:
+    - E4: backend selection reads core.config.settings (was os.getenv)
+    - A3: the in-memory backend previously IGNORED ttl entirely — entries
+          lived forever and stale results were served indefinitely.
+          It now enforces expiry lazily on access with a size cap.
 
-    @cache.cached(ttl=300, key="align:{lap_id_1}:{lap_id_2}")
-    async def align_laps(lap_id_1, lap_id_2):
-        ...
-
-    # Manual set/get:
-    await cache.set("key", value, ttl=60)
-    value = await cache.get("key")
+Note (deferred to security pass): the Redis backend serialises with
+pickle — acceptable for a local single-user deployment, flagged as D4.
 """
 
-import logging
-import os
-import pickle
 from typing import Any, Optional
 
-log = logging.getLogger("APXIQ.Cache")
+from core.config import settings
+from core.logging_config import get_logger
 
-# ─── Cache backend ────────────────────────────────────────────────────────────
+log = get_logger("APXIQ.Cache")
+
+# ─── Cache backends ───────────────────────────────────────────────────────────
+
+_MAX_MEMORY_ENTRIES = 2_000
+
 
 class _InMemoryCache:
-    """Simple in-memory dict cache — no TTL enforcement (good enough for dev)."""
+    """TTL-aware in-memory dict cache (lazy eviction + size cap)."""
 
     def __init__(self) -> None:
-        self._store: dict[str, Any] = {}
+        self._store: dict[str, tuple[Any, float | None]] = {}  # key -> (value, expires_at)
+
+    @staticmethod
+    def _now() -> float:
+        import time
+        return time.monotonic()
+
+    def _expired(self, expires_at: float | None) -> bool:
+        return expires_at is not None and self._now() >= expires_at
 
     async def get(self, key: str) -> Optional[Any]:
-        return self._store.get(key)
+        entry = self._store.get(key)
+        if entry is None:
+            return None
+        value, expires_at = entry
+        if self._expired(expires_at):
+            self._store.pop(key, None)
+            return None
+        return value
 
     async def set(self, key: str, value: Any, ttl: int = 300) -> None:
-        self._store[key] = value
+        if len(self._store) >= _MAX_MEMORY_ENTRIES:
+            # Drop the oldest ~10% — crude but prevents unbounded growth
+            drop = max(1, _MAX_MEMORY_ENTRIES // 10)
+            for k in list(self._store.keys())[:drop]:
+                self._store.pop(k, None)
+        self._store[key] = (value, self._now() + ttl)
 
     async def delete(self, key: str) -> None:
         self._store.pop(key, None)
@@ -48,41 +70,41 @@ class _InMemoryCache:
         self._store.clear()
 
     async def exists(self, key: str) -> bool:
-        return key in self._store
+        return await self.get(key) is not None
 
 
 class _RedisCache:
     """Redis-backed cache with pickle serialisation."""
 
     def __init__(self, url: str) -> None:
-        import redis.asyncio as aioredis  # type: ignore
+        import redis.asyncio as aioredis
         self._redis = aioredis.from_url(url, encoding="utf-8", decode_responses=False)
 
     async def get(self, key: str) -> Optional[Any]:
         try:
             raw = await self._redis.get(key)
-            return pickle.loads(raw) if raw else None
+            return pickle_loads(raw) if raw else None
         except Exception as exc:
-            log.debug(f"Cache get failed: {exc}")
+            log.debug("cache_get_failed", error=str(exc))
             return None
 
     async def set(self, key: str, value: Any, ttl: int = 300) -> None:
         try:
-            await self._redis.set(key, pickle.dumps(value), ex=ttl)
+            await self._redis.set(key, pickle_dumps(value), ex=ttl)
         except Exception as exc:
-            log.debug(f"Cache set failed: {exc}")
+            log.debug("cache_set_failed", error=str(exc))
 
     async def delete(self, key: str) -> None:
         try:
             await self._redis.delete(key)
         except Exception as exc:
-            log.debug(f"Cache delete failed: {exc}")
+            log.debug("cache_delete_failed", error=str(exc))
 
     async def clear(self) -> None:
         try:
             await self._redis.flushdb()
         except Exception as exc:
-            log.debug(f"Cache clear failed: {exc}")
+            log.debug("cache_clear_failed", error=str(exc))
 
     async def exists(self, key: str) -> bool:
         try:
@@ -91,22 +113,32 @@ class _RedisCache:
             return False
 
 
+def pickle_loads(raw: bytes) -> Any:
+    import pickle
+    return pickle.loads(raw)
+
+
+def pickle_dumps(value: Any) -> bytes:
+    import pickle
+    return pickle.dumps(value)
+
+
 # ─── Cache factory ────────────────────────────────────────────────────────────
 
 def _build_cache():
-    redis_url = os.getenv("REDIS_URL")
+    redis_url = settings.redis_url
     if redis_url:
         try:
             c = _RedisCache(redis_url)
-            log.info(f"Cache: Redis @ {redis_url}")
+            log.info("cache_backend_redis", url=redis_url)
             return c
         except Exception as exc:
-            log.warning(f"Redis unavailable ({exc}), falling back to in-memory cache")
-    log.info("Cache: in-memory (set REDIS_URL for persistent cache)")
+            log.warning("redis_unavailable_falling_back", error=str(exc))
+    log.info("cache_backend_memory")
     return _InMemoryCache()
 
 
-# Module-level singleton — initialised lazily so env vars are loaded first
+# Module-level singleton — initialised lazily so settings are loaded first
 _cache_instance: Optional[Any] = None
 
 
@@ -117,31 +149,7 @@ def get_cache():
     return _cache_instance
 
 
-# ─── Helper decorator ─────────────────────────────────────────────────────────
-
-def cached(ttl: int = 300):
-    """
-    Async function decorator. Caches return value keyed by function name + args.
-
-    Usage:
-        @cached(ttl=300)
-        async def expensive_fn(a, b):
-            ...
-    """
-    import functools
-
-    def decorator(fn):
-        @functools.wraps(fn)
-        async def wrapper(*args, **kwargs):
-            c = get_cache()
-            key = f"{fn.__module__}.{fn.__qualname__}:{args}:{sorted(kwargs.items())}"
-            cached_val = await c.get(key)
-            if cached_val is not None:
-                log.debug(f"Cache HIT: {key[:60]}")
-                return cached_val
-            result = await fn(*args, **kwargs)
-            await c.set(key, result, ttl=ttl)
-            log.debug(f"Cache SET: {key[:60]}")
-            return result
-        return wrapper
-    return decorator
+def reset_cache_singleton() -> None:
+    """Test helper — forces backend re-selection on next get_cache()."""
+    global _cache_instance
+    _cache_instance = None

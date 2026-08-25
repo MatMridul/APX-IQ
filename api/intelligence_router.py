@@ -418,7 +418,11 @@ async def get_report(report_id: int, request: Request):
 @router.get("/career/progression")
 async def get_career_progression(request: Request, limit: int = 50):
     """
-    Compute driver pace trends, coaching adherence, and career progression metrics.
+    Compute driver pace trends from REAL persisted data.
+
+    Honesty policy (audit B3): metrics that cannot be computed from
+    stored fields are returned as null with an explicit sufficiency
+    marker — never fabricated placeholders.
     """
     report_service = _get_report_service(request)
     lap_service = request.app.state.lap_service
@@ -426,27 +430,44 @@ async def get_career_progression(request: Request, limit: int = 50):
     reports = await report_service.list_reports(limit=limit)
     laps = await lap_service.list_laps(session_uid=None, min_telemetry_points=0)
 
-    total_sessions = len(reports)
-    total_laps_analyzed = len(laps)
+    # Newest-first from storage; reverse so trend reads chronologically
+    chronological = list(reversed(reports))
+    pace_trend = [
+        {
+            "report_id":           r.get("report_id"),
+            "date":                str(r.get("created_at")),
+            "lap_number":          r.get("lap_number"),
+            "total_time_delta_ms": r.get("total_time_delta_ms"),
+        }
+        for r in chronological
+        if r.get("total_time_delta_ms") is not None
+    ]
 
-    # Compute progression metrics
-    pace_trend = []
-    for r in reversed(reports):
-        meta = r.get("metadata", {})
-        delta_ms = meta.get("total_delta_ms", 0.0)
-        pace_trend.append({
-            "report_id": r.get("report_id"),
-            "date": str(r.get("created_at")),
-            "track": meta.get("track_name", "Unknown"),
-            "delta_ms": delta_ms,
-        })
+    deltas = [p["total_time_delta_ms"] for p in pace_trend]
+    sufficient = len(deltas) >= 3
+
+    improvement_trend_ms = None
+    if sufficient:
+        half = len(deltas) // 2
+        older_half, recent_half = deltas[:half], deltas[half:]
+        # Delta is user-vs-ghost time loss; falling delta = improving.
+        improvement_trend_ms = round(
+            (sum(older_half) / len(older_half)) - (sum(recent_half) / len(recent_half)), 1
+        )
 
     return {
-        "total_sessions": total_sessions,
-        "total_laps_recorded": total_laps_analyzed,
-        "coaching_adherence_rate": 0.84 if total_sessions > 0 else 0.0,
-        "pace_progression": pace_trend,
-        "consistency_index": 92.5 if total_laps_analyzed > 5 else 80.0,
+        "total_sessions":        len(reports),
+        "total_laps_recorded":   len(laps),
+        "pace_progression":      pace_trend,
+        "avg_delta_recent_ms": (
+            round(sum(deltas[-5:]) / len(deltas[-5:]), 1) if deltas else None
+        ),
+        "improvement_trend_ms":  improvement_trend_ms,
+        "data_sufficiency": {
+            "sufficient":          sufficient,
+            "reports_with_delta":  len(deltas),
+            "required":            3,
+        },
     }
 
 

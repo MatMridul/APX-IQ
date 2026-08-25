@@ -167,6 +167,14 @@ class SaveReportRequest(BaseModel):
     hardware_profile:    Optional[Dict[str, Any]] = None
 
 
+class SaveSessionRequest(BaseModel):
+    """Session context broadcast by ingestion when a Session packet (ID=1) arrives."""
+    session_uid:         int
+    track_id:            Optional[int] = None
+    track_length:        Optional[int] = None
+    session_type:        Optional[int] = None
+
+
 class CanonicalTelemetryFrame(BaseModel):
     """
     Standardized real-time telemetry frame decoded by any F1 UDP adapter (2020–2025).

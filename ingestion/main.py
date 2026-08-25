@@ -49,23 +49,29 @@ sio.attach(app)
 # ─── Intelligence state ───────────────────────────────────────────────────────
 
 recorder = TelemetryRecorder()
+_saved_lap_keys: set = set()           # (session_uid, lap_num) acknowledged
+_last_session_bridged: int | None = None
 
 
 # ─── Lap persistence ──────────────────────────────────────────────────────────
 
-async def save_lap_to_api(lap_info: dict) -> None:
+async def save_lap_to_api(lap_info: dict) -> bool:
     """
     POST a completed lap DataFrame to the API for persistence.
 
     Uses settings.api_base_url to avoid hardcoding the API address.
-    Failures are logged but do not crash the ingestion server.
+    Returns True only on confirmed success so the saver worker can
+    retry failures instead of skipping laps forever.  (audit B4)
     """
     telemetry = lap_info["dataframe"].to_dict(orient="records")
     payload = {
-        "session_uid": lap_info["session_uid"],
-        "lap_number":  lap_info["lap_num"],
-        "telemetry":   telemetry,
-        "is_valid":    True,
+        "session_uid":    lap_info["session_uid"],
+        "lap_number":     lap_info["lap_num"],
+        "lap_time_ms":    lap_info.get("lap_time_ms"),
+        "sector_1_ms":    lap_info.get("sector_1_ms"),
+        "sector_2_ms":    lap_info.get("sector_2_ms"),
+        "telemetry":      telemetry,
+        "is_valid":       lap_info.get("is_valid", True),
     }
 
     try:
@@ -80,16 +86,39 @@ async def save_lap_to_api(lap_info: dict) -> None:
                 "lap_saved_to_api",
                 lap_id=result["lap_id"],
                 lap_number=lap_info["lap_num"],
+                lap_time_ms=payload["lap_time_ms"],
                 points=lap_info["data_points"],
             )
-        else:
-            log.error(
-                "lap_save_failed",
-                status=response.status_code,
-                body=response.text[:200],
-            )
+            return True
+        log.error(
+            "lap_save_failed",
+            status=response.status_code,
+            body=response.text[:200],
+        )
     except Exception as exc:
         log.error("lap_save_error", lap_number=lap_info["lap_num"], error=str(exc))
+    return False
+
+
+async def bridge_session_to_api(session_uid: int, track_id: int, track_length: int) -> None:
+    """Forward session context to the API (feeds SessionManager + sessions table)."""
+    global _last_session_bridged
+    if session_uid == _last_session_bridged:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(
+                f"{settings.api_base_url}/telemetry/session/start",
+                json={
+                    "session_uid":  int(session_uid),
+                    "track_id":     int(track_id),
+                    "track_length": int(track_length),
+                },
+            )
+        _last_session_bridged = session_uid
+        log.info("session_bridged_to_api", session_uid=int(session_uid))
+    except Exception as exc:
+        log.warning("session_bridge_failed", error=str(exc))
 
 
 # ─── Socket.IO events ─────────────────────────────────────────────────────────
@@ -229,6 +258,11 @@ async def packet_processor(listener: TelemetryListener) -> None:
                         track_id=packet.m_trackId,
                         track_length=packet.m_trackLength,
                     )
+                    await bridge_session_to_api(
+                        packet.m_header.m_sessionUID,
+                        packet.m_trackId,
+                        packet.m_trackLength,
+                    )
 
         except Exception as exc:
             log.error("packet_processor_error", error=str(exc))
@@ -243,17 +277,35 @@ async def lap_saver_worker() -> None:
     """
     Polls TelemetryRecorder for newly completed laps and ships them
     to the API. Runs every 2 seconds.
+
+    Durability (audit B4): only laps confirmed saved by the API are
+    marked done — failed POSTs are retried on the next poll instead of
+    being skipped forever. Acknowledged laps are pruned from the
+    recorder so long sessions stay memory-bounded.
     """
     log.info("lap_saver_worker_started")
-    last_saved_count = 0
 
+    global _saved_lap_keys
     while True:
         try:
             completed_laps = recorder.get_completed_laps()
-            new_laps = completed_laps[last_saved_count:]
-            for lap_info in new_laps:
-                await save_lap_to_api(lap_info)
-            last_saved_count = len(completed_laps)
+            for lap_info in completed_laps:
+                key = (lap_info.get("session_uid"), lap_info["lap_num"])
+                if key in _saved_lap_keys:
+                    continue
+
+                if await save_lap_to_api(lap_info):
+                    _saved_lap_keys.add(key)
+
+            if _saved_lap_keys:
+                # Drop acknowledged laps from the recorder's memory, then
+                # forget keys that no longer correspond to buffered laps.
+                recorder.prune_saved(_saved_lap_keys)
+                live_keys = {
+                    (lap.get("session_uid"), lap["lap_num"])
+                    for lap in recorder.get_completed_laps()
+                }
+                _saved_lap_keys &= live_keys
         except Exception as exc:
             log.error("lap_saver_error", error=str(exc))
 

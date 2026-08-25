@@ -1,6 +1,6 @@
 """
 APX IQ — FastAPI Application
-==============================
+=============================
 
 Startup order:
   1. Configure structured logging
@@ -9,17 +9,19 @@ Startup order:
   4. Select and attach services (LapService, ReportService) to app.state
   5. Initialise long-lived module instances (ReportGenerator, BattlePredictor)
   6. Mount routers
-  7. Start background WebSocket broadcast worker
+
+Note: live telemetry streaming to the UI is handled by the ingestion
+process's Socket.IO server (:3001). This API intentionally has no
+WebSocket fan-out — the previous /ws path had no producers and was
+removed in the audit repair (issue C1).
 """
 
-import asyncio
-import json
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -55,7 +57,7 @@ async def lifespan(app: FastAPI):
 
     # 1. Database pool
     await db.connect()
-    pool = db._pool  # None if DATABASE_URL is not set
+    pool = db.pool  # None if DATABASE_URL is not set
 
     # 2. Storage and processing services
     app.state.lap_service      = create_lap_service(pool)
@@ -74,19 +76,11 @@ async def lifespan(app: FastAPI):
     # 5. Session manager
     app.state.session_manager = SessionManager()
 
-    # 6. Background WebSocket broadcast worker
-    app.state.broadcast_task = asyncio.create_task(broadcast_worker())
-
     log.info("apxiq_ready", db_connected=db.is_connected)
     yield
 
     # ── Teardown ──────────────────────────────────────────────────────────────
     log.info("apxiq_shutting_down")
-    app.state.broadcast_task.cancel()
-    try:
-        await app.state.broadcast_task
-    except asyncio.CancelledError:
-        pass
     await db.close()
     log.info("apxiq_stopped")
 
@@ -122,80 +116,16 @@ app.include_router(intelligence_router)
 app.include_router(telemetry_router)
 
 
-# ─── WebSocket Broadcast ──────────────────────────────────────────────────────
-
-class ConnectionManager:
-    """Manages active WebSocket connections and fan-out broadcasting."""
-
-    def __init__(self) -> None:
-        self._connections: list[WebSocket] = []
-
-    async def connect(self, ws: WebSocket) -> None:
-        await ws.accept()
-        self._connections.append(ws)
-        log.info("ws_client_connected", total=len(self._connections))
-
-    def disconnect(self, ws: WebSocket) -> None:
-        if ws in self._connections:
-            self._connections.remove(ws)
-        log.info("ws_client_disconnected", total=len(self._connections))
-
-    async def broadcast(self, message: dict) -> None:
-        if not self._connections:
-            return
-        payload = json.dumps(message)
-        
-        async def _send(ws: WebSocket):
-            try:
-                await asyncio.wait_for(ws.send_text(payload), timeout=0.1)
-                return None
-            except Exception:
-                return ws
-
-        results = await asyncio.gather(*[_send(ws) for ws in list(self._connections)], return_exceptions=True)
-        for dead_ws in results:
-            if isinstance(dead_ws, WebSocket):
-                self.disconnect(dead_ws)
-
-    @property
-    def active_count(self) -> int:
-        return len(self._connections)
-
-
-manager:         ConnectionManager = ConnectionManager()
-broadcast_queue: asyncio.Queue     = asyncio.Queue(maxsize=1000)
-
-
-async def broadcast_worker() -> None:
-    log.info("broadcast_worker_started")
-    while True:
-        msg = await broadcast_queue.get()
-        await manager.broadcast(msg)
-        broadcast_queue.task_done()
-
-
 # ─── System Endpoints ─────────────────────────────────────────────────────────
 
 @app.get("/health", tags=["System"])
 async def health_check():
-    """System health — database connection, session status, connected clients."""
+    """System health — database connection and session status."""
     return {
         "status":         "online",
         "db_connected":   db.is_connected,
         "session_active": app.state.session_manager.is_active,
-        "active_clients": manager.active_count,
     }
-
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket broadcast endpoint — receives telemetry events from ingestion."""
-    await manager.connect(websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
 
 
 if __name__ == "__main__":

@@ -144,20 +144,55 @@ class DatabaseLapService:
 
     Selected automatically when DATABASE_URL is configured.
     Uses the asyncpg pool from core.database.
+
+    Guarantees:
+        - The parent sessions row is upserted in the same transaction,
+          so a lap save can never fail on an FK violation.  (audit A1)
+        - Saving the same (session_uid, lap_number) twice is idempotent:
+          the second save returns the existing lap_id and merges any new
+          telemetry rows.  This makes ingestion retries safe.  (audit B4)
     """
 
     def __init__(self, pool) -> None:
         self._pool = pool
 
+    async def ensure_session(
+        self,
+        session_uid: int,
+        track_id=None,
+        track_length=None,
+    ) -> None:
+        """Upsert the parent sessions row (best-effort context enrichment)."""
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO sessions (session_uid, track_id)
+                VALUES ($1, $2)
+                ON CONFLICT (session_uid) DO UPDATE
+                    SET track_id = COALESCE(EXCLUDED.track_id, sessions.track_id)
+                """,
+                session_uid,
+                track_id,
+            )
+
     async def save_lap(self, data) -> int:
         """
         Inserts lap metadata and all telemetry rows in a single transaction.
-        Returns the assigned lap_id.
+        Returns the assigned lap_id (existing id if this lap was already saved).
         """
-
         async with self._pool.acquire() as conn:
             async with conn.transaction():
-                # Insert lap header
+                # Parent session must exist for the laps FK
+                await conn.execute(
+                    """
+                    INSERT INTO sessions (session_uid)
+                    VALUES ($1)
+                    ON CONFLICT (session_uid) DO NOTHING
+                    """,
+                    data.session_uid,
+                )
+
+                # Insert lap header — idempotent per (session_uid, lap_number)
                 lap_id = await conn.fetchval(
                     """
                     INSERT INTO laps (
@@ -165,6 +200,7 @@ class DatabaseLapService:
                         lap_time_ms, sector_1_time_ms, sector_2_time_ms, sector_3_time_ms,
                         is_valid
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    ON CONFLICT (session_uid, lap_number) DO NOTHING
                     RETURNING lap_id
                     """,
                     data.session_uid,
@@ -175,11 +211,25 @@ class DatabaseLapService:
                     data.sector_3_time_ms,
                     data.is_valid,
                 )
+                if lap_id is None:
+                    # Already saved (retry/duplicate) — merge telemetry into it
+                    lap_id = await conn.fetchval(
+                        """
+                        SELECT lap_id FROM laps
+                        WHERE session_uid = $1 AND lap_number = $2
+                        """,
+                        data.session_uid,
+                        data.lap_number,
+                    )
 
-                # Bulk-insert telemetry rows
+                # Bulk-insert telemetry rows (duplicate distances are no-ops).
+                # NOTE: schema requires session_uid + lap_number denormalized
+                # onto every telemetry row (migration 002 NOT NULL constraints).
                 rows = [
                     (
                         lap_id,
+                        data.session_uid,
+                        data.lap_number,
                         t.distance_m, t.speed_kph,
                         t.throttle, t.brake, t.steer,
                         t.gear, t.rpm, t.drs,
@@ -190,11 +240,13 @@ class DatabaseLapService:
                 await conn.executemany(
                     """
                     INSERT INTO user_lap_telemetry (
-                        user_lap_id, distance_m, speed_kph,
+                        user_lap_id, session_uid, lap_number,
+                        distance_m, speed_kph,
                         throttle, brake, steer,
                         gear, rpm, drs,
                         x, y, z
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                    ON CONFLICT (user_lap_id, distance_m) DO NOTHING
                     """,
                     rows,
                 )
@@ -300,7 +352,6 @@ class DatabaseLapService:
     async def clear(self) -> int:
         async with self._pool.acquire() as conn:
             async with conn.transaction():
-                await conn.execute("DELETE FROM user_lap_telemetry")
                 result = await conn.execute("DELETE FROM laps")
         count = int(result.split()[-1])
         log.info("laps_cleared_from_db", count=count)

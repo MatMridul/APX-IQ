@@ -18,6 +18,17 @@
   --color-silver: #9fa6b2;
   --color-alert: #d72638;
 
+  /* Semantic signals — F1 broadcast conventions */
+  --color-signal-go: #22c55e;
+  --color-signal-caution: #eab308;
+  --color-signal-stop: #ef4444;
+  --color-signal-purple: #a855f7;
+
+  /* Panel elevation */
+  --shadow-panel: inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(0, 0, 0, 0.8);
+  --shadow-panel-hover: 0 0 20px rgba(191, 149, 63, 0.2);
+
   /* Fonts (resolved by next/font at build time) */
   --font-sans: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

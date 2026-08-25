@@ -1,221 +1,199 @@
 "use client";
+
 import Link from "next/link";
 import { TRACK_IDS } from "@/utils/constants";
 import { formatLapTime } from "@/utils/format";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import ConnectionStatus from "@/components/f1/ConnectionStatus";
+import { LABEL_STYLE, NO_SIGNAL } from "@/design/system";
+
+/**
+ * Landing — role portals + live pulse.
+ *
+ * User flow (docs/internal/ux_user_stories.md):
+ *   ENGINEER    -> /dashboard               (live cockpit)
+ *   STRATEGIST  -> /dashboard/intelligence  (Mission Control)
+ *   SYSTEM      -> /debug                   (raw inspector)
+ *
+ * Portals are ALWAYS visible; the live pulse is a bonus, not a gate.
+ */
+
+const PORTALS = [
+  {
+    role: "ENGINEER",
+    tag: "LIVE TELEMETRY",
+    href: "/dashboard",
+    blurb:
+      "Real-time cockpit: speed, gear, shift lights, tyre thermals and track position at race pace.",
+    cta: "ENTER COCKPIT",
+  },
+  {
+    role: "STRATEGIST",
+    tag: "ANALYSIS",
+    href: "/dashboard/intelligence",
+    blurb:
+      "Mission Control: ghost-lap deltas, corner analysis, AI debriefs and setup exploration.",
+    cta: "OPEN MISSION CONTROL",
+  },
+  {
+    role: "SYSTEM",
+    tag: "OPERATOR",
+    href: "/debug",
+    blurb:
+      "Raw socket health, packet payloads and connection state. Debug-grade honesty.",
+    cta: "INSPECT SYSTEM",
+  },
+] as const;
+
+function LivePulse() {
+  const telemetry = useTelemetryStore((s) => s.telemetry);
+  const lapData = useTelemetryStore((s) => s.lapData);
+
+  if (!telemetry) return null;
+
+  return (
+    <div className="apx-panel w-full max-w-5xl grid grid-cols-2 md:grid-cols-4 gap-8 py-10 px-8 text-center">
+      <div>
+        <div className="font-mono text-silver/60 mb-2" style={LABEL_STYLE}>
+          SPEED
+        </div>
+        <div className="flex items-baseline justify-center gap-2">
+          <span className="text-gold font-display text-7xl leading-none">
+            {Math.round(telemetry.speed)}
+          </span>
+          <span className="text-silver/50 font-mono text-xl font-bold">KPH</span>
+        </div>
+      </div>
+      <div>
+        <div className="font-mono text-silver/60 mb-2" style={LABEL_STYLE}>
+          RPM
+        </div>
+        <div className="flex items-baseline justify-center gap-2">
+          <span className="text-white font-display text-7xl leading-none">
+            {telemetry.rpm.toLocaleString()}
+          </span>
+          <span className="text-silver/50 font-mono text-xl font-bold">REV</span>
+        </div>
+      </div>
+      <div>
+        <div className="font-mono text-silver/60 mb-2" style={LABEL_STYLE}>
+          GEAR
+        </div>
+        <span className="text-white font-display text-7xl leading-none">
+          {telemetry.gear === 0 ? "N" : telemetry.gear === -1 ? "R" : telemetry.gear}
+        </span>
+      </div>
+      <div>
+        <div className="font-mono text-silver/60 mb-2" style={LABEL_STYLE}>
+          LAST LAP
+        </div>
+        <span className="text-white font-display text-7xl leading-none">
+          {lapData?.lastLapTime ? formatLapTime(lapData.lastLapTime) : NO_SIGNAL}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
-  const telemetry = useTelemetryStore((s) => s.telemetry);
   const session = useTelemetryStore((s) => s.session);
   const isConnected = useTelemetryStore((s) => s.isConnected);
   const lapData = useTelemetryStore((s) => s.lapData);
 
   return (
-    <main style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      background: 'hsl(var(--color-apx-black))',
-      color: 'hsl(var(--color-apx-silver))'
-    }}>
+    <main className="min-h-screen flex flex-col bg-[hsl(var(--color-apx-black))] text-silver">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header className="grid grid-cols-3 items-center px-8 h-16 border-b border-gold/30 bg-carbon">
+        <h1 className="text-gold text-2xl font-black tracking-tight justify-self-start">
+          APX IQ
+        </h1>
 
-      {/* Top Header / Telemetry Bar */}
-      <header className="grid grid-cols-12 items-center px-8" style={{
-        height: '60px',
-        borderBottom: '1px solid hsl(var(--color-apx-gold) / 0.3)',
-        background: 'hsl(var(--color-apx-carbon))'
-      }}>
-        {/* LEFT: LOGO */}
-        <div className="col-span-3 flex items-center">
-          <h1 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.05em' }}>APX IQ</h1>
-        </div>
-
-        {/* CENTER: SESSION INFO */}
-        <div className="col-span-6 flex items-center justify-center" style={{ gap: '10rem' }}>
+        <div className="flex items-center justify-center gap-10">
           <div className="flex flex-col items-center">
-            <span className="text-[10px] text-silver/60 font-bold tracking-wider">SESSION</span>
-            <span className="text-lg font-bold text-white leading-none">RACE</span>
+            <span className="font-mono text-silver/50" style={LABEL_STYLE}>
+              SESSION
+            </span>
+            <span className="text-white font-bold leading-none">RACE</span>
           </div>
-          <div className="h-8 w-[1px] bg-white/10" />
+          <div className="h-6 w-px bg-white/10" />
           <div className="flex flex-col items-center">
-            <span className="text-[10px] text-silver/60 font-bold tracking-wider">TRACK</span>
-            <span className="text-lg font-bold text-white leading-none uppercase">
-              {session?.trackId !== undefined ? TRACK_IDS[session.trackId] ?? 'UNKNOWN' : 'WAITING...'}
+            <span className="font-mono text-silver/50" style={LABEL_STYLE}>
+              TRACK
+            </span>
+            <span className="text-white font-bold uppercase leading-none">
+              {session?.trackId !== undefined
+                ? TRACK_IDS[session.trackId] ?? "UNKNOWN"
+                : "WAITING"}
             </span>
           </div>
         </div>
 
-        {/* RIGHT: CONNECTION STATUS */}
-        <div className="col-span-3 flex items-center justify-end" style={{ gap: '4rem', fontSize: '0.8rem' }}>
-          <div className="flex flex-col text-right">
-            <span className="text-[10px] text-silver/60 font-bold tracking-wider">LAP</span>
-            <span className="text-2xl font-mono font-bold text-gold leading-none">
-              {lapData?.lap ?? 0}<span className="text-sm text-silver">/{session?.totalLaps ?? '-'}</span>
+        <div className="flex items-center justify-end gap-5">
+          <div className="flex flex-col items-end">
+            <span className="font-mono text-silver/50" style={LABEL_STYLE}>
+              LAP
+            </span>
+            <span className="text-gold font-mono text-xl font-bold leading-none">
+              {lapData?.lap ?? 0}
+              <span className="text-sm text-silver">/{session?.totalLaps ?? "—"}</span>
             </span>
           </div>
           <ConnectionStatus />
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="container" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '3rem', padding: '4rem 0' }}>
-
-        {/* Intro / Identity */}
-        <div style={{ textAlign: 'center', maxWidth: '800px' }}>
-          <span className="text-gold font-mono" style={{ letterSpacing: '0.2em', textTransform: 'uppercase', fontSize: '0.9rem' }}>
-            Real-Time Motorsport Intelligence
+      {/* ── Hero ───────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-14 py-20 px-6">
+        <div className="text-center max-w-3xl">
+          <span className="font-mono text-gold/90" style={{ ...LABEL_STYLE, fontSize: 12 }}>
+            REAL-TIME MOTORSPORT INTELLIGENCE
           </span>
-          <h2 style={{
-            fontSize: '4rem',
-            fontWeight: 800,
-            lineHeight: 1.1,
-            marginTop: '1rem',
-            color: 'white'
-          }}>
+          <h2 className="text-white font-display text-6xl md:text-7xl font-extrabold leading-tight mt-4">
             Digital <span className="text-gold">Pit Wall</span>
           </h2>
-          <p style={{ marginTop: '1.5rem', fontSize: '1.25rem', color: 'hsl(var(--color-apx-silver))' }}>
-            Advanced telemetry ingestion, race strategy simulation, and engineering analytics for the F1 25/22 platform.
+          <p className="mt-5 text-lg text-silver/80">
+            Live telemetry ingestion, race-strategy simulation and engineering
+            analytics — for F1 titles 2020 through 25.
           </p>
         </div>
 
-        {/* Live Telemetry Panel (Replaces Engineer Panel for now) */}
-        {telemetry && (
-          <>
-            <div className="apx-panel" style={{ width: '100%', maxWidth: '1000px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '2rem', textAlign: 'center', padding: '3rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>SPEED</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'center' }}>
-                  <div className="text-gold" style={{ fontSize: '8rem', fontWeight: 700, lineHeight: 1 }}>{Math.round(telemetry.speed)}</div>
-                  <div className="text-silver/50" style={{ fontSize: '2rem', fontWeight: 700 }}>KPH</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>RPM</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', justifyContent: 'center' }}>
-                  <div className="text-white" style={{ fontSize: '8rem', fontWeight: 700, lineHeight: 1 }}>{Math.round(telemetry.rpm)}</div>
-                  <div className="text-silver/50" style={{ fontSize: '2rem', fontWeight: 700 }}>REV</div>
-                </div>
-              </div>
-              <div>
-                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>GEAR</div>
-                <div className="text-white" style={{ fontSize: '5rem', fontWeight: 700, lineHeight: 1 }}>{telemetry.gear === 0 ? 'N' : telemetry.gear === -1 ? 'R' : telemetry.gear}</div>
-              </div>
-              <div>
-                <div className="font-mono text-silver mb-2" style={{ fontSize: '1rem', letterSpacing: '0.1em' }}>DRS</div>
-                <div className={telemetry.drs ? "text-green-500" : "text-silver"} style={{ fontSize: '5rem', fontWeight: 700, lineHeight: 1 }}>
-                  {telemetry.drs ? "ON" : "OFF"}
-                </div>
-              </div>
-            </div>
+        {/* Live pulse — only when data flows; portals never hide */}
+        <LivePulse />
 
-            {/* Lap Timing Panel */}
-            <div className="apx-panel" style={{ width: '100%', maxWidth: '1000px', padding: '2rem', textAlign: 'center', marginTop: '2rem' }}>
-              <div style={{ marginBottom: '2rem' }}>
-                <div className="font-mono text-gold mb-2" style={{ fontSize: '1rem', letterSpacing: '0.2em' }}>CURRENT LAP</div>
-                <div className="text-white font-mono" style={{ fontSize: '6rem', fontWeight: 700, lineHeight: 1 }}>
-                  {lapData?.currentLapTime ? (lapData.currentLapTime / 1000).toFixed(3) : '0.000'}
-                </div>
+        {/* ── Role portals: one destination per persona ─────────────────── */}
+        <div className="grid w-full max-w-6xl grid-cols-1 md:grid-cols-3 gap-6">
+          {PORTALS.map((p) => (
+            <Link
+              key={p.role}
+              href={p.href}
+              className="apx-panel group flex flex-col cursor-pointer hover:border-gold-light/60 hover:-translate-y-0.5 hover:shadow-panel-hover transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gold text-xl font-bold tracking-wide">{p.role}</h3>
+                <span className="font-mono text-[10px] tracking-[0.14em] text-silver/60 border border-white/10 rounded-full px-2 py-0.5">
+                  {p.tag}
+                </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem' }}>
-                <div>
-                  <div className="font-mono text-silver mb-1" style={{ fontSize: '1rem' }}>LAST LAP</div>
-                  <div className="text-white font-mono" style={{ fontSize: '3rem', fontWeight: 700 }}>
-                    {formatLapTime(lapData?.lastLapTime)}
-                  </div>
-                </div>
-                <div>
-                  <div className="font-mono text-silver mb-1" style={{ fontSize: '1rem' }}>DELTA</div>
-                  <div className="text-green-500 font-mono" style={{ fontSize: '3rem', fontWeight: 700 }}>
-                    -0.124
-                  </div>
-                </div>
-                <div>
-                  <div className="font-mono text-silver mb-1" style={{ fontSize: '1rem' }}>POS</div>
-                  <div className="text-gold font-mono" style={{ fontSize: '3rem', fontWeight: 700 }}>
-                    {lapData?.position ?? '-'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-
-        {/* Dashboard Entry Points */}
-        {!telemetry && (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-            gap: '2rem',
-            width: '100%',
-            marginTop: '2rem'
-          }}>
-
-            {/* Engineer Panel */}
-            <Link href="/dashboard" className="contents">
-              <div className="apx-panel cursor-pointer hover:border-gold hover:scale-[1.02] transition-all duration-300">
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>ENGINEER</h3>
-                  <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ACCESS GRANTED]</span>
-                </div>
-                <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
-                  Real-time telemetry analysis. Speed, RPM, Gears, and G-Force vectoring monitoring.
-                </p>
-                <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
-                  &gt; WAITING FOR TELEMETRY...
-                </div>
+              <p className="text-sm text-silver/80 leading-relaxed mb-6 flex-1">
+                {p.blurb}
+              </p>
+              <div className="font-mono text-xs tracking-[0.12em] text-gold border-t border-carbon-light pt-4 flex items-center">
+                <span>{"> "}{p.cta}</span>
+                <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                  →
+                </span>
               </div>
             </Link>
-
-            {/* Strategist Panel */}
-            <Link href="/dashboard" className="contents">
-              <div className="apx-panel cursor-pointer hover:border-gold hover:scale-[1.02] transition-all duration-300">
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>STRATEGIST</h3>
-                  <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ACCESS GRANTED]</span>
-                </div>
-                <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
-                  Pit window prediction, tire degradation curves, and race outcome probability models.
-                </p>
-                <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
-                  &gt; LAUNCH_SIMULATION.EXE
-                </div>
-              </div>
-            </Link>
-
-            {/* System Panel */}
-            <Link href="/dashboard" className="contents">
-              <div className="apx-panel cursor-pointer hover:border-gold hover:scale-[1.02] transition-all duration-300">
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <h3 className="text-gold" style={{ fontSize: '1.5rem', fontWeight: 700 }}>SYSTEM</h3>
-                  <span className="font-mono text-silver" style={{ fontSize: '0.75rem' }}>[ADMIN]</span>
-                </div>
-                <p style={{ marginBottom: '1.5rem', opacity: 0.8 }}>
-                  UDP Packet health, database latency metrics, and congestion control monitoring.
-                </p>
-                <div className="font-mono" style={{ fontSize: '0.9rem', color: 'hsl(var(--color-apx-gold))', borderTop: '1px solid hsl(var(--color-apx-carbon-light))', paddingTop: '1rem' }}>
-                  &gt; VIEW_LOGS.EXE
-                </div>
-              </div>
-            </Link>
-
-          </div>
-        )}
-
+          ))}
+        </div>
       </div>
 
-      {/* Footer */}
-      <footer style={{
-        padding: '1.5rem',
-        textAlign: 'center',
-        borderTop: '1px solid hsl(var(--color-apx-carbon-light))',
-        fontSize: '0.875rem'
-      }}>
-        <span className="font-mono text-silver">APX IQ SYSTEM V1.0 // ANTIGRAVITY AI</span>
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <footer className="py-6 text-center border-t border-carbon-light">
+        <span className="font-mono text-xs tracking-[0.14em] text-silver/50">
+          APX IQ · DIGITAL PIT WALL · F1 2020–25
+        </span>
       </footer>
-
     </main>
   );
 }

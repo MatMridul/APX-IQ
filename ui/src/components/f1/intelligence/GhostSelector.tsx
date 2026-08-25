@@ -21,6 +21,28 @@ interface GhostSelectorProps {
   onGhostLoaded: (ghost: GhostLap | null) => void;
 }
 
+interface SelectFieldProps {
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}
+
+function SelectField({ label, value, onChange, children }: SelectFieldProps) {
+  return (
+    <div>
+      <label className="text-[10px] text-silver/50 uppercase tracking-wider mb-1 block">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-black border border-gold/40 text-white text-xs p-1.5 rounded font-mono"
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
 export function GhostSelector({ onGhostLoaded }: GhostSelectorProps) {
   const [year,    setYear]    = useState(2024);
   const [trackId, setTrackId] = useState(5); // Monaco
@@ -44,26 +66,6 @@ export function GhostSelector({ onGhostLoaded }: GhostSelectorProps) {
     refetch();
   };
 
-  const Select = ({
-    label, value, onChange, children,
-  }: {
-    label: string;
-    value: string | number;
-    onChange: (v: string) => void;
-    children: React.ReactNode;
-  }) => (
-    <div>
-      <label className="text-[10px] text-silver/50 uppercase tracking-wider mb-1 block">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-black border border-gold/40 text-white text-xs p-1.5 rounded font-mono"
-      >
-        {children}
-      </select>
-    </div>
-  );
-
   return (
     <Panel title="GHOST LAP">
       <div className="flex flex-col gap-3 h-full">
@@ -71,21 +73,21 @@ export function GhostSelector({ onGhostLoaded }: GhostSelectorProps) {
           Compare against real F1 data fetched from FastF1.
         </p>
 
-        <Select label="Year" value={year} onChange={(v) => setYear(Number(v))}>
+        <SelectField label="Year" value={year} onChange={(v) => setYear(Number(v))}>
           {[2024,2023,2022,2021,2020].map((y) => (
             <option key={y} value={y}>{y}</option>
           ))}
-        </Select>
+        </SelectField>
 
-        <Select label="Track" value={trackId} onChange={(v) => setTrackId(Number(v))}>
+        <SelectField label="Track" value={trackId} onChange={(v) => setTrackId(Number(v))}>
           {Object.entries(TRACK_IDS).map(([id, name]) => (
             <option key={id} value={id}>{name}</option>
           ))}
-        </Select>
+        </SelectField>
 
-        <Select label="Driver" value={driver} onChange={setDriver}>
+        <SelectField label="Driver" value={driver} onChange={setDriver}>
           {DRIVERS.map((d) => <option key={d} value={d}>{d}</option>)}
-        </Select>
+        </SelectField>
 
         <button
           onClick={load}

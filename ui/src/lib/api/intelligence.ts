@@ -152,11 +152,24 @@ export async function profileHardware(steerTrace: number[]): Promise<HardwarePro
   return res.json();
 }
 
+export type TrackLayoutPoint = {
+  x: number;
+  y: number;
+  distance_m: number;
+  speed_kph: number;
+};
+
+export type TrackLayout = {
+  track_name?: string;
+  points: TrackLayoutPoint[];
+  bounds: { x_min: number; x_max: number; y_min: number; y_max: number };
+};
+
 export async function fetchTrackLayout(
   trackId: number,
   year = 2024,
   driver = "VER",
-): Promise<any> {
+): Promise<TrackLayout> {
   const res = await fetch(
     `${BASE}/intelligence/track/${trackId}/layout?year=${year}&driver=${driver}&session_type=Q`,
   );

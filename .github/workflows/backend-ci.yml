@@ -9,6 +9,7 @@ on:
       - "requirements-dev.txt"
       - "pytest.ini"
       - "ruff.toml"
+      - "alembic/**"
       - ".github/workflows/backend-ci.yml"
   pull_request:
     branches: ["main"]
@@ -18,16 +19,31 @@ on:
       - "requirements-dev.txt"
       - "pytest.ini"
       - "ruff.toml"
+      - "alembic/**"
       - ".github/workflows/backend-ci.yml"
 
 jobs:
   backend:
-    name: Lint & Test (Python 3.13)
+    name: Lint, Unit & Integration (Python 3.13)
     runs-on: ubuntu-latest
     env:
-      # CI runs storage in in-memory mode; no PostgreSQL service needed.
-      DATABASE_URL: ""
+      # Unit pass runs WITHOUT DATABASE_URL on purpose: it exercises the
+      # in-memory fallback path exactly like local dev.
       GEMINI_API_KEY: ""
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: apxiq_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -45,5 +61,22 @@ jobs:
       - name: Lint (ruff — blocking)
         run: ruff check .
 
-      - name: Tests (pytest — blocking)
-        run: pytest -v --tb=short
+      - name: Unit tests (in-memory storage path)
+        run: pytest -m "not integration" -v --tb=short
+
+      - name: Apply migrations to service database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/apxiq_test
+        run: alembic upgrade head
+
+      - name: Integration tests (real PostgreSQL round-trips)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/apxiq_test
+        run: pytest -m integration -v --tb=short
+
+      - name: Dependency vulnerability audit (report only)
+        if: always()
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --skip-editable || true

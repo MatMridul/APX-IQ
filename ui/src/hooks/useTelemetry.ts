@@ -242,17 +242,3 @@ export function useTelemetry() {
     return () => cancelAnimationFrame(frameId);
   }, [computeDerived]);
 }
-
-// ─── Convenience selector hook (backwards-compatible) ────────────────────────
-export function useTelemetryData() {
-  return useTelemetryStore((s) => ({
-    telemetry:   s.telemetry,
-    lapData:     s.lapData,
-    session:     s.session,
-    carStatus:   s.carStatus,
-    isConnected: s.isConnected,
-    gameVersion: s.gameVersion,
-    history:     s.history,
-    derived:     s.derived,
-  }));
-}

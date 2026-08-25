@@ -1,13 +1,11 @@
 'use client';
 
 import { useSocket } from '@/hooks/useSocket';
-import { useTelemetry } from '@/hooks/useTelemetry';
 import { useTelemetryStore } from '@/store/telemetryStore';
 import { useEffect, useState } from 'react';
 
 export default function DebugPage() {
     const socket = useSocket();
-    useTelemetry();
     const telemetry = useTelemetryStore((s) => s.telemetry);
     const lapData = useTelemetryStore((s) => s.lapData);
     const session = useTelemetryStore((s) => s.session);
@@ -19,8 +17,11 @@ export default function DebugPage() {
     useEffect(() => {
         if (!socket) return;
 
-        setSocketConnected(socket.connected);
-        setSocketId(socket.id || null);
+        // Defer the initial sync out of the effect body (no setState-in-effect)
+        const t = window.setTimeout(() => {
+            setSocketConnected(socket.connected);
+            setSocketId(socket.id || null);
+        }, 0);
 
         const handleConnect = () => {
             setSocketConnected(true);
@@ -35,6 +36,7 @@ export default function DebugPage() {
         socket.on('disconnect', handleDisconnect);
 
         return () => {
+            window.clearTimeout(t);
             socket.off('connect', handleConnect);
             socket.off('disconnect', handleDisconnect);
         };

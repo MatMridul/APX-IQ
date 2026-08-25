@@ -1,9 +1,6 @@
 /**
- * APX IQ F1 Primitives
- * Core building blocks used across all dashboard components
+ * APX IQ F1 Primitives — core building blocks
  */
 
-export { Panel } from './Panel';
-export { MetricValue } from './MetricValue';
-export { BarGauge } from './BarGauge';
-export { Badge } from './Badge';
+export { Panel } from "./Panel";
+export { Badge } from "./Badge";

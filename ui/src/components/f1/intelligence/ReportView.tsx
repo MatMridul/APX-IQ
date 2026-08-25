@@ -6,14 +6,16 @@
 
 import { motion } from "framer-motion";
 import { Zap, CheckCircle, Save, Loader2, Award, ChevronRight, Gauge } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Panel } from "@/components/f1/primitives/Panel";
 import { Badge } from "@/components/f1/primitives/Badge";
 import type { LapReport } from "@/lib/api/intelligence";
 
-const MD_COMPONENTS = {
-  h1: ({ children }: any) => (
+type MDProps = { children?: React.ReactNode };
+
+const MD_COMPONENTS: Components = {
+  h1: ({ children }: MDProps) => (
     <h1
       className="text-2xl font-black text-white tracking-wide mb-4 mt-6 flex items-center gap-2 border-b border-gold/30 pb-2"
       style={{ fontFamily: "var(--font-rajdhani)" }}
@@ -22,7 +24,7 @@ const MD_COMPONENTS = {
       {children}
     </h1>
   ),
-  h2: ({ children }: any) => (
+  h2: ({ children }: MDProps) => (
     <h2
       className="text-lg font-bold text-gold uppercase tracking-wider mb-3 mt-6 flex items-center gap-2"
       style={{ fontFamily: "var(--font-rajdhani)" }}
@@ -31,57 +33,57 @@ const MD_COMPONENTS = {
       {children}
     </h2>
   ),
-  h3: ({ children }: any) => (
+  h3: ({ children }: MDProps) => (
     <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2 mt-4 text-silver">
       {children}
     </h3>
   ),
-  p: ({ children }: any) => (
+  p: ({ children }: MDProps) => (
     <p className="text-silver/90 text-sm mb-4 leading-relaxed font-sans">{children}</p>
   ),
   hr: () => (
     <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-gold/30 to-transparent my-6" />
   ),
-  ul: ({ children }: any) => (
+  ul: ({ children }: MDProps) => (
     <ul className="space-y-2 mb-4 text-silver/90 text-sm">{children}</ul>
   ),
-  li: ({ children }: any) => (
+  li: ({ children }: MDProps) => (
     <li className="flex items-start gap-2 text-sm text-silver/90">
       <span className="w-1.5 h-1.5 rounded-full bg-gold mt-2 shrink-0 shadow-[0_0_6px_rgba(207,163,73,0.8)]" />
       <div>{children}</div>
     </li>
   ),
-  strong: ({ children }: any) => (
+  strong: ({ children }: MDProps) => (
     <strong className="text-gold font-bold">{children}</strong>
   ),
-  code: ({ children }: any) => (
+  code: ({ children }: MDProps) => (
     <code className="bg-gold/10 border border-gold/30 px-2 py-0.5 rounded text-gold font-mono text-xs">
       {children}
     </code>
   ),
-  table: ({ children }: any) => (
+  table: ({ children }: MDProps) => (
     <div className="w-full overflow-x-auto my-5 rounded-lg border border-gold/25 bg-black/60 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
       <table className="w-full text-left border-collapse text-xs font-mono">{children}</table>
     </div>
   ),
-  thead: ({ children }: any) => (
+  thead: ({ children }: MDProps) => (
     <thead className="bg-white/5 border-b border-gold/30 text-gold font-bold tracking-wider uppercase text-[11px]">
       {children}
     </thead>
   ),
-  tbody: ({ children }: any) => (
+  tbody: ({ children }: MDProps) => (
     <tbody className="divide-y divide-white/5">{children}</tbody>
   ),
-  tr: ({ children }: any) => (
+  tr: ({ children }: MDProps) => (
     <tr className="hover:bg-gold/[0.04] transition-colors">{children}</tr>
   ),
-  th: ({ children }: any) => (
+  th: ({ children }: MDProps) => (
     <th className="px-4 py-3 text-gold font-bold whitespace-nowrap">{children}</th>
   ),
-  td: ({ children }: any) => (
+  td: ({ children }: MDProps) => (
     <td className="px-4 py-3 text-silver/90 leading-normal">{children}</td>
   ),
-  blockquote: ({ children }: any) => (
+  blockquote: ({ children }: MDProps) => (
     <blockquote className="border-l-2 border-gold bg-gold/5 px-4 py-2 my-4 text-xs text-silver/80 italic rounded-r">
       {children}
     </blockquote>

@@ -35,11 +35,12 @@ jobs:
       - name: Typecheck (tsc — blocking)
         run: npx tsc --noEmit
 
-      - name: Lint (eslint — REPORT ONLY until lint debt cleared)
-        # TODO: remove continue-on-error once the ~31 pre-existing errors
-        # (no-explicit-any, react-hooks) are fixed. Then this step blocks merges.
-        continue-on-error: true
+      - name: Lint (eslint — blocking; errors fail the build)
         run: npm run lint
+
+      - name: Dependency audit (report only)
+        continue-on-error: true
+        run: npm audit --omit=dev || true
 
       - name: Build (next build)
         run: npm run build

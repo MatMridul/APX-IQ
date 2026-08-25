@@ -2,12 +2,10 @@
 import Link from "next/link";
 import { TRACK_IDS } from "@/utils/constants";
 import { formatLapTime } from "@/utils/format";
-import { useTelemetry } from "@/hooks/useTelemetry";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import ConnectionStatus from "@/components/f1/ConnectionStatus";
 
 export default function Home() {
-  useTelemetry();
   const telemetry = useTelemetryStore((s) => s.telemetry);
   const session = useTelemetryStore((s) => s.session);
   const isConnected = useTelemetryStore((s) => s.isConnected);

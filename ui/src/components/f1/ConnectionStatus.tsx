@@ -24,9 +24,12 @@ export default function ConnectionStatus() {
         socket.on("disconnect", onDisconnect);
         socket.on("game_version", onGameVersion);
 
-        if (socket.connected) setIsConnected(true);
+        // Defer the initial sync out of the effect body (no setState-in-effect)
+        const syncInitial = () => setIsConnected(socket.connected);
+        const t = window.setTimeout(syncInitial, 0);
 
         return () => {
+            window.clearTimeout(t);
             socket.off("connect", onConnect);
             socket.off("disconnect", onDisconnect);
             socket.off("game_version", onGameVersion);

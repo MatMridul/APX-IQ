@@ -59,3 +59,43 @@ export const PANEL = {
 
 /** Absent-data display contract (honesty rule). */
 export const NO_SIGNAL = "—" as const;
+
+/**
+ * Shift-light ramp — 15 LEDs, F1 convention (green → red → blue).
+ * Contrast matters more than hue (McLaren electronics interview);
+ * these hues maximize distinction on carbon.
+ */
+export const LED_RAMP = {
+  greens: 5,
+  reds: 5, // indices 5-9 (blues are the rest)
+  green: "#22c55e",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  white: "#f8fafc",
+  unlitAlpha: 0.13,
+  limiterEnterPct: 0.97,
+  limiterExitPct: 0.9, // hysteresis — no flicker at the edge
+  limiterFlashHz: 8,
+  upshiftBlinkMs: 120,
+} as const;
+
+/**
+ * Channel colors — ONE meaning per channel everywhere (MoTeC rule).
+ * If a chart draws throttle, it uses this exact color or nothing.
+ */
+export const CHANNEL = {
+  speed: "#eab308",
+  throttle: "#22c55e",
+  brake: "#ef4444",
+  steering: "#a855f7",
+  ghost: "#22d3ee",
+  gearTick: "#9fa6b2",
+} as const;
+
+/** Motion tokens (see design/MOTION.md). */
+export const EASING = {
+  ui: "cubic-bezier(0.4, 0, 0.2, 1)",
+  data: "linear",
+} as const;
+
+export const DURATION = { fast: 80, base: 150, slow: 300 } as const;

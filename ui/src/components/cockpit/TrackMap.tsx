@@ -1,312 +1,236 @@
-/**
- * TrackMap — Phase 2C: Circuit Map & Sector Intelligence (Precision Polish)
- *
- * Reference Authority: Nano Banana APX IQ Cockpit (media_1787442062666.png)
- *
- * Reconstructed Circuit de Spa-Francorchamps visualization:
- *   - Iconic Spa-Francorchamps circuit geometry (La Source hairpin, Eau Rouge/Raidillon S-kink, Kemmel Straight, Les Combes chicane, Bruxelles loop, Pouhon double-apex, Fagnes, Stavelot, Blanchimont, Bus Stop)
- *   - Luminous champagne gold engineering track stroke with restrained precision bloom
- *   - 3-Sector division (S1, S2, S3) tied directly to track telemetry geometry
- *   - Active live car location marker at Eau Rouge with SECTOR 34.24s readout and subtle leader line
- *   - Lower-right sector intelligence summary (S1: 34.2, S2: 51.5, S3: 29.3)
- *   - Restrained start/finish timing tick
- *   - Optimized internal horizontal alignment (-10px shift) for balanced cockpit density
- *
- * Static Reference Mode — Phase 2C.
- */
-
 "use client";
 
-import React from "react";
+import { useMemo, useRef } from "react";
+import { useCanvas } from "@/lib/cockpit/canvas";
+import { demoFrame, cockpitCursor, TRACK_LEN } from "@/lib/cockpit/demo";
+import { CHANNEL } from "@/design/system";
+import { MicroLabel, SimBadge } from "./primitives";
 
-/* ─── Static Reference Circuit & Sector Data ─────────────────────────────── */
-interface SectorData {
-  id: string;
-  name: string;
-  time: string;
-  status: "active" | "completed" | "upcoming";
+/**
+ * Circuit map — canvas-rendered, MoTeC grammar: racing line colored by
+ * speed channel, fading 6-second car trail, sector coloring on the
+ * active sector, crosshair synced with the telemetry ribbon via the
+ * shared cockpitCursor ref.
+ *
+ * The circuit geometry is a parametric demo shape (SIM-badged); the
+ * wiring phase swaps in real layouts from GET /intelligence/track/{id}/layout.
+ */
+
+interface Pt {
+  x: number;
+  y: number;
+  dist: number;
+  speed: number;
+  tx: number; // unit tangent
+  ty: number;
 }
 
-const CIRCUIT_INFO = {
-  name: "Spa-Francorchamps",
-  location: "Stavelot, Belgium",
-  lengthKm: 7.004,
-  activeSector: 1,
-  activeCorner: "Eau Rouge",
-  currentSectorTime: "34.24s",
-  sectors: [
-    { id: "S1", name: "Sector 1", time: "34.2", status: "active" },
-    { id: "S2", name: "Sector 2", time: "51.5", status: "upcoming" },
-    { id: "S3", name: "Sector 3", time: "29.3", status: "completed" },
-  ] as SectorData[],
+function catmullRom(points: [number, number][], samplesPerSeg = 24): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  const n = points.length;
+  for (let i = 0; i < n; i++) {
+    const p0 = points[(i - 1 + n) % n];
+    const p1 = points[i];
+    const p2 = points[(i + 1) % n];
+    const p3 = points[(i + 2) % n];
+    for (let s = 0; s < samplesPerSeg; s++) {
+      const t = s / samplesPerSeg;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const x =
+        0.5 * (2 * p1[0] + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
+      const y =
+        0.5 * (2 * p1[1] + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
+      out.push([x, y]);
+    }
+  }
+  return out;
+}
+
+/** Demo circuit — a plausible GP-style closed loop (normalized 0-1). */
+const CONTROL: Array<[number, number]> = [
+  [0.18, 0.82], [0.08, 0.62], [0.14, 0.40], [0.30, 0.34], [0.42, 0.18],
+  [0.60, 0.12], [0.78, 0.18], [0.88, 0.34], [0.80, 0.50], [0.62, 0.52],
+  [0.52, 0.64], [0.62, 0.78], [0.46, 0.90], [0.28, 0.90],
+];
+
+function buildTrack(): Pt[] {
+  const raw = catmullRom(CONTROL, 20);
+  // cumulative distance (normalized to TRACK_LEN)
+  let total = 0;
+  const dists: number[] = [0];
+  for (let i = 1; i <= raw.length; i++) {
+    const [x0, y0] = raw[i - 1];
+    const [x1, y1] = raw[i % raw.length];
+    total += Math.hypot(x1 - x0, y1 - y0);
+    dists.push(total);
+  }
+  const pts: Pt[] = [];
+  const speedAtDist = (d: number) => 60 + 280 * (0.5 + 0.5 * Math.sin(d * 0.004 + 1.2));
+  for (let i = 0; i < raw.length; i++) {
+    const dist = (dists[i] / total) * TRACK_LEN;
+    const [x0, y0] = raw[(i - 1 + raw.length) % raw.length];
+    const [x1, y1] = raw[(i + 1) % raw.length];
+    const tx = x1 - x0;
+    const ty = y1 - y0;
+    const len = Math.hypot(tx, ty) || 1;
+    pts.push({ x: raw[i][0], y: raw[i][1], dist, speed: speedAtDist(dist), tx: tx / len, ty: ty / len });
+  }
+  return pts;
+}
+
+const speedColor = (kph: number): string => {
+  // 60→360 kph mapped blue→green→yellow→red (one meaning: speed)
+  const f = Math.min(1, Math.max(0, (kph - 60) / 300));
+  if (f < 0.34) return `rgba(59,130,246,${0.55 + f})`;
+  if (f < 0.67) return `rgba(34,197,94,${0.5 + f * 0.5})`;
+  return `rgba(234,179,8,${0.5 + f * 0.5})`;
 };
 
-/* ─── Track Geometry Constants (Spa-Francorchamps normalized) ─────────────── */
-// SVG coordinate space: 380 × 260
-const TRACK_PATH = `
-  M 72 228
-  C 54 232, 34 224, 30 208
-  C 26 192, 42 182, 54 176
-  L 80 150
-  C 88 142, 96 134, 108 120
-  L 236 48
-  C 252 40, 272 34, 286 40
-  C 298 46, 302 58, 294 70
-  L 282 82
-  C 268 94, 248 106, 244 118
-  C 240 132, 256 142, 274 142
-  C 292 142, 314 152, 334 166
-  C 354 180, 362 200, 350 218
-  C 338 234, 318 236, 304 226
-  L 290 214
-  C 282 208, 274 212, 266 220
-  C 256 230, 242 234, 226 232
-  L 168 218
-  C 142 212, 118 204, 98 210
-  C 86 214, 78 222, 72 228
-  Z
-`;
+/** Shared fit: maps normalized track coords into a w×h box. */
+function fitFor(w: number, h: number) {
+  const pad = 16;
+  const scale = Math.min(w - pad * 2, h - pad * 2) * 0.96;
+  return { scale, ox: (w - scale) / 2, oy: (h - scale) / 2 };
+}
 
-// Car position coordinates at Eau Rouge (Turn 2/3 uphill)
-const CAR_POS = { x: 92, y: 136 };
+export function TrackMap() {
+  const track = useMemo(() => buildTrack(), []);
+  const trail = useRef<Array<{ x: number; y: number }>>([]);
 
-// Start / Finish line coordinates
-const SF_LINE = { x1: 68, y1: 222, x2: 74, y2: 234 };
+  const ref = useCanvas((ctx, w, h, t) => {
+    const f = demoFrame(t);
+    ctx.clearRect(0, 0, w, h);
 
-export const TrackMap: React.FC = () => {
-  const VW = 380;
-  const VH = 260;
+    const { scale, ox, oy } = fitFor(w, h);
+    const px = (p: Pt) => ({ x: ox + p.x * scale, y: oy + p.y * scale });
+
+    // ── Track outline (asphalt ribbon) ─────────────────────────────
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    track.forEach((p, i) => {
+      const q = px(p);
+      if (i === 0) ctx.moveTo(q.x, q.y);
+      else ctx.lineTo(q.x, q.y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = "rgba(255,255,255,0.10)";
+    ctx.lineWidth = 9;
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(207,163,73,0.25)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // ── Speed-colored racing line (thin, inside ribbon) ────────────
+    for (let i = 0; i < track.length; i++) {
+      const a = px(track[i]);
+      const b = px(track[(i + 1) % track.length]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = speedColor(track[i].speed);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // ── Sector start ticks + labels ────────────────────────────────
+    ctx.font = "9px var(--font-mono), monospace";
+    ctx.textAlign = "center";
+    for (const s of [1, 2, 3]) {
+      const target = ((s - 1) * TRACK_LEN) / 3;
+      const p = track.reduce((best, cur) =>
+        Math.abs(cur.dist - target) < Math.abs(best.dist - target) ? cur : best
+      );
+      const q = px(p);
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText(`S${s}`, q.x, q.y - 8);
+    }
+
+    // ── Car trail (last ~6 s, alpha ramp) ──────────────────────────
+    const car = track.reduce((best, cur) =>
+      Math.abs(cur.dist - f.lapDist) < Math.abs(best.dist - f.lapDist) ? cur : best
+    );
+    const cq = px(car);
+    trail.current.push({ x: cq.x, y: cq.y });
+    if (trail.current.length > 360) trail.current.shift();
+    for (let i = 1; i < trail.current.length; i++) {
+      const a = trail.current[i - 1];
+      const b = trail.current[i];
+      const alpha = (i / trail.current.length) * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = `rgba(207,163,73,${alpha})`;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+
+    // ── Crosshair from ribbon hover ────────────────────────────────
+    if (cockpitCursor.dist !== null) {
+      const cp = track.reduce((best, cur) =>
+        Math.abs(cur.dist - cockpitCursor.dist!) < Math.abs(best.dist - cockpitCursor.dist!)
+          ? cur
+          : best
+      );
+      const q = px(cp);
+      ctx.strokeStyle = "rgba(255,255,255,0.4)";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, 9, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // ── Car dot (heading-rotated chevron) ──────────────────────────
+    ctx.save();
+    ctx.translate(cq.x, cq.y);
+    ctx.rotate(Math.atan2(car.ty, car.tx));
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-5, 5);
+    ctx.lineTo(-2.5, 0);
+    ctx.lineTo(-5, -5);
+    ctx.closePath();
+    ctx.fillStyle = "#fff";
+    ctx.shadowColor = "rgba(207,163,73,0.9)";
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.restore();
+  });
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center select-none font-mono">
-      <svg
-        viewBox={`0 0 ${VW} ${VH}`}
-        className="w-full h-full drop-shadow-[0_4px_20px_rgba(0,0,0,0.85)] overflow-visible"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <defs>
-          {/* Restrained Luminous Track Ambient Glow Filter */}
-          <filter id="track-gold-glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3.0" result="blur1" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur2" />
-            <feMerge>
-              <feMergeNode in="blur1" />
-              <feMergeNode in="blur2" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* Car Marker Glow */}
-          <filter id="car-marker-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* Track Gradient for subtle dynamic depth */}
-          <linearGradient id="track-stroke-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#E6C875" />
-            <stop offset="35%" stopColor="#D4AF37" />
-            <stop offset="70%" stopColor="#C29B28" />
-            <stop offset="100%" stopColor="#E6C875" />
-          </linearGradient>
-        </defs>
-
-        {/* ── Internal Shift Group (shifts composition ~2.6% left for optimal balance) ── */}
-        <g transform="translate(-10, 0)">
-
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* 1. TRACK SILHOUETTE & RESTRAINED ENGINEERING STROKE              */}
-          {/* ════════════════════════════════════════════════════════════════ */}
-          <g id="circuit-geometry">
-            {/* Ambient Bloom Underlay (restrained 20-30% reduction) */}
-            <path
-              d={TRACK_PATH}
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="5.0"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.15"
-              filter="url(#track-gold-glow)"
-            />
-
-            {/* Mid-range Glow Ribbon */}
-            <path
-              d={TRACK_PATH}
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.38"
-            />
-
-            {/* Core Crisp Engineering Gold Track Line */}
-            <path
-              d={TRACK_PATH}
-              fill="none"
-              stroke="url(#track-stroke-grad)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-
-            {/* Start / Finish Perpendicular Marker (Restrained) */}
-            <line
-              x1={SF_LINE.x1}
-              y1={SF_LINE.y1}
-              x2={SF_LINE.x2}
-              y2={SF_LINE.y2}
-              stroke="#FFFFFF"
-              strokeWidth="1.4"
-              strokeLinecap="square"
-              opacity="0.85"
-            />
-          </g>
-
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* 2. ACTIVE LIVE CAR POSITION & SECTOR CALLOUT (Eau Rouge)        */}
-          {/* ════════════════════════════════════════════════════════════════ */}
-          <g id="active-telemetry-marker">
-            {/* Outer Ambient Beacon Halo */}
-            <circle
-              cx={CAR_POS.x}
-              cy={CAR_POS.y}
-              r="7.5"
-              fill="#D4AF37"
-              fillOpacity="0.16"
-              filter="url(#car-marker-glow)"
-            />
-
-            {/* Secondary Ring */}
-            <circle
-              cx={CAR_POS.x}
-              cy={CAR_POS.y}
-              r="4.8"
-              fill="#1A150A"
-              stroke="#E6C875"
-              strokeWidth="1.1"
-            />
-
-            {/* Solid Glowing Core */}
-            <circle
-              cx={CAR_POS.x}
-              cy={CAR_POS.y}
-              r="2.8"
-              fill="#FFE890"
-              filter="url(#car-marker-glow)"
-            />
-
-            {/* Subtle Leader Line to SECTOR callout */}
-            <polyline
-              points={`${CAR_POS.x - 4},${CAR_POS.y - 4} ${CAR_POS.x - 12},${CAR_POS.y - 12} ${CAR_POS.x - 22},${CAR_POS.y - 12}`}
-              fill="none"
-              stroke="#B7A06A"
-              strokeWidth="0.6"
-              opacity="0.45"
-            />
-
-            {/* Top-Left Callout: SECTOR 34.24s */}
-            <g transform={`translate(${CAR_POS.x - 14}, ${CAR_POS.y - 20})`}>
-              <text
-                x="0"
-                y="0"
-                textAnchor="end"
-                fill="#8E8675"
-                fontSize="7.5"
-                letterSpacing="1.2"
-                fontWeight="600"
-              >
-                SECTOR
-              </text>
-              <text
-                x="0"
-                y="10.5"
-                textAnchor="end"
-                fill="#FFFFFF"
-                fontSize="9.5"
-                fontWeight="700"
-                letterSpacing="0.2"
-              >
-                {CIRCUIT_INFO.currentSectorTime}
-              </text>
-            </g>
-
-            {/* Under Marker Callout: 2 / Eau Rouge */}
-            <g transform={`translate(${CAR_POS.x + 8}, ${CAR_POS.y + 13})`}>
-              <text
-                x="0"
-                y="0"
-                fill="#8E8675"
-                fontSize="7.5"
-                fontWeight="700"
-              >
-                2
-              </text>
-              <text
-                x="9"
-                y="0"
-                fill="#E8E2D5"
-                fontSize="7.5"
-                fontWeight="600"
-                letterSpacing="0.5"
-              >
-                Eau Rouge
-              </text>
-            </g>
-
-            {/* Lower Sector 1 Callout: 1 / SEC / Eau Rouge */}
-            <g transform="translate(108, 168)">
-              <text x="0" y="0" fill="#8E8675" fontSize="7.5" fontWeight="700">
-                1
-              </text>
-              <text x="7" y="0" fill="#8E8675" fontSize="7" fontWeight="600" letterSpacing="0.5">
-                SEC
-              </text>
-              <text x="0" y="8.5" fill="#8E8675" fontSize="7" fontWeight="500">
-                Eau
-              </text>
-              <text x="0" y="16" fill="#8E8675" fontSize="7" fontWeight="500">
-                Rouge
-              </text>
-            </g>
-          </g>
-
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* 3. SECTOR TIMINGS SUMMARY (Lower Right Quadrant)                 */}
-          {/* ════════════════════════════════════════════════════════════════ */}
-          <g id="sector-timings-summary" transform="translate(244, 180)">
-            {CIRCUIT_INFO.sectors.map((sec, i) => (
-              <g key={sec.id} transform={`translate(0, ${i * 11.5})`}>
-                <text
-                  x="0"
-                  y="0"
-                  fill="#D4AF37"
-                  fontSize="8.5"
-                  fontWeight="700"
-                  letterSpacing="0.5"
-                >
-                  {sec.id}:
-                </text>
-                <text
-                  x="20"
-                  y="0"
-                  fill="#FFFFFF"
-                  fontSize="8.5"
-                  fontWeight="700"
-                  letterSpacing="0.2"
-                >
-                  {sec.time}
-                </text>
-              </g>
-            ))}
-          </g>
-
-        </g>{/* end internal shift group */}
-      </svg>
+    <div className="apx-panel !rounded-lg h-full flex flex-col p-2 relative">
+      <div className="flex items-center justify-between px-1 pb-1">
+        <MicroLabel>Circuit · Speed channel</MicroLabel>
+        <SimBadge />
+      </div>
+      <canvas
+        ref={ref}
+        className="flex-1 w-full cursor-crosshair"
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const mx = e.clientX - r.left;
+          const my = e.clientY - r.top;
+          const { scale, ox, oy } = fitFor(r.width, r.height);
+          let best: Pt | null = null;
+          let bestD = Infinity;
+          for (const p of track) {
+            const d = Math.hypot(ox + p.x * scale - mx, oy + p.y * scale - my);
+            if (d < bestD) {
+              bestD = d;
+              best = p;
+            }
+          }
+          if (best && bestD < 60) cockpitCursor.dist = best.dist;
+        }}
+        onMouseLeave={() => {
+          cockpitCursor.dist = null;
+        }}
+      />
     </div>
   );
-};
+}

@@ -154,7 +154,6 @@ class DatabaseLapService:
         Inserts lap metadata and all telemetry rows in a single transaction.
         Returns the assigned lap_id.
         """
-        import json
 
         async with self._pool.acquire() as conn:
             async with conn.transaction():

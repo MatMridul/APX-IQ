@@ -1,5 +1,4 @@
 import socketio
-import time
 
 sio = socketio.Client()
 

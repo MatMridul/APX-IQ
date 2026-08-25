@@ -21,8 +21,8 @@ if __name__ == "__main__":
     print("=" * 60)
     print("APX-IQ INGESTION SERVICE")
     print("=" * 60)
-    print(f"UDP Listener: 0.0.0.0:20777")
-    print(f"WebSocket Server: http://localhost:3001")
+    print("UDP Listener: 0.0.0.0:20777")
+    print("WebSocket Server: http://localhost:3001")
     print("=" * 60)
     
     # Run App

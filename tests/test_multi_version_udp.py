@@ -3,16 +3,11 @@ Tests for Multi-Version F1 UDP Decoders and Adapters (2020-2025)
 """
 
 import pytest
-import ctypes
 from ingestion.decoder import PacketDecoder
-from ingestion.adapters import get_adapter_for_format, BasePacketAdapter, UniversalPacketAdapter
+from ingestion.adapters import get_adapter_for_format, BasePacketAdapter
 from ingestion import (
     packet_structs_20,
-    packet_structs_21,
     packet_structs_22,
-    packet_structs_23,
-    packet_structs_24,
-    packet_structs_25,
 )
 
 

@@ -6,8 +6,7 @@ Translates decoded packets for any F1 version (2020–2025) into
 canonical dictionaries and CanonicalTelemetryFrame instances.
 """
 
-from typing import Dict, Any, Optional
-from api.models.shared import CanonicalTelemetryFrame
+from typing import Dict, Any
 from ingestion.adapters.base_adapter import BasePacketAdapter
 
 

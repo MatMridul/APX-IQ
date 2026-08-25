@@ -1,7 +1,6 @@
 """Send fake F1 telemetry packets to test the pipeline."""
 import socket
 import time
-import struct
 import sys
 from pathlib import Path
 
@@ -9,7 +8,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from ingestion.packet_structs_22 import PacketHeader, PacketCarTelemetryData, CarTelemetryData
+from ingestion.packet_structs_22 import PacketHeader, PacketCarTelemetryData
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 20777

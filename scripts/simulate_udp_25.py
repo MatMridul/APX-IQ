@@ -1,9 +1,7 @@
 import sys
 import os
 import socket
-import struct
 import time
-import math
 
 # Add parent directory to path to allow importing modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

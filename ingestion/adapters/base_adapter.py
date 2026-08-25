@@ -7,8 +7,7 @@ Translates game-specific C-types structs into CanonicalTelemetryFrame.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
-from api.models.shared import CanonicalTelemetryFrame
+from typing import Dict, Any
 
 
 class BasePacketAdapter(ABC):

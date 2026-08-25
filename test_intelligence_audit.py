@@ -13,12 +13,7 @@ import pytest
 
 def test_import_constants():
     from intelligence.constants import (
-        MIN_YEAR, MAX_YEAR, TRACK_MAP, SESSION_TYPE_MAP,
-        HARDWARE_TIERS, HARDWARE_VARIANCE_THRESHOLDS,
-        BRAKE_THRESHOLD_SCALING, ALIGNMENT_GRID_POINTS,
-        CORNER_APEX_SPEED_THRESHOLD, CORNER_DETECTION_PROMINENCE,
-        CORNER_MIN_DISTANCE_BETWEEN, MAX_LAP_BUFFER_SIZE,
-        LAP_CROSSING_DISTANCE_DROP, HARDWARE_PROFILING_MIN_LAPS,
+        MIN_YEAR, MAX_YEAR, TRACK_MAP,
     )
     assert MIN_YEAR == 2022
     assert MAX_YEAR == 2026
@@ -27,7 +22,7 @@ def test_import_constants():
 
 def test_import_fastf1_client():
     from intelligence.fastf1_client import (
-        FastF1Client, resolve_track_name, resolve_session_type,
+        resolve_track_name, resolve_session_type,
     )
     assert resolve_track_name(0) == "Bahrain"
     assert resolve_track_name(999) is None
@@ -50,7 +45,7 @@ def test_import_alignment():
 
 
 def test_import_corner_detector():
-    from intelligence.corner_detector import CornerDetector, Corner, CornerMap
+    from intelligence.corner_detector import CornerDetector, CornerMap
     d = CornerDetector()
     assert d.prominence > 0
     assert d.min_distance_between > 0
@@ -59,7 +54,7 @@ def test_import_corner_detector():
 
 
 def test_import_delta_engine():
-    from intelligence.delta_engine import DeltaEngine, DeltaResult, BrakePointDelta
+    from intelligence.delta_engine import DeltaEngine, DeltaResult
     e = DeltaEngine()
     assert e.MIN_SPEED_KPH == 5.0
     r = DeltaResult()

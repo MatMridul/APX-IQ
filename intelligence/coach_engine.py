@@ -576,7 +576,7 @@ class CoachEngine:
             regions, key=lambda r: r["time_lost_ms"], reverse=True
         )
 
-        for i, region in enumerate(sorted_regions[:3]):  # Top 3 worst zones
+        for _i, region in enumerate(sorted_regions[:3]):  # Top 3 worst zones
             severity = (
                 Severity.CRITICAL if region["time_lost_ms"] > 200
                 else Severity.WARNING

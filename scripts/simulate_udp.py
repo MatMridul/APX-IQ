@@ -1,7 +1,5 @@
 import socket
-import struct
 import time
-import ctypes
 from ingestion import packet_structs_22
 
 def create_header(packet_id):

@@ -11,11 +11,9 @@ Tests:
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from intelligence.coach_engine import CoachEngine, CoachingCategory, Severity
+from intelligence.coach_engine import CoachEngine, CoachingCategory
 from intelligence.corner_detector import Corner, CornerMap
-from intelligence.delta_engine import DeltaResult
 from intelligence.report_generator import ReportGenerator, ReportType
 
 

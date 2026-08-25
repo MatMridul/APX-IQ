@@ -638,7 +638,7 @@ Hardware detected: **{data.get('hardware_type', 'Unknown')}**.
         # Generate findings from coaching tips
         findings = []
         if data.get("top_tips"):
-            for i, tip in enumerate(data["top_tips"][:5], 1):
+            for _i, tip in enumerate(data["top_tips"][:5], 1):
                 findings.append(tip)
                 markdown += f"- {tip}\n"
         else:

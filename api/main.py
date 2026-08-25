@@ -17,7 +17,6 @@ import json
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import List
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect

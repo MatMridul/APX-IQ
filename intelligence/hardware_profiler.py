@@ -42,7 +42,6 @@ from .constants import (
     HARDWARE_WHEEL_ENTRY,
     HARDWARE_WHEEL_MID,
     HARDWARE_WHEEL_PRO,
-    HARDWARE_PROFILING_MIN_LAPS,
 )
 
 log = get_logger("APXIQ.Intelligence.HardwareProfiler")

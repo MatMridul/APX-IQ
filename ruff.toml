@@ -1,0 +1,36 @@
+# APX IQ — Ruff configuration
+# Philosophy: gate on real defects (errors, bugs, undefined names), not style.
+# Style/formatting enforcement can be layered in later once baseline is clean.
+
+target-version = "py311"
+line-length = 120
+
+exclude = [
+    ".venv",
+    "venv",
+    "ui",
+    "node_modules",
+    "graphify-out",
+    "data",
+    "alembic/versions",
+    "__pycache__",
+]
+
+[lint]
+select = [
+    "E4",   # pycodestyle imports
+    "E7",   # pycodestyle statements (def, comparisons, etc.)
+    "E9",   # pycodestyle runtime (syntax errors, bare except)
+    "F",    # pyflakes — undefined names, unused vars, f-string issues
+    "B",    # flake8-bugbear — likely bugs and design problems
+]
+
+ignore = [
+    "E402",  # module import not at top — intentional sys.path bootstrap pattern
+    "E741",  # ambiguous single-char names (l, I, O) — used in physics/math code
+    "B008",  # function call in argument default — FastAPI Depends() idiom requires it
+]
+
+[lint.per-file-ignores]
+# F1 24 structs intentionally re-export the F1 23 struct set via star-import
+"ingestion/packet_structs_24.py" = ["F403", "F405"]

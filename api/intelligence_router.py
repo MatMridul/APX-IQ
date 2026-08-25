@@ -30,7 +30,6 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from api.models.shared import (
-    TelemetryPoint,
     DeltaRequest,
     HardwareRequest,
     BattleRequest,
@@ -107,7 +106,7 @@ async def compute_delta(req: DeltaRequest, request: Request):
             req.user_telemetry, req.ghost_telemetry, req.grid_points, hardware_profile
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {
         "total_time_delta_ms":      delta.total_time_delta_ms,
@@ -219,7 +218,7 @@ async def generate_lap_report(request: Request, req: DeltaRequest):
             req.user_telemetry, req.ghost_telemetry, req.grid_points, hardware_profile
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         report = await report_generator.generate_lap_debrief(
@@ -239,7 +238,7 @@ async def generate_lap_report(request: Request, req: DeltaRequest):
         }
     except Exception as exc:
         log.error("report_generation_failed", error=str(exc))
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.post("/report/lap/stream")
@@ -259,7 +258,7 @@ async def stream_lap_report(request: Request, req: DeltaRequest):
             req.user_telemetry, req.ghost_telemetry, req.grid_points, hardware_profile
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     async def _token_generator():
         async for token in report_generator.stream_lap_debrief(
@@ -310,7 +309,7 @@ async def get_ghost_lap(
         result = await asyncio.to_thread(_fetch)
     except Exception as exc:
         log.error("ghost_lap_failed", error=str(exc))
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     if result is None:
         raise HTTPException(

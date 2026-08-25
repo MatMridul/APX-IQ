@@ -1,0 +1,45 @@
+name: UI CI
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "ui/**"
+      - ".github/workflows/ui-ci.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "ui/**"
+      - ".github/workflows/ui-ci.yml"
+
+jobs:
+  ui:
+    name: Typecheck, Lint & Build (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (tsc — blocking)
+        run: npx tsc --noEmit
+
+      - name: Lint (eslint — REPORT ONLY until lint debt cleared)
+        # TODO: remove continue-on-error once the ~31 pre-existing errors
+        # (no-explicit-any, react-hooks) are fixed. Then this step blocks merges.
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build (next build)
+        run: npm run build

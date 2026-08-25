@@ -18,7 +18,6 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Request, Header
 
 from api.models.shared import (
-    TelemetryPoint,
     LapInfo,
     LapTelemetryResponse,
     SaveLapRequest,

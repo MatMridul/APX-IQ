@@ -17,8 +17,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from ingestion.packet_structs_22 import (
-    PacketHeader, PacketCarTelemetryData, CarTelemetryData,
-    PacketLapData, LapData, PacketSessionData, PacketMotionData
+    PacketHeader, PacketCarTelemetryData, PacketLapData, PacketSessionData, PacketMotionData
 )
 
 UDP_IP = "127.0.0.1"

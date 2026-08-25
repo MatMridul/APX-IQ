@@ -31,6 +31,7 @@ from aiohttp import web
 
 from core.config import settings
 from core.logging_config import configure_logging, get_logger
+from ingestion.adapters import get_adapter_for_format
 from ingestion.listener import TelemetryListener
 from ingestion.decoder import PacketDecoder
 from intelligence.telemetry_recorder import TelemetryRecorder

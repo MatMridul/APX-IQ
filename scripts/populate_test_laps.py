@@ -11,7 +11,6 @@ Usage:
 
 import requests
 import numpy as np
-import json
 
 API_BASE = "http://localhost:8000"
 
@@ -211,7 +210,7 @@ def main():
     print("="*50)
     
     print("\n✅ Test laps populated successfully!")
-    print(f"   View at: http://localhost:3000/dashboard/intelligence")
+    print("   View at: http://localhost:3000/dashboard/intelligence")
 
 
 if __name__ == "__main__":

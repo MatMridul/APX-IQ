@@ -30,11 +30,11 @@ export const useSocket = () => {
             });
 
             socket.on("connect_error", (error) => {
-                console.error("[Socket.IO] Connection error:", error);
+                console.warn("[Socket.IO] Ingestion server offline at", SOCKET_URL, error.message);
             });
 
             socket.on("error", (error) => {
-                console.error("[Socket.IO] Error:", error);
+                console.warn("[Socket.IO] Error:", error);
             });
         }
 

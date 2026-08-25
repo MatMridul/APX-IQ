@@ -1,7 +1,6 @@
 """Simulate a complete lap to test lap saving."""
 import socket
 import time
-import struct
 import sys
 from pathlib import Path
 
@@ -9,8 +8,7 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from ingestion.packet_structs_22 import (
-    PacketHeader, PacketCarTelemetryData, CarTelemetryData,
-    PacketLapData, LapData, PacketSessionData
+    PacketHeader, PacketCarTelemetryData, PacketLapData, PacketSessionData
 )
 
 UDP_IP = "127.0.0.1"

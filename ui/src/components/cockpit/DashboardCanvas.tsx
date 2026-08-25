@@ -20,6 +20,7 @@ import { RaceCarTelemetry } from "./RaceCarTelemetry";
 import { CentralTelemetry } from "./CentralTelemetry";
 import { BottomInstruments } from "./BottomInstruments";
 import { TrackMap } from "./TrackMap";
+import { SpeedTrace } from "./SpeedTrace";
 
 export const DashboardCanvas: React.FC = () => {
   return (
@@ -62,13 +63,8 @@ export const DashboardCanvas: React.FC = () => {
       </div>
 
       {/* ── 06: SPEED TELEMETRY TRACE REGION (top: 72.0%, left: 50.5%, w: 47.5%, h: 25.5%) ── */}
-      <div className="absolute top-[72.0%] left-[50.5%] w-[47.5%] h-[25.5%] border border-dashed border-[#B7A06A]/25 rounded-lg flex flex-col items-center justify-center pointer-events-none z-10 bg-black/20">
-        <span className="text-[10px] font-mono text-[#D4AF37]/80 uppercase tracking-widest font-bold">
-          [SPEED TRACE REGION]
-        </span>
-        <span className="text-[8px] font-mono text-silver/40 mt-1">
-          x: 50.5%, y: 72.0%, w: 47.5%, h: 25.5%
-        </span>
+      <div className="absolute top-[72.0%] left-[50.5%] w-[47.5%] h-[25.5%] z-10 flex items-center justify-center">
+        <SpeedTrace />
       </div>
 
     </div>

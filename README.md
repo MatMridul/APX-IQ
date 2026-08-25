@@ -1,162 +1,78 @@
 # 🏎️ APX IQ — Real-Time Formula 1 Intelligence Platform
 
-APX IQ is a real-time motorsport intelligence platform that ingests live telemetry from the EA Sports F1 game via UDP, processes it through a structured data pipeline, stores it in hybrid databases, and delivers analytics and AI-driven insights through enterprise-grade dashboards and APIs.
+APX IQ ingests live telemetry from the EA Sports F1 game over UDP, decodes
+six game generations (F1 2020–25), streams it to a real-time cockpit
+dashboard, persists every completed lap, and generates AI coaching debriefs
+that compare you against real F1 ghost laps.
 
-## 🚀 Vision
+> **Status:** stable local-first platform. CI-gated (`main` is protected by
+> backend + UI workflows: lint, unit tests, real-Postgres integration tests,
+> typecheck, build). Security hardening pass pending.
 
-APX IQ is designed as a product platform, not a one-off project.
+## Architecture
 
-It simulates the data and intelligence stack of a professional Formula 1 team, combining:
-
-*   Real-time telemetry ingestion
-*   Scalable database architecture
-*   Advanced analytics
-*   Machine learning intelligence
-*   Enterprise UI dashboards
-
-The goal is to bridge raw motorsport telemetry with actionable intelligence.
-
-## 🧠 Core Capabilities
-
-### 1) Real-Time Telemetry Ingestion
-*   UDP-based ingestion from EA Sports F1 game
-*   Official EA UDP specification compliance
-*   Binary packet decoding and normalization
-*   Session-aware data processing
-
-### 2) Hybrid Data Architecture
-*   Relational database for core entities
-*   Time-series storage for high-frequency telemetry
-*   Analytics and derived metrics layer
-
-### 3) Intelligence & Analytics
-*   Driver performance analytics
-*   Lap and sector performance metrics
-*   Strategy insights (pit windows, tire degradation)
-*   Anomaly detection and behavioral profiling
-
-### 4) Machine Learning Layer
-*   Lap time prediction models
-*   Driver style clustering
-*   Strategy optimization simulations
-*   Performance forecasting
-
-### 5) API-Driven Platform
-*   Versioned REST APIs
-*   Structured telemetry and analytics endpoints
-*   Extensible integration layer
-
-### 6) Enterprise-Grade UI
-*   Role-based dashboards (Strategist, Engineer, System)
-*   Real-time telemetry visualization
-*   Comparative analytics and KPIs
-*   Progressive UI layers (basic → enterprise)
-
-## 🏗️ System Architecture (High-Level)
-
-```mermaid
-graph TD
-    Game[EA F1 Game] -->|UDP Binary Telemetry| Ingestion[Ingestion Layer<br/>Listener + Decoder]
-    Ingestion --> Pipeline[Normalization & Data Pipeline]
-    Pipeline --> Storage[Hybrid Storage Layer<br/>Relational + Time-Series]
-    Storage --> Intelligence[Analytics & ML Intelligence Layer]
-    Intelligence --> API[API Gateway]
-    API --> UI[Enterprise Dashboards & External Integrations]
+```
+EA F1 Game ──UDP :20777──▶ INGESTION (:3001)
+                             decode → adapt (per-year) → Socket.IO live stream
+                             TelemetryRecorder → lap complete → POST /lap/save
+                                   │
+                        API (:8000 FastAPI) ── PostgreSQL (laps, reports)
+                             intelligence engines: align · corners · delta ·
+                             coach · hardware FFT · battle · FastF1 ghosts
+                             LLM debriefs: Ollama → Gemini → template fallback
+                                   │
+                        UI (Next.js 16) :3000
+                             live cockpit (Socket.IO + Zustand)
+                             intelligence page (REST + React Query)
 ```
 
-## 🗂️ Repository Structure
+Full details: [`docs/architecture/system_architecture.md`](docs/architecture/system_architecture.md) ·
+API reference: [`docs/architecture/api_map.md`](docs/architecture/api_map.md) ·
+Schema: [`docs/architecture/database_schema.md`](docs/architecture/database_schema.md).
 
-```text
-apx-iq-platform/
-│
-├── docs/        # Architecture, specifications, diagrams
-├── ingestion/   # UDP listener, packet decoding, routing
-├── core/        # Normalization, session context, pipelines
-├── db/          # Database schema, migrations, seeds
-├── api/         # REST API services
-├── analytics/   # Metrics and intelligence logic
-├── ml/          # Machine learning pipelines and models
-├── ui/          # Frontend dashboards (basic + enterprise)
-├── infra/       # Docker, configs, environment setup
-├── scripts/     # Utilities and tools
-├── tests/       # Unit and integration tests
-└── README.md
+## Quick Start
+
+```bash
+# 1. Infrastructure (Postgres + Redis images)
+docker compose -f infra/docker-compose.yml up -d
+
+# 2. Schema
+pip install -r requirements.txt -r requirements-dev.txt
+alembic upgrade head
+
+# 3. Three processes (separate terminals)
+python -m uvicorn api.main:app --reload --port 8000
+python run_ingestion.py
+cd ui && npm ci && npm run dev        # http://localhost:3000
+
+# 4. No game? Fake it.
+python scripts/simulate_f1_udp.py
 ```
 
-## 🧩 Design Principles
+Everything also runs with zero infrastructure — omit Postgres and storage
+falls back to in-memory (dev only).
 
-APX IQ follows strict engineering principles:
+## Development Gates
 
-*   **Backend-first architecture**
-*   **Stable core schema** (no breaking changes after freeze)
-*   **Append-only telemetry data**
-*   **Layered modular design**
-*   **Versioned API contracts**
-*   **Progressive feature gating**
-*   **Local-first development**, cloud burst compute
-*   **Explainability in DBMS terms**
+```bash
+ruff check .                       # Python lint (blocking)
+pytest -m "not integration"       # unit suite
+DATABASE_URL=... alembic upgrade head && \
+DATABASE_URL=... pytest -m integration   # real-DB round-trips
+cd ui && npx tsc --noEmit && npm run lint && npm run build
+```
 
-## 🔐 Development Philosophy
+Agent onboarding & Definition of Done: [`AGENTS.md`](AGENTS.md).
+Coding standards: [`docs/knowledge/coding_standards.md`](docs/knowledge/coding_standards.md).
 
-APX IQ is built like a real product:
+## Design Principles
 
-*   The backend is designed to be stable from early stages.
-*   The frontend evolves progressively.
-*   Advanced features are gated and revealed in phases.
-*   Architecture decisions prioritize scalability and maintainability.
+Backend-first · stable core schema · append-only telemetry · layered
+modules · versioned API contracts · graceful degradation everywhere
+(DB→memory, Redis→memory, Ollama→Gemini→template) · local-first.
 
-This repository is structured to support long-term evolution into a public platform.
+## Disclaimer
 
-## 🛠️ Technology Stack (Indicative)
-
-### Backend & Data
-*   **Python / Node.js** (ingestion & services)
-*   **PostgreSQL / MySQL** (relational DB)
-*   **Time-series storage** (TimescaleDB / InfluxDB)
-*   **Docker** (containerization)
-
-### Analytics & ML
-*   **NumPy, Pandas, Scikit-learn**
-*   **Custom simulation and strategy engines**
-
-### Frontend
-*   **React / Next.js** (dashboards)
-*   **Charting & visualization libraries**
-
-### Infrastructure
-*   **Local + Cloud** (AWS/GCP burst compute)
-*   **REST APIs**
-
-## 📈 Roadmap
-
-### Phase 1 — Core Infrastructure
-*   UDP ingestion pipeline
-*   Database schema
-*   Core APIs
-
-### Phase 2 — Analytics Layer
-*   Derived metrics
-*   Basic dashboards
-
-### Phase 3 — Intelligence Layer
-*   Machine learning models
-*   Strategy analytics
-*   Enterprise UI
-
-### Phase 4 — Platform Evolution
-*   Performance optimization
-*   Public deployment readiness
-*   Extended analytics and integrations
-
-## ⚠️ Disclaimer
-
-APX IQ is a research and engineering platform built for experimentation, learning, and system design exploration.
-
-It is not affiliated with Formula 1, EA Sports, or Codemasters.
-
-All telemetry data is sourced from the EA Sports F1 game via officially documented UDP interfaces.
-
-## 🧠 Identity Statement
-
-**APX IQ is not a typical software project.**
-It is a real-time motorsport intelligence platform designed with enterprise architecture and product-first engineering principles.
+Research/engineering project for learning and experimentation. Not
+affiliated with Formula 1, EA Sports, or Codemasters; telemetry comes
+exclusively from officially documented UDP interfaces.

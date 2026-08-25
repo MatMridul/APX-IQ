@@ -1,103 +1,98 @@
 # APX IQ — System Architecture
 
-> Last updated: 2026-07-29 | Lead Architect review
+> Canonical technical reference. Updated 2026-08-25.
+> For agent onboarding rules see `/AGENTS.md`. For debt see
+> `docs/internal/technical_debt.md`.
 
----
+## 1. Process Topology
 
-## Overview
+Three independently-runnable processes:
 
-APX IQ is a real-time motorsport intelligence platform that ingests F1 game telemetry over UDP, processes it through an intelligence pipeline, and surfaces insights via a live web dashboard.
+| Process | Port | Transport in | Transport out |
+|---|---|---|---|
+| Ingestion (`ingestion/main.py`) | 3001 (Socket.IO) | UDP :20777 | Socket.IO events, HTTP POST to API |
+| API (`api/main.py`) | 8000 (HTTP) | REST from UI + ingestion | JSON responses |
+| UI (`ui/`) | 3000 | HTTP | — |
 
-The system is composed of **three concurrently running processes** with distinct responsibilities.
+Rationale: the 60 Hz live stream must never block on database
+transactions, and a crash in either backend must not kill the other.
+
+## 2. Data Flow
 
 ```
-[F1 Game UDP :20777]
-        │
-        ▼
-PROCESS 1: ingestion/main.py  (aiohttp + Socket.IO :3001)
-  TelemetryListener → PacketDecoder → packet_processor
-  TelemetryRecorder → lap DataFrames
-        │ HTTP POST (lap boundary)
-        ▼
-PROCESS 2: api/main.py  (FastAPI + uvicorn :8000)
-  /telemetry/*  → InMemoryLapStorage
-  /intelligence/* → DistanceAligner → CornerDetector → DeltaEngine
-                    → CoachEngine → ReportGenerator
-  ← FastF1 (thread) / Ollama / Gemini
-        │ Socket.IO + HTTP REST
-        ▼
-PROCESS 3: ui/  (Next.js :3000)
-  Socket.IO client → useTelemetry hook → Zustand store
-  React Query → useIntelligence hooks → /intelligence/*
+UDP packet bytes
+  → PacketDecoder.decode()            ingestion/decoder.py
+      picks module by header.m_packetFormat ∈ {2020..2025}
+      dispatches by m_packetId ∈ {motion:0, session:1, lap:2,
+                                  telemetry:6, status:7}
+  → UniversalPacketAdapter            ingestion/adapters/
+      extract_{motion,telemetry,lap_data,car_status} → canonical dicts
+  → three consumers:
+      a) Socket.IO emits (60Hz-throttled, stealth_mode-gated)
+      b) TelemetryRecorder.update_*     intelligence/telemetry_recorder.py
+         latest-snapshot composition per tick; distance-drop detects S/F line;
+         finalize captures game-reported lap_time_ms / sectors / is_valid
+      c) bridge_session_to_api on Session packets
+
+lap_saver_worker (2s poll)
+  → POST /telemetry/lap/save          api/telemetry_router.py
+      DatabaseLapService.save_lap:
+        upsert sessions row → insert lap (ON CONFLICT skip) → bulk telemetry
+      success ⇒ recorder.prune_saved(); failure ⇒ retried next poll
 ```
 
----
+## 3. API Composition
 
-## Service Communication Map
+`api/main.py` lifespan is the single composition root:
 
-| From | To | Protocol | Port | Data |
-|---|---|---|---|---|
-| F1 Game | Ingestion | UDP | 20777 | Binary packet structs |
-| Ingestion | UI | Socket.IO | 3001 | JSON events (60Hz) |
-| Ingestion | API | HTTP POST | 8000 | Completed lap JSON |
-| UI | API | HTTP REST | 8000 | Intelligence queries |
-| UI | Ingestion | Socket.IO | 3001 | Telemetry stream |
-| API | FastF1 | Python lib | — | Session/telemetry data |
-| API | Ollama | HTTP | 11434 | LLM inference |
-| API | Gemini | HTTPS | 443 | LLM inference |
-| API | PostgreSQL | TCP | 5432 | Persistence (wired, not active) |
+```
+db.connect() → pool
+app.state.lap_service      = create_lap_service(pool)       # DB or memory
+app.state.report_service   = create_report_service(pool)
+app.state.analysis_service = create_analysis_service()
+app.state.report_generator = ReportGenerator()               # Ollama→Gemini→template
+app.state.battle_predictor = BattlePredictor()
+app.state.session_manager  = SessionManager()
+```
 
----
+Routers depend only on Protocols; implementations are swappable. The
+InMemory fallbacks make the full stack runnable with zero infrastructure —
+and are also why CI's unit pass needs no services.
 
-## Technology Stack
+## 4. Intelligence Pipeline
 
-### Backend
-| Layer | Technology |
-|---|---|
-| Web framework | FastAPI 0.100+ |
-| ASGI server | Uvicorn |
-| Real-time | python-socketio + aiohttp |
-| Data validation | Pydantic v2 |
-| Data processing | Pandas 2.0, NumPy, SciPy |
-| Interpolation | PCHIP (scipy.interpolate) |
-| Peak detection | scipy.signal.find_peaks |
-| F1 data | FastF1 3.4+ |
-| Database client | asyncpg |
-| Caching | Redis (aioredis) / in-memory fallback |
-| Structured logging | structlog |
-| Rate limiting | slowapi |
-| HTTP client | httpx |
-| LLM cloud | google-genai |
-| LLM local | Ollama HTTP API |
+`AnalysisService.run_pipeline(user_telemetry, ghost_telemetry, grid_points)`:
 
-### Frontend
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS v4 |
-| State management | Zustand v5 |
-| Data fetching | TanStack Query v5 |
-| Real-time | Socket.IO client v4 |
-| Charts | LightweightCharts v5 (canvas) |
-| SVG gauges | d3-shape, d3-scale, d3-interpolate |
-| Animation | Framer Motion v12 |
+1. **DistanceAligner** resamples both laps onto a shared distance grid —
+   prerequisite for all point-wise comparison.
+2. **CornerDetector** finds corners from curvature/speed signatures → CornerMap.
+3. **DeltaEngine** integrates `(1/v_user − 1/v_ghost)·ds` → cumulative time
+   delta, brake-point deltas per corner.
+4. **CoachEngine** applies rule-based analysis (braking, trail-braking,
+   thermals, ERS) with cooldowns → prioritized tips.
 
----
+Supporting engines: HardwareProfiler (FFT over steering traces classifies
+wheel/gamepad/keyboard and adapts brake thresholds), BattlePredictor
+(gap-trend overtake projection), FastF1Client (real F1 ghost laps + track
+geometry, disk-cached under `data/fastf1_cache/`), ReportGenerator
+(LLM debrief with backend fallback chain and SSE streaming).
 
-## Key Design Patterns
+Heavy pandas work runs via `asyncio.to_thread`; results cached (TTL).
 
-### Snapshot-Merge Telemetry Recording
-Game sends Lap Data (ID=2), Car Telemetry (ID=6), Motion (ID=0) as separate packets at different rates. `TelemetryRecorder` keeps a "latest snapshot" of each type and composes rows on every Lap Data tick, accepting ≤50ms temporal misalignment.
+## 5. Frontend State Model
 
-### asyncio.to_thread for CPU Work
-All Pandas/NumPy/SciPy computations in the intelligence pipeline run via `asyncio.to_thread()` to avoid blocking the FastAPI event loop.
+Two state domains, two transports — never mix them:
 
-### RAF Loop → Zustand Decoupling
-Socket.IO events land in `useRef` snapshots; a `requestAnimationFrame` loop drains those into Zustand. This prevents 60Hz socket events from triggering 60Hz React re-renders.
+| Domain | Transport | Store |
+|---|---|---|
+| Live telemetry frames (ephemeral) | Socket.IO :3001 | Zustand `telemetryStore`, fed by refs+requestAnimationFrame batch in `useTelemetry` (mounted once in Providers) |
+| Queryable resources (laps, reports, ghosts, layouts) | REST :8000 | TanStack Query via `useIntelligence.ts` hooks |
 
-### Graceful Degradation
-Both `Database` and `Cache` fall back to in-memory if env vars absent. LLM chain: Ollama → Gemini API → deterministic template.
+Components subscribe with atomic Zustand selectors to avoid re-render storms.
 
-### Distance Grid Normalization
-Both user and ghost telemetry are interpolated onto a shared 1000-point distance grid (PCHIP) before comparison, making laps with different sample rates comparable.
+## 6. Storage Schema (summary)
+
+See `database_schema.md` for full DDL. Tables after migration 004:
+`sessions`, `laps`, `user_lap_telemetry` (FK→laps CASCADE),
+`intelligence_reports` (FK SET NULL on user_lap_id).
+Dropped as never-written: teams, drivers, hardware_profiles, ghost_laps(+_telemetry).

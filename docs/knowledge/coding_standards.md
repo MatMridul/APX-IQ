@@ -26,10 +26,11 @@ module_name.py
 - **Enum values**: `SCREAMING_SNAKE_CASE`
 
 ### Logging
-- **Use structlog** in API and ingestion layers: `log = get_logger("APXIQ.Module")`
+- **structlog everywhere** (API, ingestion, intelligence, core): `log = get_logger("APXIQ.Module")`
+  — unified in the 2026-08 repair; stdlib `logging` is banned
 - **Event names** are `snake_case` strings: `log.info("lap_saved", lap_id=42)`
-- **Never** use f-strings in log calls; use keyword args
-- `intelligence/` modules use stdlib `logging.getLogger(...)` — inconsistency vs API
+- **Never** use %-format or f-strings in log calls; keyword args only
+- **Config**: never `os.getenv()` outside `core/config.py`; import `settings`
 
 ### Error Handling
 - Use `HTTPException` in FastAPI routes with appropriate status codes
@@ -77,10 +78,11 @@ ComponentName.tsx
 - **useRef** for values that should NOT trigger re-renders (socket snapshots, chart refs)
 
 ### Component Patterns
-- Primitive components in `components/f1/primitives/`
-- Domain components in `components/f1/{domain}/`
-- Charts isolated in `components/f1/charts/`
-- `index.ts` barrel exports for each subdirectory
+- Live cockpit instruments: `components/cockpit/` (spatial canvas, imported directly)
+- Intelligence widgets: `components/f1/intelligence/`
+- Shared primitives: `components/f1/primitives/` (Panel, Badge)
+- Socket event payload types: single source in `lib/api/intelligence.ts`
+- No inline component definitions inside render (react-hooks/static-components is a blocking error)
 
 ### Performance Rules
 - Charts use `useRef` + imperative APIs (LightweightCharts, Canvas) — never re-render on data change
@@ -97,10 +99,25 @@ ComponentName.tsx
 
 ---
 
+## Testing Standards
+
+- **Unit/contract** (`tests/`, run by default): fast, no infrastructure;
+  storage tests use InMemory implementations against the Protocols.
+- **Integration** (`tests/integration/`, marker `integration`): boots the
+  real app on real PostgreSQL; requires DATABASE_URL set before pytest
+  starts. CI provisions the service container; locally use docker.
+- **Required coverage**: every Pydantic model validator, every storage
+  round-trip, decoder paths per game year, and any endpoint touched by
+  ingestion. Schema/migration PRs MUST add integration coverage.
+- Gates (all blocking in CI): `ruff check .` · unit pytest ·
+  integration pytest · `tsc --noEmit` · `eslint` · `next build`.
+- Audits (`pip-audit`, `npm audit`) run report-only until triaged.
+
+---
+
 ## Commit / Code Review Standards
 
-*(Inferred from code, not enforced by CI)*
 - Docstrings required on all public classes and methods
-- Architecture comments in page files explaining data flow
-- `// TODO:` comments for known incomplete work (many in telemetry_router.py)
 - Module-level comments explain "why", not "what"
+- Every PR includes runnable evidence of its Definition of Done
+  (see `/AGENTS.md`)

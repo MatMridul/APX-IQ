@@ -1,108 +1,78 @@
-# APX IQ — Database Schema Summary
+# APX IQ — Database Schema
 
-> Last updated: 2026-07-29
+> State after migration **004** (2026-08-25). Migrations are raw SQL under
+> `alembic/versions/`; apply with `alembic upgrade head`.
+> Driver note: migrations run on psycopg2 (multi-statement support); the
+> app runtime uses asyncpg. Both declared in requirements.txt.
 
----
+## Tables
 
-## Schema Design Philosophy
+### sessions
+Parent context for laps. Upserted automatically by `DatabaseLapService`
+and by `POST /telemetry/session/start`.
 
-Two-layer schema with clean separation:
-- **Frozen Core** — canonical racing data (sessions, laps, drivers, telemetry raw)
-- **Intelligence Extension** — additive-only, never modifies core tables
-
----
-
-## Entity Relationship Map
-
-```
-teams ──────────┐
-                ├── drivers ─────┐
-                └── cars         │
-                                 ▼
-sessions (session_uid: uint64) ──┴── laps ──── telemetry_raw
-     │                              │
-     ├── pit_stops                  ├── user_lap_telemetry  (distance-indexed)
-     └── events                     └── ghost_telemetry ─── ghost_laps
-                                         │
-                                         └── lap_deltas
-                                               │
-                                               ├── user_lap_id → user_lap_telemetry
-                                               └── ghost_lap_id → ghost_laps
-
-hardware_profiles → sessions
-```
-
----
-
-## Table Reference
-
-### Core Tables
-
-| Table | PK | Key Columns | Notes |
-|---|---|---|---|
-| `teams` | team_id (int) | name | Static reference |
-| `drivers` | driver_id (int) | name, team_id, nationality | Official F1 IDs |
-| `cars` | car_id (serial) | team_id, model | e.g. "RB20" |
-| `sessions` | session_uid (numeric 20,0) | session_type, track_id, start_time | uint64 from game |
-| `laps` | lap_id (serial) | session_uid, lap_number, lap_time_ms | Sector times included |
-| `pit_stops` | pit_id (serial) | session_uid, driver_id, duration_ms | |
-| `events` | event_id (serial) | event_type, event_details (JSONB) | Game event codes |
-| `telemetry_raw` | (no PK — time-series) | time, speed_kph, throttle, brake, steer, gear, rpm | TimescaleDB hypertable |
-
-### Intelligence Extension Tables
-
-| Table | PK | Key Columns | Notes |
-|---|---|---|---|
-| `ghost_laps` | ghost_lap_id (serial) | source, year, gp_name, driver_code, lap_time_ms | Year check ≥ 2022 |
-| `ghost_telemetry` | (ghost_lap_id, distance_m) | speed_kph, throttle, brake, gear, x, y, z | Distance-indexed, cascades |
-| `user_lap_telemetry` | (user_lap_id, distance_m) | speed_kph, throttle, brake, **steer**, gear, x, y, z | steer col for profiling |
-| `hardware_profiles` | profile_id (serial) | session_uid, detected_type, steer_variance | confirmed bool |
-| `lap_deltas` | delta_id (serial) | user_lap_id, ghost_lap_id, distance_m, time_delta_ms | Pre-computed results |
-
----
-
-## Indexing Status
-
-| Index | Table | Columns | Status |
-|---|---|---|---|
-| PK | ghost_telemetry | (ghost_lap_id, distance_m) | ✅ |
-| PK | user_lap_telemetry | (user_lap_id, distance_m) | ✅ |
-| idx_user_lap_session | user_lap_telemetry | (session_uid, lap_number) | ✅ |
-| idx_lap_deltas_user | lap_deltas | (user_lap_id) | ✅ |
-| Missing | ghost_laps | (gp_name, year, driver_code) | ❌ |
-| Missing | sessions | (start_time DESC) | ❌ |
-| Missing | laps | (session_uid, lap_time_ms) | ❌ |
-
----
-
-## Migration Status (Alembic)
-
-| Version | Description | Status |
+| column | type | notes |
 |---|---|---|
-| 001_initial_schema.py | Core tables | Created |
-| 002_user_lap_telemetry.py | User telemetry + hardware profiles | Created |
-| 003_intelligence_reports.py | Reports table | Created |
+| session_uid | NUMERIC(20,0) PK | from game header |
+| session_type | INT | |
+| track_id | INT | enriched by session bridge |
+| track_name, weather | VARCHAR/INT | reserved |
+| start_time, created_at | TIMESTAMPTZ | |
 
-**Problem:** Migration 003 creates an `intelligence_reports` table, but the code uses in-memory `_report_storage` dict. The migration and the code are **out of sync**.
+### laps
+| column | type | notes |
+|---|---|---|
+| lap_id | SERIAL PK | |
+| session_uid | NUMERIC(20,0) FK→sessions | upserted in save transaction (audit A1) |
+| lap_number | INT | **UNIQUE(session_uid, lap_number)** → idempotent retries (audit B4) |
+| lap_time_ms | INT NULL | game-reported; captured since audit B1 fix |
+| sector_1/2/3_time_ms | INT NULL | |
+| is_valid | BOOLEAN | real validity persisted (audit B1 fix) |
+| created_at | TIMESTAMPTZ | |
 
----
+### user_lap_telemetry
+Distance-indexed points per lap (~500–2 000 rows/lap).
 
-## Current Runtime State
+| column | type |
+|---|---|
+| user_lap_id | FK→laps(lap_id) **ON DELETE CASCADE** (added 004) |
+| session_uid, lap_number | denormalized NOT NULL (written by service) |
+| distance_m | REAL — part of PK (user_lap_id, distance_m) |
+| speed_kph, throttle, brake, steer, x, y, z | REAL |
+| gear, rpm | INT · drs BOOLEAN |
 
-**Database is wired but not active.** The API runs entirely on in-memory storage:
-- `InMemoryLapStorage` in `telemetry_router.py` — all lap data lost on API restart
-- `_report_storage` dict in `intelligence_router.py` — all reports lost on restart
-- `Database.connect()` is called in the lifespan but gracefully skips if `DATABASE_URL` not set
+Indexes: `(session_uid, lap_number)`, `(user_lap_id, distance_m)`.
 
-**This is the single largest production blocker.**
+Access pattern note: rows are **distance-ordered per lap**, not wall-clock
+time-series — this is why TimescaleDB hypertables are unnecessary today
+despite the timescaledb Docker image. Bulk inserts happen once per
+completed lap, never at streaming rate.
 
----
+### intelligence_reports
+| column | type | notes |
+|---|---|---|
+| report_id | SERIAL PK | |
+| user_lap_id | INT FK→laps ON DELETE SET NULL (004) | |
+| ghost_lap_id, session_uid, lap_number | nullable refs | |
+| report_type | VARCHAR CHECK IN ('lap_debrief','race_summary','corner_study') | |
+| title, markdown, summary | TEXT (markdown NOT NULL — audit A2 fix) | |
+| key_findings | JSONB | list of strings |
+| generated_by, generation_time_ms | VARCHAR / INT | backend + latency |
+| total_time_delta_ms, avg_speed_delta_kph | REAL | consumed by career progression (audit B2/B3 fixes) |
+| corner_count, worst/best_corner_index | INT | |
+| hardware_profile | JSONB | |
+| created_at | TIMESTAMPTZ | |
 
-## Naming Conventions
+Indexes: `(session_uid, lap_number)`, `created_at DESC`.
 
-- Tables: `snake_case` plural nouns
-- PKs: `{singular_table_name}_id`
-- Time columns: `TIMESTAMPTZ` with `DEFAULT NOW()`
-- Boolean flags: `is_*` prefix
-- Timestamps: `_at` suffix
-- Session UIDs: `NUMERIC(20,0)` to hold uint64 without Python `int` overflow
+## Dropped in 004 (never had a writer)
+
+`teams`, `drivers`, `hardware_profiles`, `ghost_laps`, `ghost_telemetry`.
+Resurrect via a new migration only when a feature actually writes them.
+
+## Conventions
+
+- No ORM. Services speak raw asyncpg parameterized SQL.
+- Schema changes = new migration file; never edit applied ones.
+- Any migration PR must include an integration test round-tripping the
+  changed tables (`tests/integration/`, Postgres service in CI).

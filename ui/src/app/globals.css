@@ -1,9 +1,47 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   APX IQ — Tailwind v4 theme (migrated from v3 tailwind.config.ts, 2026-08-25)
+   The v3 config was silently ignored by the v4 engine, killing every
+   config-token utility (text-gold, border-gold/40, lg:col-span-3, …) — the
+   intelligence page rendered unstyled. Tokens now live where v4 reads them.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* APX IQ Design System colors */
+  --color-apx-black: #0b0b0d;
+  --color-carbon: #1c1f24;
+  --color-carbon-light: #252930;
+  --color-gold: #cfa349;
+  --color-gold-dark: #bf953f;
+  --color-gold-light: #fcf6ba;
+  --color-silver: #9fa6b2;
+  --color-alert: #d72638;
+
+  /* Fonts (resolved by next/font at build time) */
+  --font-sans: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", "Fira Code",
+    "Roboto Mono", monospace;
+  --font-display: var(--font-rajdhani), "Rajdhani", var(--font-sans);
+
+  /* Custom animation token: animate-pulse-gold */
+  --animate-pulse-gold: pulse-gold 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes pulse-gold {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+}
 
 :root {
-  /* APX IQ Cinematic Palette */
+  /* APX IQ Cinematic Palette — LEGACY channel-format vars.
+     Kept verbatim: inline styles across pages use hsl(var(--…)). */
   --color-apx-black: 0 0% 0%;
   /* #000000 */
   --color-apx-carbon: 0 0% 9%;
@@ -15,22 +53,28 @@
   --gold-dark: #bf953f;
   --gold-light: #fcf6ba;
   --gold-mid: #b38728;
-  --gold-gradient: linear-gradient(135deg, var(--gold-dark), var(--gold-light), var(--gold-dark));
+  --gold-gradient: linear-gradient(
+    135deg,
+    var(--gold-dark),
+    var(--gold-light),
+    var(--gold-dark)
+  );
 
   /* Legacy/Fallback Gold for non-gradient contexts */
   --color-apx-gold: 46 83% 57%;
-  /* #F3D250 - Brighter, less mustard */
+  /* #f3d250 - Brighter, less mustard */
   --color-apx-gold-dim: 46 50% 35%;
   /* Dimmed Gold */
 
   --color-apx-silver: 0 0% 75%;
-  /* #BFBFBF - Secondary Text */
+  /* #bfbfbf - Secondary Text */
   --color-apx-red: 0 100% 50%;
   /* Brighter Red */
   --color-apx-green: 120 100% 35%;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Roboto Mono', monospace;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "Roboto Mono", monospace;
   /* Tech/Telemetry Font */
 }
 
@@ -63,7 +107,8 @@ a {
   padding: 0 1.5rem;
 }
 
-/* Metallic Gold Text */
+/* Metallic Gold Text — declared after @import so it wins the cascade
+   over Tailwind's flat-color .text-gold; gradient is the brand intent. */
 .text-gold {
   background: var(--gold-gradient);
   -webkit-background-clip: text;
@@ -92,7 +137,9 @@ a {
   background-color: hsl(var(--color-apx-carbon));
   /* Metallic Border Effect using box-shadow to simulate inset/outset */
   border: 1px solid rgba(191, 149, 63, 0.3);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 0, 0, 0.8);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(0, 0, 0, 0.8);
   border-radius: 2px;
   padding: 1.25rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -102,7 +149,7 @@ a {
 
 .apx-panel::before {
   /* Shiny Top Edge Highlight */
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;

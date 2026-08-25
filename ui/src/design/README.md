@@ -44,5 +44,10 @@ content is always badged `SIM` / `SYNTHETIC`.
 
 ## Motion
 
-One easing family `cubic-bezier(0.4, 0, 0.2, 1)`; durations 150/300ms.
-`animate-pulse-gold` reserved for live indicators. No bounce.
+Full spec: [`MOTION.md`](MOTION.md). Prime directive: **numbers snap,
+physics flows** — discrete readouts swap instantly; continuous quantities
+(delta bar, trails, LEDs) interpolate in the canvas render loop; discrete
+events get 80/150/300 ms transitions. Easing `cubic-bezier(0.4,0,0.2,1)`
+for UI, linear for data. `prefers-reduced-motion` + an in-app Motion
+Full/Reduced/Off toggle are mandatory. No bounce, no elastic — mechanical
+and precise.

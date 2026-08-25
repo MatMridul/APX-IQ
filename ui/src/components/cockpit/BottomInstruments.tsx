@@ -1,136 +1,194 @@
-/**
- * BottomInstruments — Phase 2B/Micro-Polish: Tyre Pressure & Brake Bias
- *
- * Reference: Nano Banana APX IQ cockpit (media_1787442062666.png)
- *
- * Micro-instruments positioned beneath the race car (bottom-left quadrant):
- *   1. TYRE PRESS: Multi-point pressure distribution curve with gradient fill and Low / 1st / High axis
- *   2. BRAKE BIAS: Precision horizontal split bar with 58.0% cursor and 0% / 58 / High axis
- *
- * Static Reference Mode.
- */
-
 "use client";
 
-import React from "react";
+import { useEffect, useRef, useState } from "react";
+import { MicroLabel, SimBadge } from "./primitives";
 
-export const BottomInstruments: React.FC = () => {
+/**
+ * Bottom instruments — now driven by the demo generator:
+ *
+ *   TYRE PRESSURE — four corner readouts (psi). Physical behavior:
+ *   pressures climb as tyres warm through a stint, with per-corner
+ *   phase and load coupling. Bars + values, ref-written at 5 Hz.
+ *
+ *   BRAKE BIAS — the engineer's lever: steps between 54–58.5% every
+ *   few corners (a "click"), needle lerps to target each frame
+ *   (Domain A), value readout snaps.
+ */
+
+const CORNERS = ["FL", "FR", "RL", "RR"] as const;
+const PHASE = [0.0, 1.3, 2.4, 3.6];
+
+export function BottomInstruments() {
+  // Tyre pressure refs
+  const psiRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const barRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  // Brake bias state
+  const [biasTxt, setBiasTxt] = useState("56.0");
+  const biasTarget = useRef(56);
+  const biasShown = useRef(56);
+  const needleRef = useRef<HTMLDivElement | null>(null);
+  const clickFlash = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    // Tyre pressures — 5 Hz discrete updates, CSS transitions smooth
+    const psiIv = setInterval(() => {
+      const t = performance.now() / 1000;
+      const f = demoFrameSafe(t);
+      CORNERS.forEach((c, i) => {
+        const warm = Math.min(1, f.lap * 0.12); // climbs over first laps
+        const psi =
+          20.8 +
+          warm * 1.9 +
+          0.55 * Math.sin(t / 9 + PHASE[i]) +
+          (i >= 2 ? f.brake * 0.35 : f.throttle * 0.15);
+        const el = psiRefs.current[i];
+        if (el) el.textContent = psi.toFixed(1);
+        const bar = barRefs.current?.[i];
+        if (bar) {
+          bar.style.width = `${((psi - 19) / 6) * 100}%`;
+          bar.style.background =
+            psi > 23.4 ? "var(--color-signal-caution)" : "var(--color-signal-go)";
+        }
+      });
+    }, 200);
+
+    // Bias "clicks" — every ~7 s the engineer takes 0.4–0.9% out/in
+    const clickIv = setInterval(() => {
+      const delta = (Math.random() > 0.5 ? 1 : -1) * (0.4 + Math.random() * 0.5);
+      biasTarget.current = Math.min(58.5, Math.max(54, biasTarget.current + delta));
+      setBiasTxt(biasTarget.current.toFixed(1));
+      if (clickFlash.current) {
+        clickFlash.current.textContent = `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}`;
+        clickFlash.current.style.opacity = "1";
+        setTimeout(() => {
+          if (clickFlash.current) clickFlash.current.style.opacity = "0";
+        }, 900);
+      }
+    }, 7000);
+
+    // Needle lerp — Domain A
+    const unsub = schedulerLerp((dt: number) => {
+      biasShown.current +=
+        (biasTarget.current - biasShown.current) * (1 - Math.exp(-6 * dt));
+      if (needleRef.current) {
+        needleRef.current.style.left = `${biasShown.current}%`;
+      }
+    });
+
+    return () => {
+      clearInterval(psiIv);
+      clearInterval(clickIv);
+      unsub();
+    };
+  }, []);
+
   return (
-    <div className="w-full h-full flex items-center gap-2.5 select-none font-mono">
-      {/* ── 1. TYRE PRESSURE MICRO-INSTRUMENT ───────────────────────────── */}
-      <div
-        className="flex-1 h-full rounded flex flex-col justify-between p-2 overflow-hidden"
-        style={{
-          background: "linear-gradient(160deg, #0F0E0C 0%, #060607 100%)",
-          border: "1px solid rgba(183, 160, 106, 0.4)",
-          boxShadow: "inset 0 1px 0 rgba(215, 192, 138, 0.15), 0 2px 12px rgba(0,0,0,0.85)",
-        }}
-      >
-        {/* Header Label */}
-        <span className="text-[8px] uppercase tracking-[0.16em] text-[#8E8675] font-semibold">
-          TYRE PRESS
-        </span>
-
-        {/* Pressure Distribution SVG Curve */}
-        <div className="flex-1 w-full my-1 relative">
-          <svg viewBox="0 0 120 30" className="w-full h-full" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="press-curve-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.45" />
-                <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.04" />
-              </linearGradient>
-            </defs>
-
-            {/* Baseline */}
-            <line x1="0" y1="26" x2="120" y2="26" stroke="#262420" strokeWidth="0.9" />
-
-            {/* Continuous Pressure Waveform (smooth envelope) */}
-            <path
-              d="
-                M 0 26
-                L 0 17
-                C 18 17, 32 7, 48 14
-                C 64 21, 78 8, 94 12
-                C 106 15, 114 16, 120 18
-                L 120 26
-                Z
-              "
-              fill="url(#press-curve-grad)"
-            />
-            <path
-              d="
-                M 0 17
-                C 18 17, 32 7, 48 14
-                C 64 21, 78 8, 94 12
-                C 106 15, 114 16, 120 18
-              "
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="1.3"
-            />
-          </svg>
+    <div className="w-full h-full flex items-stretch gap-2.5 select-none">
+      {/* ── TYRE PRESSURE ─────────────────────────────────────────── */}
+      <div className="apx-panel !rounded-lg flex-1 h-full flex flex-col p-2.5 relative">
+        <div className="flex items-center justify-between mb-1.5">
+          <MicroLabel>Tyre press · psi</MicroLabel>
+          <SimBadge />
         </div>
-
-        {/* Axis Ticks & Scale */}
-        <div className="flex items-center justify-between text-[7px] text-[#7A7264] tracking-wider uppercase font-medium">
-          <span>Low</span>
-          <span>1st</span>
-          <span>High</span>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 flex-1 content-center">
+          {CORNERS.map((c, i) => (
+            <div key={c}>
+              <div className="flex justify-between items-baseline">
+                <span className="font-mono text-[9px] tracking-[0.14em] text-silver/50">
+                  {c}
+                </span>
+                <span
+                  ref={(el) => {
+                    psiRefs.current[i] = el;
+                  }}
+                  className="font-mono text-[13px] text-white tabular-nums"
+                >
+                  21.0
+                </span>
+              </div>
+              <div className="h-1 rounded-full bg-white/5 overflow-hidden mt-0.5">
+                <div
+                  ref={(el) => {
+                    if (barRefs.current) barRefs.current[i] = el;
+                  }}
+                  className="h-full rounded-full transition-[width,background-color] duration-300"
+                  style={{ width: "30%", background: "var(--color-signal-go)" }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between font-mono text-[8px] tracking-[0.14em] text-silver/30 mt-1">
+          <span>19</span>
+          <span>WINDOW 21–24</span>
+          <span>25</span>
         </div>
       </div>
 
-      {/* ── 2. BRAKE BIAS MICRO-INSTRUMENT ─────────────────────────────── */}
-      <div
-        className="flex-1 h-full rounded flex flex-col justify-between p-2 overflow-hidden"
-        style={{
-          background: "linear-gradient(160deg, #0F0E0C 0%, #060607 100%)",
-          border: "1px solid rgba(183, 160, 106, 0.4)",
-          boxShadow: "inset 0 1px 0 rgba(215, 192, 138, 0.15), 0 2px 12px rgba(0,0,0,0.85)",
-        }}
-      >
-        {/* Header Label + Percentage Value */}
-        <div className="flex items-center justify-between">
-          <span className="text-[8px] uppercase tracking-[0.16em] text-[#8E8675] font-semibold">
-            BRAKE BIAS
-          </span>
-          <span className="text-[9.5px] font-bold text-[#E8E2D5] font-mono">
-            58.0%
-          </span>
-        </div>
-
-        {/* Horizontal Bias Slider Bar */}
-        <div className="flex-1 w-full my-1 relative flex items-center">
-          <svg viewBox="0 0 120 18" className="w-full h-full" preserveAspectRatio="none">
-            {/* Background Track */}
-            <rect x="0" y="4" width="120" height="10" rx="1.5" fill="#121110" stroke="#28241C" strokeWidth="0.8" />
-
-            {/* Active Front Bias Bar (up to 58% = x=69.6) */}
-            <rect
-              x="0"
-              y="4"
-              width="69.6"
-              height="10"
-              rx="1.5"
-              fill="linear-gradient(90deg, #5A4418, #A68430)"
-              fillOpacity="0.4"
+      {/* ── BRAKE BIAS ────────────────────────────────────────────── */}
+      <div className="apx-panel !rounded-lg flex-1 h-full flex flex-col p-2.5 relative">
+        <div className="flex items-center justify-between mb-1.5">
+          <MicroLabel>Brake bias</MicroLabel>
+          <div className="flex items-center gap-1.5">
+            <span
+              ref={clickFlash}
+              className="font-mono text-[9px] text-gold transition-opacity duration-500"
+              style={{ opacity: 0 }}
             />
-
-            {/* Center Reference Mark (50% = x=60) */}
-            <line x1="60" y1="2" x2="60" y2="16" stroke="#3E382C" strokeWidth="0.8" strokeDasharray="1.5 1.5" />
-
-            {/* 58% Cursor Needle / Marker */}
-            <rect x="68" y="2" width="3.2" height="14" rx="1" fill="#FFE890" />
-            <line x1="69.6" y1="0" x2="69.6" y2="18" stroke="#D4AF37" strokeWidth="1.3" />
-          </svg>
+            <span className="font-mono text-[13px] text-white tabular-nums">
+              {biasTxt}
+              <span className="text-silver/40 text-[9px]"> % FRONT</span>
+            </span>
+          </div>
         </div>
 
-        {/* Axis Ticks & Scale */}
-        <div className="flex items-center justify-between text-[7px] text-[#7A7264] tracking-wider uppercase font-medium">
-          <span>0%</span>
-          <span>58</span>
-          <span>High</span>
+        <div className="flex-1 flex flex-col justify-center">
+          <div className="relative h-10">
+            {/* track */}
+            <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 rounded-full bg-white/5" />
+            {/* click zone shading 54–58.5 */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 h-3 rounded-sm bg-gold/10 border-x border-gold/30"
+              style={{ left: "54%", width: "4.5%" }}
+            />
+            {/* needle */}
+            <div
+              ref={needleRef}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-8 rounded-full"
+              style={{
+                left: "56%",
+                background: "var(--color-gold)",
+                boxShadow: "0 0 8px rgba(207,163,73,0.6)",
+                transition: "none",
+              }}
+            />
+          </div>
+          <div className="flex justify-between font-mono text-[8px] tracking-[0.14em] text-silver/30">
+            <span>50</span>
+            <span>REAR ← → FRONT</span>
+            <span>60</span>
+          </div>
         </div>
+        <MicroLabel className="text-center">adjusts per corner · SIM</MicroLabel>
       </div>
     </div>
   );
-};
+}
+
+/* ── helpers ─────────────────────────────────────────────────────── */
+
+import { demoFrame } from "@/lib/cockpit/demo";
+import { scheduler } from "@/lib/cockpit/scheduler";
+
+function demoFrameSafe(t: number) {
+  try {
+    return demoFrame(t);
+  } catch {
+    return { lap: 1, brake: 0, throttle: 0.5 };
+  }
+}
+
+function schedulerLerp(fn: (dt: number) => void) {
+  return scheduler.add((_t, dt) => fn(dt));
+}

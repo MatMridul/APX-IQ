@@ -49,7 +49,7 @@ export function InsightFeed() {
       const src = POOL[poolIdx.current % POOL.length];
       poolIdx.current += 1;
       const item: Insight = { ...src, id: idRef.current++, t: Date.now() };
-      setItems((prev) => [item, ...prev].slice(0, 4));
+      setItems((prev) => [item, ...prev].slice(0, 3));
     };
     push();
     const iv = setInterval(push, 7000);
@@ -57,13 +57,13 @@ export function InsightFeed() {
   }, []);
 
   return (
-    <div className="apx-panel !rounded-lg h-full flex flex-col p-3 gap-2 relative overflow-hidden">
+    <div className="apx-panel !rounded-lg h-full flex flex-col p-2.5 gap-2 relative overflow-hidden">
       <div className="flex items-center justify-between">
         <MicroLabel>Insights · Live</MicroLabel>
         <SimBadge />
       </div>
 
-      <div className="flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col gap-1.5 min-h-0 overflow-hidden">
         <AnimatePresence initial={false}>
           {items.map((it) => (
             <motion.div
@@ -71,14 +71,16 @@ export function InsightFeed() {
               layout
               initial={{ x: 40, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-              className={`rounded-lg border bg-black/30 px-3 py-2 ${KIND_STYLE[it.kind]}`}
+              className={`rounded-md border bg-black/30 px-2.5 py-1.5 overflow-hidden shrink-0 ${KIND_STYLE[it.kind]}`}
             >
-              <span className="font-mono text-[9px] tracking-[0.18em] font-bold block mb-0.5">
+              <span className="font-mono text-[8px] tracking-[0.18em] font-bold block mb-0.5">
                 {KIND_LABEL[it.kind]}
               </span>
-              <span className="text-[13px] text-silver/90 leading-snug">{it.text}</span>
+              <span className="text-[12px] leading-snug text-silver/90 line-clamp-2 block">
+                {it.text}
+              </span>
             </motion.div>
           ))}
         </AnimatePresence>

@@ -2,177 +2,187 @@
 
 import { useRef } from "react";
 import { useCanvas } from "@/lib/cockpit/canvas";
-import { demoFrame, cockpitCursor, TRACK_LEN, type Frame } from "@/lib/cockpit/demo";
+import {
+  demoFrame,
+  lapProfile,
+  cockpitCursor,
+  TRACK_LEN,
+} from "@/lib/cockpit/demo";
 import { CHANNEL } from "@/design/system";
 import { MicroLabel, SimBadge } from "./primitives";
 
 /**
- * Telemetry ribbon — MoTeC-style DISTANCE-domain view: the whole lap
- * is visible; a marker sweeps the current position; hover sets the
- * shared crosshair that the track map mirrors.
+ * Telemetry ribbon — TRUE lap-domain view (MoTeC grammar): the full
+ * lap profile is drawn once per frame from the cached lap profile;
+ * the live marker sweeps it. Line and marker share one geometry, so
+ * the dot always rides the line.
  *
- * Lanes (top→bottom): speed (area), throttle (up) / brake (down)
- * mirrored around a centre line, gear ticks.
- *
- * Samples accumulate in a ring buffer (one per frame); drawing is
- * min/max decimated per pixel column so cost is independent of rate
- * (design/MOTION.md Domain A).
+ * Lanes: speed (area) · throttle (up) / brake (down) mirrored · gear
+ * ticks along the top. Hover sets the shared crosshair the track map
+ * mirrors. Min/max decimated per column — cost independent of rate.
  */
 
-const MAX_SAMPLES = 2400; // ~40 s at 60 Hz
-
 export function TelemetryRibbon() {
-  const buf = useRef<Frame[]>([]);
-  const lastT = useRef(-1);
   const hoverX = useRef<number | null>(null);
 
   const ref = useCanvas((ctx, w, h, t) => {
     const f = demoFrame(t);
-    // Push one sample per frame (skip if tab was hidden — dt clamp handles)
-    if (t !== lastT.current) {
-      const arr = buf.current;
-      arr.push(f);
-      if (arr.length > MAX_SAMPLES) arr.shift();
-      lastT.current = t;
-    }
-
-    const samples = buf.current;
+    const prof = lapProfile(600);
     ctx.clearRect(0, 0, w, h);
 
-    const padL = 30, padR = 10, padT = 22, padB = 18;
+    const padL = 34, padR = 10, padT = 24, padB = 18;
     const plotW = w - padL - padR;
     const plotH = h - padT - padB;
-    if (plotW <= 10 || samples.length < 2) return;
+    if (plotW <= 10) return;
 
     const x = (dist: number) => padL + (dist / TRACK_LEN) * plotW;
-
-    // ── Lane geometry ──────────────────────────────────────────────
-    const speedH = plotH * 0.52;
+    const speedH = plotH * 0.5;
     const pedalH = plotH * 0.42;
     const speedTop = padT;
-    const pedalMid = padT + speedH + 8 + pedalH / 2;
-    const ySpeed = (kph: number) => speedTop + speedH - (kph / 360) * speedH;
+    const speedBot = speedTop + speedH;
+    const pedalMid = speedBot + 10 + pedalH / 2;
+    const ySpeed = (kph: number) => speedBot - (kph / 360) * speedH;
 
-    // Grid: faint sector dividers + speed gridlines
+    // ── Grid ───────────────────────────────────────────────────────
     ctx.strokeStyle = "rgba(255,255,255,0.06)";
     ctx.lineWidth = 1;
     for (const d of [TRACK_LEN / 3, (2 * TRACK_LEN) / 3]) {
       ctx.beginPath();
-      ctx.moveTo(x(d), padT - 6);
+      ctx.moveTo(x(d), padT - 8);
       ctx.lineTo(x(d), h - padB);
       ctx.stroke();
     }
-    ctx.fillStyle = "rgba(159,166,178,0.5)";
     ctx.font = "9px var(--font-mono), monospace";
     ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(159,166,178,0.45)";
     for (const kph of [100, 200, 300]) {
       const yy = ySpeed(kph);
-      ctx.beginPath();
-      ctx.moveTo(padL, yy);
-      ctx.lineTo(w - padR, yy);
-      ctx.stroke();
       ctx.fillText(String(kph), padL - 5, yy + 3);
     }
 
-    // ── Speed lane (min/max decimated area) ────────────────────────
-    // Samples span only the accumulated window; map by sample distance.
-    const d0 = samples[0].lapDist;
-    const span = Math.max(1, samples[samples.length - 1].lapDist - d0 + (samples[samples.length - 1].lap - samples[0].lap) * TRACK_LEN);
-    const xs = (s: Frame) => {
-      let rel = s.lapDist - d0;
-      if (rel < -TRACK_LEN / 2) rel += TRACK_LEN;
-      return padL + (rel / span) * plotW;
-    };
-
+    // ── Speed profile: full lap, min/max decimated ─────────────────
     const cols = Math.max(2, Math.floor(plotW / 2));
     const colW = plotW / cols;
     const mins = new Array<number>(cols).fill(Infinity);
     const maxs = new Array<number>(cols).fill(-Infinity);
-    for (const s of samples) {
-      const c = Math.min(cols - 1, Math.max(0, Math.floor((xs(s) - padL) / colW)));
-      const v = s.speed;
-      if (v < mins[c]) mins[c] = v;
-      if (v > maxs[c]) maxs[c] = v;
+    for (let i = 0; i < prof.dist.length; i++) {
+      const c = Math.min(cols - 1, Math.max(0, Math.floor((x(prof.dist[i]) - padL) / colW)));
+      if (prof.speed[i] < mins[c]) mins[c] = prof.speed[i];
+      if (prof.speed[i] > maxs[c]) maxs[c] = prof.speed[i];
     }
 
+    const tracePath = () => {
+      ctx.beginPath();
+      let started = false;
+      for (let c = 0; c < cols; c++) {
+        if (mins[c] === Infinity) continue;
+        const px = padL + c * colW;
+        if (!started) {
+          ctx.moveTo(px, ySpeed(maxs[c]));
+          started = true;
+        } else ctx.lineTo(px, ySpeed(maxs[c]));
+      }
+      for (let c = cols - 1; c >= 0; c--) {
+        if (mins[c] === Infinity) continue;
+        ctx.lineTo(padL + c * colW, ySpeed(mins[c]));
+      }
+    };
+
+    // Traveled portion (brighter) + remainder (dimmer)
+    const curX = x(f.lapDist);
+    ctx.save();
     ctx.beginPath();
-    let started = false;
-    for (let c = 0; c < cols; c++) {
-      if (mins[c] === Infinity) continue;
-      const px = padL + c * colW;
-      if (!started) { ctx.moveTo(px, ySpeed(maxs[c])); started = true; }
-      else ctx.lineTo(px, ySpeed(maxs[c]));
-    }
-    for (let c = cols - 1; c >= 0; c--) {
-      if (mins[c] === Infinity) continue;
-      ctx.lineTo(padL + c * colW, ySpeed(mins[c]));
-    }
+    ctx.rect(padL, 0, curX - padL, h);
+    ctx.clip();
+    tracePath();
     ctx.strokeStyle = CHANNEL.speed;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(curX, 0, w - curX, h);
+    ctx.clip();
+    tracePath();
+    ctx.strokeStyle = "rgba(234,179,8,0.35)";
     ctx.lineWidth = 1.4;
     ctx.stroke();
-    ctx.lineTo(x(samples[samples.length - 1].lapDist), speedTop + speedH);
-    ctx.lineTo(x(samples[0].lapDist), speedTop + speedH);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(234,179,8,0.10)";
-    ctx.fill();
+    ctx.restore();
 
-    // ── Pedal lanes (mirrored around centre) ───────────────────────
+    // Area under traveled portion
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padL, 0, curX - padL, h);
+    ctx.clip();
+    tracePath();
+    ctx.lineTo(curX, speedBot);
+    ctx.lineTo(padL, speedBot);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(234,179,8,0.08)";
+    ctx.fill();
+    ctx.restore();
+
+    // ── Pedal lanes (mirrored, full profile) ───────────────────────
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
     ctx.beginPath();
     ctx.moveTo(padL, pedalMid);
     ctx.lineTo(w - padR, pedalMid);
     ctx.stroke();
 
-    const drawPedal = (key: "throttle" | "brake", color: string) => {
+    const drawPedal = (arr: number[], color: string, up: boolean) => {
       ctx.beginPath();
-      let first = true;
-      for (const s of samples) {
-        const v = s[key];
-        const yy = pedalMid - (key === "throttle" ? v : -v) * (pedalH / 2);
-        if (first) { ctx.moveTo(xs(s), yy); first = false; }
-        else ctx.lineTo(xs(s), yy);
+      for (let i = 0; i < prof.dist.length; i++) {
+        const yy = pedalMid - (up ? arr[i] : -arr[i]) * (pedalH / 2);
+        const xx = x(prof.dist[i]);
+        if (i === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
       }
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     };
-    drawPedal("throttle", CHANNEL.throttle);
-    drawPedal("brake", CHANNEL.brake);
+    drawPedal(prof.throttle, "rgba(34,197,94,0.9)", true);
+    drawPedal(prof.brake, "rgba(239,68,68,0.9)", false);
 
-    // ── Gear ticks ─────────────────────────────────────────────────
+    // ── Gear ticks (at change points, min 26px apart) ──────────────
     ctx.font = "10px var(--font-mono), monospace";
     ctx.textAlign = "center";
-    let prevGear = -1;
-    for (const s of samples) {
-      if (s.gear !== prevGear && s.gear > 0) {
-        ctx.fillStyle = "rgba(159,166,178,0.75)";
-        ctx.fillText(String(s.gear), xs(s), padT - 8);
-        prevGear = s.gear;
-      } else if (s.gear !== prevGear) prevGear = s.gear;
+    let lastTickX = -Infinity;
+    for (let i = 1; i < prof.gear.length; i++) {
+      if (prof.gear[i] !== prof.gear[i - 1] && prof.gear[i] > 0) {
+        const tx = x(prof.dist[i]);
+        if (tx - lastTickX >= 26) {
+          ctx.fillStyle = "rgba(159,166,178,0.7)";
+          ctx.fillText(String(prof.gear[i]), tx, padT - 10);
+          lastTickX = tx;
+        }
+      }
     }
 
-    // ── Live position marker ───────────────────────────────────────
-    const mx = x(f.lapDist);
+    // ── Live marker — ON the line by construction ──────────────────
     ctx.strokeStyle = "rgba(207,163,73,0.9)";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(mx, padT - 6);
-    ctx.lineTo(mx, h - padB);
+    ctx.moveTo(curX, padT - 8);
+    ctx.lineTo(curX, h - padB);
     ctx.stroke();
-    ctx.fillStyle = "var(--color-gold)";
     ctx.beginPath();
-    ctx.arc(mx, ySpeed(f.speed), 3.5, 0, Math.PI * 2);
+    ctx.arc(curX, ySpeed(f.speed), 4, 0, Math.PI * 2);
     ctx.fillStyle = CHANNEL.speed;
+    ctx.shadowColor = CHANNEL.speed;
+    ctx.shadowBlur = 8;
     ctx.fill();
+    ctx.shadowBlur = 0;
 
-    // ── Crosshair (hover → shared cursor) ──────────────────────────
+    // ── Crosshair ──────────────────────────────────────────────────
     if (hoverX.current !== null) {
       const dist = ((hoverX.current - padL) / plotW) * TRACK_LEN;
       cockpitCursor.dist = Math.max(0, Math.min(TRACK_LEN, dist));
       ctx.strokeStyle = "rgba(255,255,255,0.35)";
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
-      ctx.moveTo(hoverX.current, padT - 6);
+      ctx.moveTo(hoverX.current, padT - 8);
       ctx.lineTo(hoverX.current, h - padB);
       ctx.stroke();
       ctx.setLineDash([]);
@@ -183,7 +193,7 @@ export function TelemetryRibbon() {
     // Lane labels
     ctx.textAlign = "left";
     ctx.fillStyle = CHANNEL.speed;
-    ctx.fillText("SPEED", padL + 2, padT + 10);
+    ctx.fillText("SPEED", padL + 2, speedTop + 10);
     ctx.fillStyle = CHANNEL.throttle;
     ctx.fillText("THR", padL + 2, pedalMid - pedalH / 2 + 10);
     ctx.fillStyle = CHANNEL.brake;

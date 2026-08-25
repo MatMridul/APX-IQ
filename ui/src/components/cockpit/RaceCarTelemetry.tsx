@@ -1,421 +1,305 @@
-/**
- * RaceCarTelemetry — Phase 2A Reconstruction (Iteration 3 / Final)
- *
- * Reference: Nano Banana APX IQ cockpit visualization
- *
- * Visual character: engineering instrumentation schematic
- * — predominantly dark carbon chassis
- * — selective gold on exposed top-panel edges and wing endplates
- * — restrained amber thermal glow inside tyre bodies only
- * — unified wide monocoque+sidepod form (not two separate pods)
- * — compact telemetry labels: one block per corner, monospace
- *
- * viewBox: 0 0 220 450
- * Car: y:10..440. Labels sit outside car body in SVG coordinate space.
- */
-
 "use client";
 
-import React from "react";
+import { useEffect, useRef } from "react";
+import { MicroLabel, SimBadge } from "./primitives";
 
-export const RaceCarTelemetry: React.FC = () => {
+/**
+ * RaceCarTelemetry — 2022-regulation F1 top view (proportions from the
+ * real car: 2.0 m width, ~5.6 m length, 72 cm front / 86 cm rear tyres,
+ * halo, wheel covers, floor edges, coke-bottle sidepods) rendered in
+ * the house gold-line/carbon style.
+ *
+ * Thermal readouts live OUTSIDE the silhouette (corner blocks) and are
+ * demo-driven at 5 Hz: surface/inner tyre temps color-lerped cold→hot,
+ * brake temps spiking under braking, wheel glow tracking brake energy.
+ */
+
+const CORNERS = ["FL", "FR", "RL", "RR"] as const;
+const PHASE = [0.4, 1.7, 2.9, 3.8];
+
+/** temp → hue: cold 210° (blue) → optimal 130° (green) → hot 0° (red) */
+function tempColor(t: number, cold: number, optimal: number, hot: number): string {
+  let norm: number;
+  if (t < optimal) norm = ((t - cold) / (optimal - cold)) * 0.5;
+  else norm = 0.5 + Math.min(1, (t - optimal) / (hot - optimal)) * 0.5;
+  const hue = 210 - 210 * Math.min(1, Math.max(0, norm));
+  return `hsl(${hue}, 80%, 55%)`;
+}
+
+export function RaceCarTelemetry() {
+  const surfRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const innerRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const brkRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const glowRefs = useRef<Array<SVGCircleElement | null>>([]);
+  const wearRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const t = performance.now() / 1000;
+      const brake = demoBrake(t);
+      const lap = demoLap(t);
+      CORNERS.forEach((c, i) => {
+        const surf = 88 + 13 * Math.sin(t / 9 + PHASE[i]) + brake * 6 + (i >= 2 ? 4 : 0);
+        const inner = surf + 7 + 3 * Math.sin(t / 6 + PHASE[i]);
+        const brk = 380 + brake * 460 + 45 * Math.sin(t / 4.5 + PHASE[i]);
+
+        const sc = tempColor(surf, 60, 96, 130);
+        const bc = tempColor(brk, 350, 600, 950);
+
+        if (surfRefs.current[i]) {
+          surfRefs.current[i].textContent = `${Math.round(surf)}°C`;
+          surfRefs.current[i].style.color = sc;
+        }
+        if (innerRefs.current[i]) {
+          innerRefs.current[i].textContent = `${Math.round(inner)}°C`;
+          innerRefs.current[i].style.color = tempColor(inner, 70, 105, 140);
+        }
+        if (brkRefs.current[i]) {
+          brkRefs.current[i].textContent = `${Math.round(brk)}°C`;
+          brkRefs.current[i].style.color = bc;
+        }
+        // Wheel glow tracks brake energy
+        const glow = glowRefs.current[i];
+        if (glow) glow.style.opacity = String(0.12 + brake * 0.55);
+      });
+      if (wearRef.current) wearRef.current.textContent = String(6 + (Math.floor(lap) % 30));
+    }, 200);
+    return () => clearInterval(iv);
+  }, []);
+
   return (
-    <div className="relative w-full h-full select-none">
-      <svg
-        viewBox="0 0 220 450"
-        className="w-full h-full overflow-visible"
-        style={{ filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.97))" }}
-      >
-        <defs>
-          {/* ══ Gradients ═══════════════════════════════════════════════════ */}
+    <div className="apx-panel !rounded-lg w-full h-full relative flex flex-col p-2">
+      <div className="flex items-center justify-between px-1">
+        <MicroLabel>Car · Thermals</MicroLabel>
+        <SimBadge />
+      </div>
 
-          {/* Carbon main — near-black with very subtle central warmth */}
-          <linearGradient id="c_carbon" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="#090909" />
-            <stop offset="40%"  stopColor="#14120F" />
-            <stop offset="50%"  stopColor="#1A1712" />
-            <stop offset="60%"  stopColor="#14120F" />
-            <stop offset="100%" stopColor="#090909" />
-          </linearGradient>
+      <div className="flex-1 relative min-h-0">
+        {/* ── Corner thermal blocks (outside the silhouette) ───────── */}
+        {CORNERS.map((c, i) => (
+          <div
+            key={c}
+            className={`absolute flex flex-col gap-px ${
+              i < 2 ? "top-[13%]" : "top-[58%]"
+            } ${i % 2 === 0 ? "left-0 items-start" : "right-0 items-end text-right"}`}
+          >
+            <span className="font-mono text-[10px] tracking-[0.18em] text-white font-bold">
+              {c}
+            </span>
+            <span className="font-mono text-[8px] tracking-[0.12em] text-silver/40">
+              SURF
+            </span>
+            <span
+              ref={(el) => {
+                surfRefs.current[i] = el;
+              }}
+              className="font-mono text-[13px] font-bold tabular-nums transition-colors duration-500"
+              style={{ color: "var(--color-signal-go)" }}
+            >
+              90°C
+            </span>
+            <span className="font-mono text-[8px] tracking-[0.12em] text-silver/40">
+              INNER
+            </span>
+            <span
+              ref={(el) => {
+                innerRefs.current[i] = el;
+              }}
+              className="font-mono text-[11px] tabular-nums transition-colors duration-500"
+              style={{ color: "var(--color-silver)" }}
+            >
+              97°C
+            </span>
+            <span className="font-mono text-[8px] tracking-[0.12em] text-silver/40 mt-0.5">
+              BRK
+            </span>
+            <span
+              ref={(el) => {
+                brkRefs.current[i] = el;
+              }}
+              className="font-mono text-[11px] tabular-nums transition-colors duration-500"
+              style={{ color: "var(--color-signal-caution)" }}
+            >
+              420°C
+            </span>
+          </div>
+        ))}
 
-          {/* Gold top-lit surface — for nose and cockpit shoulder panels */}
-          <linearGradient id="c_goldTop" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="#4A3010" />
-            <stop offset="20%"  stopColor="#A07020" />
-            <stop offset="50%"  stopColor="#C89030" />
-            <stop offset="80%"  stopColor="#A07020" />
-            <stop offset="100%" stopColor="#4A3010" />
-          </linearGradient>
+        {/* ── The car ──────────────────────────────────────────────── */}
+        <svg
+          viewBox="0 0 200 380"
+          className="absolute inset-0 m-auto h-full w-auto max-w-[62%]"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <defs>
+            <linearGradient id="carbon-body" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#23252b" />
+              <stop offset="55%" stopColor="#15161a" />
+              <stop offset="100%" stopColor="#0c0d10" />
+            </linearGradient>
+            <linearGradient id="wing-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2a2c33" />
+              <stop offset="100%" stopColor="#101114" />
+            </linearGradient>
+            <radialGradient id="tyre-warm" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ff7a18" stopOpacity="0.9" />
+              <stop offset="70%" stopColor="#ff4d00" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#ff4d00" stopOpacity="0" />
+            </radialGradient>
+          </defs>
 
-          {/* Wing surfaces — almost-black, tiny warm tint */}
-          <linearGradient id="c_wing" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%"  stopColor="#161410" />
-            <stop offset="100%" stopColor="#090909" />
-          </linearGradient>
+          {/* ground shadow */}
+          <ellipse cx="100" cy="192" rx="96" ry="182" fill="rgba(0,0,0,0.5)" />
 
-          {/* Body lateral — almost entirely dark carbon, only thin gold edge accent */}
-          <linearGradient id="c_bodyL" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="#0A0908" />
-            <stop offset="3%"   stopColor="#7A5818" />
-            <stop offset="10%"  stopColor="#1A1810" />
-            <stop offset="100%" stopColor="#100E0C" />
-          </linearGradient>
-          <linearGradient id="c_bodyR" x1="100%" y1="0%" x2="0%" y2="0%">
-            <stop offset="0%"   stopColor="#0A0908" />
-            <stop offset="3%"   stopColor="#7A5818" />
-            <stop offset="10%"  stopColor="#1A1810" />
-            <stop offset="100%" stopColor="#100E0C" />
-          </linearGradient>
-
-          {/* Nosecone — gold → dark, top-lit */}
-          <linearGradient id="c_nose" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%"  stopColor="#BF8C28" />
-            <stop offset="30%" stopColor="#7A5218" />
-            <stop offset="100%" stopColor="#141210" />
-          </linearGradient>
-
-          {/* Tyre rubber */}
-          <radialGradient id="t_front" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#1C1810" />
-            <stop offset="55%"  stopColor="#0E0E0E" />
-            <stop offset="100%" stopColor="#070707" />
-          </radialGradient>
-          <radialGradient id="t_rear" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#1E1A10" />
-            <stop offset="55%"  stopColor="#0E0E0E" />
-            <stop offset="100%" stopColor="#070707" />
-          </radialGradient>
-
-          {/* Thermal brake glow — front hot (780/812°C) */}
-          <radialGradient id="g_frontHot" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#FF8800" stopOpacity="0.92" />
-            <stop offset="30%"  stopColor="#CC5000" stopOpacity="0.60" />
-            <stop offset="60%"  stopColor="#802800" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0"   />
-          </radialGradient>
-
-          {/* Thermal brake glow — rear medium (650/678°C) */}
-          <radialGradient id="g_rearMed" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#E06800" stopOpacity="0.75" />
-            <stop offset="30%"  stopColor="#A03800" stopOpacity="0.44" />
-            <stop offset="60%"  stopColor="#601800" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#000000" stopOpacity="0"   />
-          </radialGradient>
-
-          {/* Hub */}
-          <radialGradient id="t_hub" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#2A2418" />
-            <stop offset="100%" stopColor="#0C0A08" />
-          </radialGradient>
-
-          {/* Soft bloom behind hot tyre (external halo) */}
-          <filter id="f_bloom" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="4" />
-          </filter>
-
-          {/* Inner glow (tyre glow composite) */}
-          <filter id="f_inner" x="-25%" y="-25%" width="150%" height="150%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="b" />
-            <feMerge>
-              <feMergeNode in="b"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* ─── Ambient bloom behind hot tyres ──────────────────────────── */}
-        <ellipse cx="34"  cy="114" rx="22" ry="30" fill="#FF6000" opacity="0.12" filter="url(#f_bloom)" />
-        <ellipse cx="186" cy="114" rx="22" ry="30" fill="#FF6800" opacity="0.14" filter="url(#f_bloom)" />
-        <ellipse cx="31"  cy="355" rx="26" ry="34" fill="#E04800" opacity="0.09" filter="url(#f_bloom)" />
-        <ellipse cx="189" cy="355" rx="26" ry="34" fill="#E05000" opacity="0.10" filter="url(#f_bloom)" />
-
-        {/* ════════════════════════════════════════════════════════════════
-            FRONT WING  (top of car, y:20..50)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="front-wing">
-          {/* Main blade — wide, thin, spans x:14..206 */}
-          <path d="M 15 30 L 205 30 L 201 46 L 19 46 Z"
-            fill="url(#c_wing)" stroke="#A88025" strokeWidth="0.9" />
-          {/* Second element */}
-          <path d="M 26 33 L 194 33 L 191 43 L 29 43 Z"
-            fill="#090909" stroke="#4A3808" strokeWidth="0.4" />
-          {/* Cascade — central section */}
-          <path d="M 56 35 L 164 35 L 162 43 L 58 43 Z"
-            fill="#080808" />
-          {/* Left endplate */}
-          <rect x="11" y="22" width="5" height="28" rx="1.5" fill="#A88025" />
-          {/* Right endplate */}
-          <rect x="204" y="22" width="5" height="28" rx="1.5" fill="#A88025" />
-          {/* Brake duct inlet indicators — small red marks */}
-          <polygon points="11,22 22,22 11,34" fill="#B01400" opacity="0.88" />
-          <polygon points="209,22 198,22 209,34" fill="#B01400" opacity="0.88" />
-          {/* Nose pylon mounts */}
-          <rect x="104" y="30" width="4" height="16" rx="1" fill="#806018" />
-          <rect x="112" y="30" width="4" height="16" rx="1" fill="#806018" />
-        </g>
-
-        {/* ════════════════════════════════════════════════════════════════
-            FRONT TYRES  (y:76..148)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="front-tyres">
-          {/* FL */}
-          <rect x="16" y="76" width="36" height="76" rx="9"
-            fill="url(#t_front)" stroke="#A88025" strokeWidth="1.2" />
-          <rect x="16" y="76" width="36" height="76" rx="9"
-            fill="url(#g_frontHot)" filter="url(#f_inner)" />
-          <rect x="20" y="80" width="28" height="68" rx="7"
-            fill="none" stroke="#1A160A" strokeWidth="1" opacity="0.65" />
-          <ellipse cx="34" cy="114" rx="9" ry="11"
-            fill="url(#t_hub)" stroke="#282010" strokeWidth="0.8" />
-          <ellipse cx="34" cy="114" rx="3" ry="3.5" fill="#0C0A08" />
-
-          {/* FR */}
-          <rect x="168" y="76" width="36" height="76" rx="9"
-            fill="url(#t_front)" stroke="#A88025" strokeWidth="1.2" />
-          <rect x="168" y="76" width="36" height="76" rx="9"
-            fill="url(#g_frontHot)" filter="url(#f_inner)" />
-          <rect x="172" y="80" width="28" height="68" rx="7"
-            fill="none" stroke="#1A160A" strokeWidth="1" opacity="0.65" />
-          <ellipse cx="186" cy="114" rx="9" ry="11"
-            fill="url(#t_hub)" stroke="#282010" strokeWidth="0.8" />
-          <ellipse cx="186" cy="114" rx="3" ry="3.5" fill="#0C0A08" />
-        </g>
-
-        {/* ════════════════════════════════════════════════════════════════
-            FRONT SUSPENSION
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="front-suspension" stroke="#403820" strokeWidth="1.1" opacity="0.85">
-          {/* FL wishbones */}
-          <line x1="52"  y1="84"  x2="98"  y2="94"  />
-          <line x1="52"  y1="140" x2="98"  y2="130" />
-          {/* FR wishbones */}
-          <line x1="168" y1="84"  x2="122" y2="94"  />
-          <line x1="168" y1="140" x2="122" y2="130" />
-          {/* push-rods */}
-          <line x1="52"  y1="112" x2="98"  y2="110" strokeWidth="0.6" opacity="0.45" />
-          <line x1="168" y1="112" x2="122" y2="110" strokeWidth="0.6" opacity="0.45" />
-        </g>
-
-        {/* ════════════════════════════════════════════════════════════════
-            NOSECONE (y:46..95)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="nose">
-          {/* Main taper */}
-          <path d="M 93 46 L 127 46 L 121 95 L 99 95 Z"
-            fill="url(#c_nose)" stroke="#6A4A14" strokeWidth="0.6" />
-          {/* Centre ridge highlight */}
-          <line x1="110" y1="46" x2="110" y2="95"
-            stroke="#BF8C28" strokeWidth="0.5" opacity="0.45" />
-        </g>
-
-        {/* ════════════════════════════════════════════════════════════════
-            MONOCOQUE & COCKPIT  (y:95..168)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="cockpit">
-          {/* Forward monocoque — gold top surface */}
-          <path d="M 99 95 L 121 95 L 130 132 L 90 132 Z"
-            fill="url(#c_goldTop)" stroke="#604010" strokeWidth="0.5" />
-
-          {/* Cockpit shoulder structure */}
-          <path d="M 86 132 L 134 132 L 138 160 L 82 160 Z"
-            fill="url(#c_goldTop)" stroke="#704A18" strokeWidth="0.6" />
-
-          {/* Cockpit void */}
-          <path d="M 94 137 Q 110 127 126 137 L 132 160 L 88 160 Z"
-            fill="#050507" stroke="#0E0E0C" strokeWidth="0.5" />
-
-          {/* Halo — gold structural arch */}
-          <path d="M 94 140 Q 110 130 126 140"
-            fill="none" stroke="#BF8C28" strokeWidth="2.4" strokeLinecap="round" />
-          {/* Halo centre strut */}
-          <line x1="110" y1="130" x2="110" y2="142"
-            stroke="#BF8C28" strokeWidth="1.7" />
-
-          {/* Helmet */}
-          <ellipse cx="110" cy="151" rx="8" ry="9"
-            fill="#A07830" stroke="#0C0A08" strokeWidth="0.8" />
-          <path d="M 103 148 L 117 148 L 116 152 L 104 152 Z"
-            fill="#07090E" />
-        </g>
-
-        {/* ════════════════════════════════════════════════════════════════
-            UNIFIED BODY — monocoque + sidepods as ONE wide form
-            This is the key fix: a single wide body shape, not two pods
-            Dark carbon with gold accent only at the outermost left/right edges
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="bodywork">
-          {/* ── LEFT BODY PANEL (includes sidepod outer skin) */}
-          {/* Runs from cockpit shoulder down to rear taper */}
+          {/* ── FLOOR ──────────────────────────────────────────────── */}
           <path
-            d="M 44 164
-               C 44 164, 82 162, 86 168
-               L 90 285
-               L 52 290
-               C 48 280, 44 260, 44 240
-               Z"
-            fill="url(#c_bodyL)"
-            stroke="#5A3A10"
-            strokeWidth="0.7"
+            d="M 56 176 L 144 176 L 146 296 L 118 306 L 82 306 L 54 296 Z"
+            fill="#0a0b0d"
+            stroke="rgba(207,163,73,0.35)"
+            strokeWidth="0.8"
           />
-          {/* Left sidepod inlet opening */}
-          <path d="M 48 174 L 84 173 L 86 198 L 52 196 Z"
-            fill="#040404" stroke="#181408" strokeWidth="0.5" />
-          {/* Left floor edge accent */}
-          <line x1="46" y1="220" x2="52" y2="286"
-            stroke="#A88025" strokeWidth="0.45" opacity="0.30" />
+          {/* floor-edge wings */}
+          <line x1="56" y1="182" x2="56" y2="292" stroke="rgba(207,163,73,0.5)" strokeWidth="1" />
+          <line x1="144" y1="182" x2="144" y2="292" stroke="rgba(207,163,73,0.5)" strokeWidth="1" />
 
-          {/* ── RIGHT BODY PANEL */}
+          {/* ── DIFFUSER ───────────────────────────────────────────── */}
+          <path d="M 74 332 L 126 332 L 134 352 L 66 352 Z" fill="#101115" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
+          <line x1="88" y1="334" x2="84" y2="351" stroke="rgba(207,163,73,0.3)" strokeWidth="0.7" />
+          <line x1="100" y1="334" x2="100" y2="351" stroke="rgba(207,163,73,0.3)" strokeWidth="0.7" />
+          <line x1="112" y1="334" x2="116" y2="351" stroke="rgba(207,163,73,0.3)" strokeWidth="0.7" />
+
+          {/* ── SIDEPODS ───────────────────────────────────────────── */}
           <path
-            d="M 176 164
-               C 176 164, 138 162, 134 168
-               L 130 285
-               L 168 290
-               C 172 280, 176 260, 176 240
-               Z"
-            fill="url(#c_bodyR)"
-            stroke="#5A3A10"
-            strokeWidth="0.7"
+            d="M 88 168 L 64 172 C 56 190 56 226 66 252 L 88 262 Z"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.9"
           />
-          <path d="M 172 174 L 136 173 L 134 198 L 168 196 Z"
-            fill="#040404" stroke="#181408" strokeWidth="0.5" />
-          <line x1="174" y1="220" x2="168" y2="286"
-            stroke="#A88025" strokeWidth="0.45" opacity="0.30" />
-
-          {/* ── CENTRAL ENGINE COVER SPINE */}
-          {/* Fills between left and right panels — pure dark carbon */}
           <path
-            d="M 86 168 L 134 168 L 130 285 L 90 285 Z"
-            fill="url(#c_carbon)"
-            stroke="#201C10"
-            strokeWidth="0.4"
+            d="M 112 168 L 136 172 C 144 190 144 226 134 252 L 112 262 Z"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.9"
           />
-          {/* Engine cover centre ridge */}
-          <line x1="110" y1="168" x2="110" y2="285"
-            stroke="#A88025" strokeWidth="0.65" opacity="0.35" />
-          {/* Horizontal panel seams */}
-          <line x1="88" y1="215" x2="132" y2="215"
-            stroke="#201C10" strokeWidth="0.5" opacity="0.55" />
-          <line x1="88" y1="252" x2="132" y2="252"
-            stroke="#201C10" strokeWidth="0.5" opacity="0.45" />
-        </g>
+          {/* sidepod inlets */}
+          <rect x="63" y="174" width="7" height="14" rx="2" fill="#050506" stroke="rgba(207,163,73,0.5)" strokeWidth="0.6" />
+          <rect x="130" y="174" width="7" height="14" rx="2" fill="#050506" stroke="rgba(207,163,73,0.5)" strokeWidth="0.6" />
 
-        {/* ════════════════════════════════════════════════════════════════
-            REAR BODY TAPER & DIFFUSER  (y:285..325)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="rear-body">
-          {/* Gearbox/diffuser taper — dark */}
-          <path d="M 52 290 L 168 290 L 163 320 L 57 320 Z"
-            fill="url(#c_carbon)" stroke="#3A2E0A" strokeWidth="0.6" />
-          {/* Beam wing mount */}
-          <path d="M 57 320 L 163 320 L 160 335 L 60 335 Z"
-            fill="#090909" stroke="#A88025" strokeWidth="0.5" />
-          {/* Exhaust exits — subtle warm dot */}
-          <ellipse cx="93"  cy="304" rx="4" ry="5.5"
-            fill="#12100A" stroke="#4A3008" strokeWidth="0.5" />
-          <ellipse cx="127" cy="304" rx="4" ry="5.5"
-            fill="#12100A" stroke="#4A3008" strokeWidth="0.5" />
-          <ellipse cx="93"  cy="304" rx="1.5" ry="2"
-            fill="#3A1800" opacity="0.5" />
-          <ellipse cx="127" cy="304" rx="1.5" ry="2"
-            fill="#3A1800" opacity="0.5" />
-        </g>
+          {/* ── ENGINE COVER + AIRBOX + FIN ────────────────────────── */}
+          <rect x="91" y="146" width="18" height="16" rx="5" fill="#050506" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
+          <path
+            d="M 88 168 L 112 168 C 112 220 108 268 104 296 L 96 296 C 92 268 88 220 88 168 Z"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.9"
+          />
+          <path d="M 98 208 L 102 208 L 101.5 292 L 98.5 292 Z" fill="rgba(207,163,73,0.35)" />
 
-        {/* ════════════════════════════════════════════════════════════════
-            REAR SUSPENSION
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="rear-suspension" stroke="##403820" strokeWidth="1.1" opacity="0.85">
-          {/* RL */}
-          <line x1="52"  y1="325" x2="82"  y2="308" stroke="#403820" />
-          <line x1="52"  y1="378" x2="82"  y2="363" stroke="#403820" />
-          <line x1="52"  y1="351" x2="82"  y2="342" stroke="#403820" strokeWidth="0.6" opacity="0.45" />
-          {/* RR */}
-          <line x1="168" y1="325" x2="138" y2="308" stroke="#403820" />
-          <line x1="168" y1="378" x2="138" y2="363" stroke="#403820" />
-          <line x1="168" y1="351" x2="138" y2="342" stroke="#403820" strokeWidth="0.6" opacity="0.45" />
-        </g>
+          {/* ── COCKPIT + HALO ─────────────────────────────────────── */}
+          <ellipse cx="100" cy="158" rx="13" ry="20" fill="#050506" stroke="rgba(207,163,73,0.55)" strokeWidth="0.8" />
+          <path
+            d="M 76 170 Q 100 148 124 170"
+            fill="none" stroke="#3a3d45" strokeWidth="5.5" strokeLinecap="round"
+          />
+          <path
+            d="M 76 170 Q 100 148 124 170"
+            fill="none" stroke="rgba(207,163,73,0.5)" strokeWidth="1" strokeLinecap="round"
+          />
+          <line x1="100" y1="150" x2="100" y2="164" stroke="#3a3d45" strokeWidth="4" />
 
-        {/* ════════════════════════════════════════════════════════════════
-            REAR TYRES  (y:320..405) — wider and taller than front
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="rear-tyres">
-          {/* RL */}
-          <rect x="12" y="320" width="42" height="86" rx="10"
-            fill="url(#t_rear)" stroke="#A88025" strokeWidth="1.3" />
-          <rect x="12" y="320" width="42" height="86" rx="10"
-            fill="url(#g_rearMed)" filter="url(#f_inner)" />
-          <rect x="16" y="324" width="34" height="78" rx="8"
-            fill="none" stroke="#1A1608" strokeWidth="1" opacity="0.6" />
-          <ellipse cx="33" cy="363" rx="10" ry="13"
-            fill="url(#t_hub)" stroke="#282010" strokeWidth="0.8" />
-          <ellipse cx="33" cy="363" rx="4" ry="4.5" fill="#0A0806" />
+          {/* ── CHASSIS / NOSE ─────────────────────────────────────── */}
+          <path
+            d="M 88 96 L 112 96 L 112 176 L 88 176 Z"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.9"
+          />
+          <path
+            d="M 74 30 C 80 52 84 74 88 96 L 112 96 C 116 74 120 52 126 30 Z"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.9"
+          />
+          {/* nose cape line */}
+          <path d="M 78 52 C 86 60 114 60 122 52" fill="none" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
 
-          {/* RR */}
-          <rect x="166" y="320" width="42" height="86" rx="10"
-            fill="url(#t_rear)" stroke="#A88025" strokeWidth="1.3" />
-          <rect x="166" y="320" width="42" height="86" rx="10"
-            fill="url(#g_rearMed)" filter="url(#f_inner)" />
-          <rect x="170" y="324" width="34" height="78" rx="8"
-            fill="none" stroke="#1A1608" strokeWidth="1" opacity="0.6" />
-          <ellipse cx="187" cy="363" rx="10" ry="13"
-            fill="url(#t_hub)" stroke="#282010" strokeWidth="0.8" />
-          <ellipse cx="187" cy="363" rx="4" ry="4.5" fill="#0A0806" />
-        </g>
+          {/* ── FRONT WING ─────────────────────────────────────────── */}
+          <rect x="10" y="4" width="9" height="30" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
+          <rect x="181" y="4" width="9" height="30" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
+          <path d="M 19 10 C 60 16 140 16 181 10 L 181 15 C 140 21 60 21 19 15 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.65)" strokeWidth="0.9" />
+          <path d="M 19 20 C 60 26 140 26 181 20 L 181 25 C 140 31 60 31 19 25 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.5)" strokeWidth="0.8" />
+          <path d="M 19 29 C 60 35 140 35 181 29 L 181 33 C 140 38 60 38 19 33 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.4)" strokeWidth="0.7" />
 
-        {/* ════════════════════════════════════════════════════════════════
-            REAR WING  (y:413..440)
-        ═══════════════════════════════════════════════════════════════════ */}
-        <g id="rear-wing">
-          {/* Main element */}
-          <path d="M 15 415 L 205 415 L 201 431 L 19 431 Z"
-            fill="url(#c_wing)" stroke="#A88025" strokeWidth="0.9" />
-          {/* Second element */}
-          <path d="M 26 419 L 194 419 L 192 427 L 28 427 Z"
-            fill="#080808" stroke="#3A2A08" strokeWidth="0.4" />
-          {/* Endplates */}
-          <rect x="11" y="408" width="6" height="27" rx="1.5" fill="#A88025" />
-          <rect x="203" y="408" width="6" height="27" rx="1.5" fill="#A88025" />
-          {/* Support pylons */}
-          <line x1="99"  y1="335" x2="99"  y2="415" stroke="#6A4A18" strokeWidth="1.2" />
-          <line x1="121" y1="335" x2="121" y2="415" stroke="#6A4A18" strokeWidth="1.2" />
-          {/* DRS actuator */}
-          <line x1="99" y1="375" x2="121" y2="375" stroke="#3A2A08" strokeWidth="0.7" />
-        </g>
+          {/* ── REAR WING ──────────────────────────────────────────── */}
+          <rect x="42" y="318" width="10" height="52" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
+          <rect x="148" y="318" width="10" height="52" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
+          {/* swan neck */}
+          <path d="M 96 296 L 104 296 L 103 336 L 97 336 Z" fill="#15161a" stroke="rgba(207,163,73,0.4)" strokeWidth="0.7" />
+          {/* main + DRS flap */}
+          <path d="M 52 340 L 148 340 L 148 350 L 52 350 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.65)" strokeWidth="0.9" />
+          <path d="M 52 326 L 148 326 L 148 335 L 52 335 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.5)" strokeWidth="0.8" />
+          <line x1="52" y1="330.5" x2="148" y2="330.5" stroke="rgba(207,163,73,0.35)" strokeWidth="0.6" />
+          {/* rain light */}
+          <rect x="96.5" y="352" width="7" height="10" rx="1.5" fill="#3d0a0d" stroke="rgba(239,68,68,0.7)" strokeWidth="0.7" />
 
-        {/* ════════════════════════════════════════════════════════════════
-            TELEMETRY LABELS — compact, monospace, one block per corner
-            FL/FR aligned with front tyre centre (y≈114)
-            RL/RR aligned with rear tyre centre (y≈363)
-        ═══════════════════════════════════════════════════════════════════ */}
+          {/* ── WHEELS ─────────────────────────────────────────────── */}
+          {[["F", 37, 132], ["F", 163, 132], ["R", 30, 295], ["R", 170, 295]].map(
+            ([end, cx, cy], i) => {
+              const w = end === "F" ? 30 : 40;
+              const h = end === "F" ? 72 : 86;
+              return (
+                <g key={i}>
+                  {/* brake-energy glow (ref-driven opacity) */}
+                  <circle
+                    ref={(el) => {
+                      glowRefs.current[i] = el;
+                    }}
+                    cx={cx as number}
+                    cy={cy as number}
+                    r={h / 2.6}
+                    fill="url(#tyre-warm)"
+                    style={{ opacity: 0.15, transition: "opacity 400ms" }}
+                  />
+                  <rect
+                    x={(cx as number) - w / 2}
+                    y={(cy as number) - h / 2}
+                    width={w}
+                    height={h}
+                    rx={w / 2.6}
+                    fill="#0c0c0f"
+                    stroke="rgba(207,163,73,0.65)"
+                    strokeWidth="1.1"
+                  />
+                  {/* 2022 wheel-cover disc */}
+                  <circle cx={cx as number} cy={cy as number} r={w / 3.1} fill="#131418" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
+                  <circle cx={cx as number} cy={cy as number} r={w / 7} fill="none" stroke="rgba(207,163,73,0.35)" strokeWidth="0.7" />
+                </g>
+              );
+            }
+          )}
 
-        {/* FL — left side */}
-        <g id="label-fl" fontFamily="'JetBrains Mono','Fira Code','Courier New',monospace">
-          <text x="2"  y="96"  fontSize="8"   fill="#E8E0D0" fontWeight="700" letterSpacing="0.8">FL</text>
-          <text x="2"  y="106" fontSize="6.5" fill="#8A8070">94°C/102°C</text>
-          <text x="2"  y="115" fontSize="6.5" fill="#FF8400" fontWeight="700">780°C</text>
-        </g>
+          {/* ── SUSPENSION ─────────────────────────────────────────── */}
+          <g stroke="#2c2f36" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="88" y1="116" x2="52" y2="126" />
+            <line x1="88" y1="134" x2="52" y2="138" />
+            <line x1="112" y1="116" x2="148" y2="126" />
+            <line x1="112" y1="134" x2="148" y2="138" />
+            <line x1="90" y1="278" x2="50" y2="288" />
+            <line x1="90" y1="296" x2="50" y2="300" />
+            <line x1="110" y1="278" x2="150" y2="288" />
+            <line x1="110" y1="296" x2="150" y2="300" />
+          </g>
+        </svg>
 
-        {/* FR — right side */}
-        <g id="label-fr" fontFamily="'JetBrains Mono','Fira Code','Courier New',monospace" textAnchor="end">
-          <text x="218" y="96"  fontSize="8"   fill="#E8E0D0" fontWeight="700" letterSpacing="0.8">FR</text>
-          <text x="218" y="106" fontSize="6.5" fill="#8A8070">96°C/104°C</text>
-          <text x="218" y="115" fontSize="6.5" fill="#FF8400" fontWeight="700">812°C</text>
-        </g>
-
-        {/* RL — left side */}
-        <g id="label-rl" fontFamily="'JetBrains Mono','Fira Code','Courier New',monospace">
-          <text x="2"  y="342" fontSize="8"   fill="#E8E0D0" fontWeight="700" letterSpacing="0.8">RL</text>
-          <text x="2"  y="352" fontSize="6.5" fill="#8A8070">98°C/108°C</text>
-          <text x="2"  y="361" fontSize="6.5" fill="#D87000" fontWeight="700">650°C</text>
-        </g>
-
-        {/* RR — right side */}
-        <g id="label-rr" fontFamily="'JetBrains Mono','Fira Code','Courier New',monospace" textAnchor="end">
-          <text x="218" y="342" fontSize="8"   fill="#E8E0D0" fontWeight="700" letterSpacing="0.8">RR</text>
-          <text x="218" y="352" fontSize="6.5" fill="#8A8070">101°C/111°C</text>
-          <text x="218" y="361" fontSize="6.5" fill="#D87000" fontWeight="700">678°C</text>
-        </g>
-
-      </svg>
+        {/* ── Compound + age badge ─────────────────────────────────── */}
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
+          <span className="font-mono text-[10px] font-bold text-white border border-red-500/60 bg-red-500/15 rounded px-1.5 py-px">
+            C4
+          </span>
+          <MicroLabel>
+            LAP <span ref={wearRef} className="text-white">6</span> ON SET
+          </MicroLabel>
+        </div>
+      </div>
     </div>
   );
-};
+}
+
+/* ── demo accessors (kept tiny; full frame not needed here) ───────── */
+import { demoFrame } from "@/lib/cockpit/demo";
+function demoBrake(t: number) {
+  return demoFrame(t).brake;
+}
+function demoLap(t: number) {
+  return demoFrame(t).lap;
+}

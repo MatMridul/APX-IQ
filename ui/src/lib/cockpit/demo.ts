@@ -122,3 +122,43 @@ export function demoFrame(t: number): Frame {
 
 /** Shared crosshair cursor for map ↔ ribbon sync (module-level ref). */
 export const cockpitCursor: { dist: number | null } = { dist: null };
+
+/**
+ * Full-lap profile, sampled once — lets distance-domain instruments
+ * draw the entire lap (MoTeC style) with a sweeping live marker,
+ * independent of the accumulated sample buffer.
+ */
+export interface LapProfile {
+  dist: number[];
+  speed: number[];
+  throttle: number[];
+  brake: number[];
+  gear: number[];
+}
+
+let cachedProfile: LapProfile | null = null;
+
+export function lapProfile(n = 600): LapProfile {
+  if (cachedProfile && cachedProfile.dist.length === n) return cachedProfile;
+  const dist: number[] = [];
+  const speed: number[] = [];
+  const throttle: number[] = [];
+  const brake: number[] = [];
+  const gear: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const d = (i / n) * TRACK_LEN;
+    const v = speedAt(d);
+    const vPrev = speedAt(d - 6);
+    const dv = (v - vPrev) / (6 / AVG_SPEED);
+    const br = dv < -14 ? Math.min(1, (-dv - 14) / 46) : 0;
+    const th = br > 0.05 ? 0 : Math.min(1, Math.max(0.12, 0.5 + dv / 60));
+    const g = v < 5 ? 0 : Math.min(8, 1 + Math.floor(v / 46));
+    dist.push(d);
+    speed.push(v);
+    throttle.push(th);
+    brake.push(br);
+    gear.push(g);
+  }
+  cachedProfile = { dist, speed, throttle, brake, gear };
+  return cachedProfile;
+}

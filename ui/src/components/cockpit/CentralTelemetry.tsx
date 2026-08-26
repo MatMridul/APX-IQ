@@ -152,6 +152,7 @@ export function CentralTelemetry() {
     <div className="w-full h-full flex items-center justify-center">
       <div
         className="relative"
+        data-testid="wheel-cluster"
         style={{ aspectRatio: "520/340", height: "100%", maxWidth: "100%" }}
       >
         {/* ═══ SHELL (SVG) ═══════════════════════════════════════════ */}
@@ -245,8 +246,16 @@ export function CentralTelemetry() {
           <circle cx="260" cy="322" r="4" fill="none" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
         </svg>
 
-        {/* ═══ LED STRIP (canvas — straight, per review) ═════════════ */}
-        <div className="absolute" style={{ left: "17%", top: "6%", width: "66%", height: "14%" }}>
+        {/* ═══ LED STRIP (canvas — on the face, above the LCD bezel) ══ */}
+        <div
+          className="absolute"
+          style={{
+            left: "21%",
+            top: "17.5%",
+            width: "58%",
+            height: "6.8%",
+          }}
+        >
           <ShiftLights fill />
         </div>
 
@@ -257,7 +266,7 @@ export function CentralTelemetry() {
               ? "text-signal-go border-signal-go/60 bg-signal-go/15 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
               : "text-silver/70 border-white/20 bg-black/40"
           }`}
-          style={{ left: "13.5%", top: "12.5%" }}
+          style={{ left: "16%", top: "28%" }}
           title={era.aero.system === "XZ" ? "Active aero request" : "Drag Reduction System"}
         >
           {drs ? era.aero.chipLabels.active : era.aero.chipLabels.ready}

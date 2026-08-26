@@ -30,7 +30,7 @@ export interface EraProfile {
 /** Game years 2020-2025 — 2014-2025 hybrid regulations. */
 export const HYBRID_ERA: EraProfile = {
   id: "hybrid",
-  label: "Hybrid Era · 2014-2025",
+  label: "Hybrid Era - 2014-2025",
   energy: {
     systemName: "ERS",
     hasMguH: true,

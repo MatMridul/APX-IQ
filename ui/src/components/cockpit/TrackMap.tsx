@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useCanvas } from "@/lib/cockpit/canvas";
 import { demoFrame, cockpitCursor, TRACK_LEN } from "@/lib/cockpit/demo";
 import { CHANNEL } from "@/design/system";
@@ -98,6 +98,14 @@ function fitFor(w: number, h: number) {
 export function TrackMap() {
   const track = useMemo(() => buildTrack(), []);
   const trail = useRef<Array<{ x: number; y: number }>>([]);
+
+  // Crosshair state must not survive route changes (stuck-cursor bug)
+  useEffect(() => {
+    cockpitCursor.dist = null;
+    return () => {
+      cockpitCursor.dist = null;
+    };
+  }, []);
 
   const ref = useCanvas((ctx, w, h, t) => {
     const f = demoFrame(t);

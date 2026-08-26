@@ -59,8 +59,8 @@ export function ShiftLights({
       if (f.gear > lastGear.current) upshiftUntil.current = t + LED_RAMP.upshiftBlinkMs / 1000;
       if (f.gear !== 0) lastGear.current = f.gear;
 
-      if (f.rpmPct >= LED_RAMP.limiterEnterPct) limiterOn.current = true;
-      else if (f.rpmPct < LED_RAMP.limiterExitPct) limiterOn.current = false;
+      if (f.rpmPct >= LED_RAMP.limiterEnterPct && f.throttle > 0.6) limiterOn.current = true;
+      else if (f.rpmPct < LED_RAMP.limiterExitPct || f.throttle <= 0.6) limiterOn.current = false;
     } else {
       limiterOn.current = false;
       upshiftUntil.current = 0;

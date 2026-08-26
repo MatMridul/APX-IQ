@@ -39,9 +39,9 @@ const BUTTONS_RIGHT = [
   { label: "DRK", color: "#2563eb", y: 214 },
 ];
 const ROTARIES = [
-  { label: "STRAT", x: 148, y: 282, dot: 40 },
-  { label: "MFD", x: 260, y: 288, dot: 210 },
-  { label: "HPP", x: 372, y: 282, dot: 120 },
+  { label: "STRAT", x: 148, y: 276, dot: 40 },
+  { label: "MFD", x: 260, y: 280, dot: 210 },
+  { label: "HPP", x: 372, y: 276, dot: 120 },
 ];
 
 function Button({ x, y, label, color }: { x: number; y: number; label: string; color: string }) {
@@ -216,13 +216,12 @@ export function CentralTelemetry() {
           <rect x="142" y="86" width="236" height="152" rx="8" fill="#04050a" stroke="rgba(207,163,73,0.5)" strokeWidth="1.6" />
 
           {/* Reminder sticker above rotaries (the real 'STRAT 6' quirk) */}
-          <rect x="196" y="248" width="128" height="13" rx="2" fill="rgba(230,228,220,0.92)" />
+          <rect x="182" y="246" width="156" height="14" rx="2" fill="rgba(230,228,220,0.92)" />
           <text
-            x="260" y="257.5" textAnchor="middle" fontSize="7"
+            x="260" y="256" textAnchor="middle" fontSize="6.5"
             fontFamily="var(--font-mono), monospace" fill="#111"
-            letterSpacing="0.5"
           >
-            STRAT 6 = PIT · TYRES+FLAP → MFD
+            STRAT 6 = PIT · FLAP → MFD
           </text>
 
           {/* Buttons */}

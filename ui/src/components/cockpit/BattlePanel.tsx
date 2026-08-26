@@ -39,7 +39,13 @@ function SectorChips({ base, seed }: { base: number; seed: number }) {
 }
 
 export function BattlePanel() {
-  const [snap, setSnap] = useState({ ahead: 1.4, behind: 2.6, ovt: "WAIT" as Ovt });
+  const [snap, setSnap] = useState({
+    ahead: 1.4,
+    behind: 2.6,
+    ovt: "WAIT" as Ovt,
+    pitLaps: 3,
+    position: 2,
+  });
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -48,7 +54,9 @@ export function BattlePanel() {
       const f = demoFrame(t);
       const ahead = Math.max(0.2, f.gapAheadS);
       const ovt: Ovt = ahead < 0.7 ? "GO" : ahead < 1.2 ? "READY" : "WAIT";
-      setSnap({ ahead, behind: f.gapBehindS, ovt });
+      // Pit window computed from fuel burn (audit 12: no frozen strings)
+      const pitLaps = f.fuelKg / 2.35;
+      setSnap({ ahead, behind: f.gapBehindS, ovt, pitLaps, position: f.position });
     }, 500);
     return () => {
       if (timer.current) clearInterval(timer.current);
@@ -115,7 +123,12 @@ export function BattlePanel() {
       </div>
 
       <div className="mt-auto flex items-center justify-between">
-        <MicroLabel>P2 · 3 laps to pit window</MicroLabel>
+        <MicroLabel>
+          P{snap.position ?? 2} ·{" "}
+          {snap.pitLaps >= 56
+            ? "no stop required"
+            : `pit in ~${Math.max(0, Math.floor(snap.pitLaps))} laps`}
+        </MicroLabel>
         <span
           className="w-1.5 h-1.5 rounded-full animate-pulse"
           style={{ background: CHANNEL.throttle }}

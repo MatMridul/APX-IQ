@@ -62,11 +62,11 @@ export const DashboardCanvas: React.FC = () => {
       {/* Background circuit / carbon texture + engineered field grid */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#111115] via-[#08080A] to-[#040405] opacity-90" />
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.05]"
+        className="absolute inset-0 pointer-events-none opacity-[0.09]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(207,163,73,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(207,163,73,0.5) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
+            "linear-gradient(rgba(207,163,73,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(207,163,73,0.6) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
         }}
       />
 

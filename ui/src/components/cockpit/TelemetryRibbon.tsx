@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useCanvas } from "@/lib/cockpit/canvas";
 import {
   demoFrame,
@@ -25,6 +25,14 @@ import { PanelHeader } from "./PanelHeader";
 
 export function TelemetryRibbon() {
   const hoverX = useRef<number | null>(null);
+
+  // Crosshair state must not survive route changes (stuck-cursor bug)
+  useEffect(() => {
+    cockpitCursor.dist = null;
+    return () => {
+      cockpitCursor.dist = null;
+    };
+  }, []);
 
   const ref = useCanvas((ctx, w, h, t) => {
     const f = demoFrame(t);
@@ -128,12 +136,19 @@ export function TelemetryRibbon() {
     ctx.stroke();
     ctx.restore();
 
-    // Area under traveled portion
+    // Area under traveled portion — path follows the trace to curX,
+    // then closes along the baseline (audit: diagonal wedge artifact)
     ctx.save();
     ctx.beginPath();
     ctx.rect(padL, 0, curX - padL, h);
     ctx.clip();
-    tracePath();
+    ctx.beginPath();
+    ctx.moveTo(x(prof.dist[0]), ySpeed(prof.speed[0]));
+    for (let i = 1; i < prof.dist.length; i++) {
+      if (prof.dist[i] > f.lapDist) break;
+      ctx.lineTo(x(prof.dist[i]), ySpeed(prof.speed[i]));
+    }
+    ctx.lineTo(curX, ySpeed(f.speed));
     ctx.lineTo(curX, speedBot);
     ctx.lineTo(padL, speedBot);
     ctx.closePath();

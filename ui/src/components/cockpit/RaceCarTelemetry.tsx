@@ -80,13 +80,20 @@ export function RaceCarTelemetry() {
           REAR
         </span>
 
-        {/* ── Corner thermal blocks (outside the silhouette) ───────── */}
+        {/* ── Corner thermal blocks — ADJACENT to their wheels
+               (self-audit 1: claimed before, actually applied now).
+               Car box spans ~19-81% of panel width; front wheels start
+               ~25%, rear ~25% — blocks right-align to just outside. ── */}
         {CORNERS.map((c, i) => (
           <div
             key={c}
             className={`absolute flex flex-col gap-px ${
-              i < 2 ? "top-[13%]" : "top-[58%]"
-            } ${i % 2 === 0 ? "left-0 items-start" : "right-0 items-end text-right"}`}
+              i < 2 ? "top-[19%]" : "top-[57%]"
+            } ${
+              i % 2 === 0
+                ? "left-[1%] w-[20%] items-end text-right"
+                : "right-[1%] w-[20%] items-start"
+            }`}
           >
             <span className="font-mono text-[10px] tracking-[0.18em] text-white font-bold">
               {c}
@@ -174,6 +181,14 @@ export function RaceCarTelemetry() {
           {/* floor-edge wings */}
           <line x1="56" y1="182" x2="56" y2="292" stroke="rgba(207,163,73,0.5)" strokeWidth="1" />
           <line x1="144" y1="182" x2="144" y2="292" stroke="rgba(207,163,73,0.5)" strokeWidth="1" />
+
+          {/* ── REAR ANATOMY (self-audit 10): beam wing + thicker
+                 diffuser + rear-wing lower element ─────────────────── */}
+          <rect x="60" y="336" width="80" height="6" rx="1" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.5)" strokeWidth="0.8" />
+          <path d="M 70 348 L 130 348 L 136 362 L 64 362 Z" fill="#0d0e12" stroke="rgba(207,163,73,0.45)" strokeWidth="0.8" />
+          <line x1="85" y1="350" x2="81" y2="361" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
+          <line x1="100" y1="350" x2="100" y2="361" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
+          <line x1="115" y1="350" x2="119" y2="361" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
 
           {/* ── DIFFUSER ───────────────────────────────────────────── */}
           <path d="M 74 332 L 126 332 L 134 352 L 66 352 Z" fill="#101115" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />

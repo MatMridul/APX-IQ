@@ -86,7 +86,7 @@ export function ShiftLights({
       const cx = w / 2;
       const cy = h + R - h * 0.62;
       const spread = 1.7;
-      const d = Math.min((w * 0.72) / (N * 2.1), h * 0.6);
+      const d = Math.max(1, Math.min((w * 0.72) / (N * 2.1), h * 0.6));
       for (let i = 0; i < N; i++) {
         const a = -Math.PI / 2 + (i / (N - 1) - 0.5) * spread;
         centers.push({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, d });
@@ -94,7 +94,7 @@ export function ShiftLights({
     } else {
       const pad = 4;
       const gap = 5;
-      const d = Math.min((w - pad * 2 - gap * (N - 1)) / N, h - 6);
+      const d = Math.max(1, Math.min((w - pad * 2 - gap * (N - 1)) / N, h - 6));
       const total = d * N + gap * (N - 1);
       const x0 = (w - total) / 2;
       for (let i = 0; i < N; i++) {

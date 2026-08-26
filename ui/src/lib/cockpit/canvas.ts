@@ -39,6 +39,10 @@ export function useCanvas(
     ro.observe(cv);
 
     const unsub = scheduler.add((t, dt) => {
+      // Skip frames while the canvas is detached or has no box yet —
+      // drawing with zero dimensions makes computed radii go negative
+      // (IndexSizeError) and wastes a paint on an invisible surface.
+      if (!cv.isConnected || cv.clientWidth <= 0 || cv.clientHeight <= 0) return;
       drawRef.current(ctx, cv.clientWidth, cv.clientHeight, t, dt);
     });
 

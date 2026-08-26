@@ -45,7 +45,7 @@ export const SetupMatrixSliders: React.FC<SetupMatrixSlidersProps> = ({
             INTERACTIVE MECHANICAL CAR SETUP ADJUSTMENT MATRIX
           </h3>
         </div>
-        <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase">
+        <span className="text-[10px] font-mono text-signal-go font-bold uppercase">
           AI CALIBRATED
         </span>
       </div>

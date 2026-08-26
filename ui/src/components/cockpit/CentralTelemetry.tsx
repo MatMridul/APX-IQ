@@ -177,8 +177,8 @@ export function CentralTelemetry() {
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </radialGradient>
             <linearGradient id="lcd-glow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0e1420" />
-              <stop offset="100%" stopColor="#070a10" />
+              <stop offset="0%" stopColor="#0d0f13" />
+              <stop offset="100%" stopColor="#08090c" />
             </linearGradient>
           </defs>
 
@@ -280,9 +280,9 @@ export function CentralTelemetry() {
             top: "25.9%",
             width: "44.6%",
             height: "44.1%",
-            background: "linear-gradient(180deg,#0e1420 0%,#070a10 100%)",
+            background: "linear-gradient(180deg,#0d0f13 0%,#08090c 100%)",
             border: "1px solid rgba(120,140,180,0.25)",
-            boxShadow: "inset 0 0 18px rgba(40,80,160,0.15), 0 0 14px rgba(0,0,0,0.8)",
+            boxShadow: "inset 0 0 18px rgba(207,163,73,0.10), 0 0 14px rgba(0,0,0,0.8)",
           }}
         >
           {/* scanline hint */}
@@ -290,7 +290,7 @@ export function CentralTelemetry() {
             className="absolute inset-0 pointer-events-none opacity-[0.06]"
             style={{
               backgroundImage:
-                "repeating-linear-gradient(0deg, #7fb0ff 0 1px, transparent 1px 3px)",
+                "repeating-linear-gradient(0deg, rgba(200,204,212,0.55) 0 1px, transparent 1px 3px)",
             }}
           />
 
@@ -360,7 +360,7 @@ export function CentralTelemetry() {
                   <span className="font-mono text-[8px] tracking-[0.12em] text-silver/50">
                     {era.energy.systemName}
                   </span>
-                  <span ref={socTxtRef} className="font-mono text-[9px] text-signal-info tabular-nums">
+                  <span ref={socTxtRef} className="font-mono text-[9px] text-signal-energy tabular-nums">
                     0%
                   </span>
                 </div>
@@ -368,7 +368,7 @@ export function CentralTelemetry() {
                   <div
                     ref={socBarRef}
                     className="h-full rounded-full"
-                    style={{ width: "0%", background: "#3b82f6" }}
+                    style={{ width: "0%", background: "var(--color-signal-energy)" }}
                   />
                 </div>
               </div>

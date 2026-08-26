@@ -40,7 +40,7 @@ export default function ConnectionStatus() {
         <div className="flex items-center gap-3">
             {/* Connection Status */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
+                <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-signal-go animate-pulse" : "bg-red-500"}`} />
                 <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">
                     {isConnected ? "UDP LIVE" : "OFFLINE"}
                 </span>

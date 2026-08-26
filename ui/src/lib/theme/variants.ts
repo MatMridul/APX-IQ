@@ -22,10 +22,9 @@ export const metricColorVariants = {
   white: 'text-white',
   gold: 'text-gold',
   red: 'text-alert',
-  green: 'text-green-500',
+  green: 'text-signal-go',
   silver: 'text-silver',
-  yellow: 'text-yellow-400',
-  blue: 'text-blue-400',
+  yellow: 'text-signal-caution',
 } as const;
 
 /**
@@ -34,10 +33,9 @@ export const metricColorVariants = {
 export const badgeVariants = {
   default: 'bg-white/10 text-silver border-white/10',
   gold: 'bg-gold/20 text-gold border-gold/30',
-  success: 'bg-green-500/15 text-green-400 border-green-500/30',
-  danger: 'bg-red-500/15 text-red-400 border-red-500/30',
-  warning: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-  info: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  success: 'bg-signal-go/15 text-signal-go border-signal-go/30',
+  danger: 'bg-signal-stop/15 text-signal-stop border-signal-stop/30',
+  warning: 'bg-signal-caution/15 text-signal-caution border-signal-caution/30',
 } as const;
 
 /**
@@ -60,16 +58,12 @@ export const gaugeColorVariants = {
     glow: 'shadow-[0_0_20px_rgba(207,163,73,0.6)]',
   },
   green: {
-    bar: 'bg-green-500',
+    bar: 'bg-signal-go',
     glow: 'shadow-[0_0_20px_rgba(34,197,94,0.6)]',
   },
   red: {
-    bar: 'bg-red-600',
+    bar: 'bg-signal-stop',
     glow: 'shadow-[0_0_20px_rgba(239,68,68,0.6)]',
-  },
-  blue: {
-    bar: 'bg-blue-500',
-    glow: 'shadow-[0_0_20px_rgba(59,130,246,0.6)]',
   },
   white: {
     bar: 'bg-white',
@@ -82,10 +76,10 @@ export const gaugeColorVariants = {
  * purple = personal best, green = improved, yellow = same, red = slower
  */
 export const sectorColors = {
-  personalBest: 'text-purple-400',
-  improved: 'text-green-400',
+  personalBest: 'text-signal-purple',
+  improved: 'text-signal-go',
   neutral: 'text-white',
-  slower: 'text-yellow-400',
+  slower: 'text-signal-caution',
   invalid: 'text-silver/50',
 } as const;
 

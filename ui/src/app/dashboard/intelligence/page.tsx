@@ -141,7 +141,7 @@ export default function IntelligencePage() {
           <div className="h-4 w-[1px] bg-white/10" />
           <div className="flex items-center gap-2">
             <span className="text-silver/50 uppercase text-[10px]">ANALYSIS ENGINE:</span>
-            <span className="text-emerald-400 font-bold">FASTF1 FIA V2</span>
+            <span className="text-signal-go font-bold">FASTF1 FIA V2</span>
           </div>
         </div>
 

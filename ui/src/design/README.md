@@ -14,14 +14,25 @@ code-review rejection.
 
 ## Palette
 
+**Theme lock (D6): Black · Carbon · Silver · Gold + FIA signal semantics + team liveries (data only) + white.**
+No blue/cyan/emerald/orange outside the exceptions below. Any new color
+must map to an existing token or the PR is rejected.
+
 | Token | Hex | Intent |
 |---|---|---|
-| `gold` | `#cfa349` | Brand accent, hero numerals, active states |
-| `silver` | `#9fa6b2` | Body text, secondary labels |
+| `gold` | `#cfa349` | Brand accent, hero numerals, active states, USER trace |
+| `silver` | `#9fa6b2` | Body text, secondary labels, GHOST trace |
 | `carbon` / `carbon-light` | `#1c1f24` / `#252930` | Panel fills, hover lifts |
 | `apx-black` | `#0b0b0d` | App background |
 | `alert` | `#d72638` | Destructive, critical |
-| `signal-go/caution/stop/purple` | green/amber/red/purple | Sector & status semantics (F1 broadcast convention) |
+| `signal-go/caution/stop` | green/amber/red | Sector & status semantics (FIA) |
+| `signal-purple` | `#a855f7` | **Session-best only** (F1 convention) |
+| `signal-energy` | `#c8ccd4` | ERS/SoC — neutral metallic, never blue |
+| `LED_RAMP.blue` | `#3b82f6` | **Sanctioned exception**: shift-light ramp only (real F1 wheel hardware runs G→R→B) |
+| Team colors (HAM red, LEC yellow…) | liveries | Data semantics — chips only, never chrome |
+
+Trace discipline: ghost = white/silver, user = gold, throttle = green,
+brake = red, speed = yellow. One meaning per channel, everywhere.
 
 ## Typography
 

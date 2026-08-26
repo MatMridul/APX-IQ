@@ -35,8 +35,8 @@ export const AiEngineerBriefingBox: React.FC<AiEngineerBriefingBoxProps> = ({
       {/* ── TOP: Terminal Header ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
         <div className="flex items-center gap-2">
-          <Terminal size={14} className="text-emerald-400" />
-          <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest font-mono">
+          <Terminal size={14} className="text-signal-go" />
+          <h3 className="text-xs font-black text-signal-go uppercase tracking-widest font-mono">
             AI RACE ENGINEER BRIEFING
           </h3>
         </div>
@@ -47,7 +47,7 @@ export const AiEngineerBriefingBox: React.FC<AiEngineerBriefingBoxProps> = ({
       <div className="flex flex-col gap-3 font-mono text-xs">
         {findings.map((finding, idx) => (
           <div key={idx} className="flex items-start gap-2.5">
-            <span className="w-1.5 h-1.5 rounded-sm bg-emerald-400 mt-1.5 shrink-0 shadow-[0_0_8px_#00E676]" />
+            <span className="w-1.5 h-1.5 rounded-sm bg-signal-go mt-1.5 shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
             <p className="text-silver/90 text-xs leading-relaxed font-sans font-medium">
               {finding}
             </p>
@@ -56,9 +56,9 @@ export const AiEngineerBriefingBox: React.FC<AiEngineerBriefingBoxProps> = ({
       </div>
 
       {/* ── SUMMARY FOOTER ───────────────────────────────────────────────── */}
-      <div className="mt-auto p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl flex items-center gap-2">
-        <Zap size={14} className="text-emerald-400 shrink-0" />
-        <span className="text-[11px] font-mono text-emerald-300">
+      <div className="mt-auto p-3 bg-signal-go/5 border border-signal-go/30 rounded-2xl flex items-center gap-2">
+        <Zap size={14} className="text-signal-go shrink-0" />
+        <span className="text-[11px] font-mono text-signal-go/90">
           {summary}
         </span>
       </div>

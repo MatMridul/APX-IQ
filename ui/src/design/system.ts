@@ -26,12 +26,12 @@ export const COLOR = {
   signalGo: "#22c55e", // improvement, green sector, DRS available
   signalCaution: "#eab308", // yellow sector, warnings
   signalStop: "#ef4444", // red sector, critical
-  signalInfo: "#3b82f6", // purple sector uses #a855f7 below
-  signalPurple: "#a855f7",
+  signalPurple: "#a855f7", // session best (F1 convention — only use)
+  signalEnergy: "#c8ccd4", // ERS/SoC — neutral metallic (palette rule D6)
 
-  // Telemetry traces
-  traceGhost: "#22d3ee",
-  traceUser: "#3b82f6",
+  // Telemetry traces — palette rule: ghost = white/silver, user = gold
+  traceGhost: "#e8e8ec",
+  traceUser: "#cfa349",
   traceThrottle: "#22c55e",
   traceBrake: "#ef4444",
   traceSpeed: "#eab308",
@@ -88,7 +88,7 @@ export const CHANNEL = {
   throttle: "#22c55e",
   brake: "#ef4444",
   steering: "#a855f7",
-  ghost: "#22d3ee",
+  ghost: "#e8e8ec",
   gearTick: "#9fa6b2",
 } as const;
 

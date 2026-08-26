@@ -115,7 +115,7 @@ export const StrategyConsole: React.FC<StrategyConsoleProps> = ({
         {isGhostLoading ? (
           <><Loader2 size={12} className="animate-spin" /> FETCHING FASTF1 GHOST...</>
         ) : ghostLoaded ? (
-          <span className="text-emerald-400 font-bold">✓ GHOST LOADED ({ghostLapTime ? `${ghostLapTime.toFixed(3)}s` : "VER"})</span>
+          <span className="text-signal-go font-bold">✓ GHOST LOADED ({ghostLapTime ? `${ghostLapTime.toFixed(3)}s` : "VER"})</span>
         ) : (
           <><Sparkles size={12} /> LOAD FASTF1 GHOST LAP</>
         )}
@@ -145,7 +145,7 @@ export const StrategyConsole: React.FC<StrategyConsoleProps> = ({
 
           <div className="text-[10px] text-silver/50 font-mono pt-1 border-t border-white/5 flex justify-between">
             <span>REFERENCE:</span>
-            <span className="text-emerald-400 font-bold">QUALIFYING POLE</span>
+            <span className="text-signal-go font-bold">QUALIFYING POLE</span>
           </div>
         </div>
 
@@ -180,7 +180,7 @@ export const StrategyConsole: React.FC<StrategyConsoleProps> = ({
       <button
         onClick={onGenerateDebrief}
         disabled={isGenerating}
-        className="w-full flex items-center justify-center gap-2.5 py-4 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 hover:opacity-90 disabled:opacity-40 text-black font-black text-sm uppercase tracking-wider rounded-2xl shadow-[0_0_25px_rgba(0,230,118,0.4)] transition-all transform active:scale-[0.98]"
+        className="w-full flex items-center justify-center gap-2.5 py-4 bg-gradient-to-r from-signal-go via-gold to-signal-go hover:opacity-90 disabled:opacity-40 text-black font-black text-sm uppercase tracking-wider rounded-2xl shadow-[0_0_25px_rgba(207,163,73,0.4)] transition-all transform active:scale-[0.98]"
       >
         {isGenerating ? (
           <><Loader2 size={18} className="animate-spin" /> RUNNING TELEMETRY SYNTHESIS...</>

@@ -22,7 +22,7 @@ interface Insight {
 
 const KIND_STYLE: Record<Insight["kind"], string> = {
   tip: "border-gold/40 text-gold",
-  battle: "border-signal-info/50 text-signal-info",
+  battle: "border-silver/50 text-silver",
   alert: "border-signal-stop/50 text-signal-stop",
 };
 

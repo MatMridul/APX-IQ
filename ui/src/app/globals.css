@@ -23,6 +23,8 @@
   --color-signal-caution: #eab308;
   --color-signal-stop: #ef4444;
   --color-signal-purple: #a855f7;
+  /* Energy systems (ERS/SoC) — neutral metallic, palette rule D6 */
+  --color-signal-energy: #c8ccd4;
 
   /* Panel elevation */
   --shadow-panel: inset 0 0 0 1px rgba(0, 0, 0, 0.5),

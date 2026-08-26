@@ -116,8 +116,8 @@ export function ReportView({ report, onSave, isSaving, isStreaming }: ReportView
               </span>
             </div>
             {isStreaming && (
-              <span className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" /> STREAMING REAL-TIME DEBRIEF
+              <span className="flex items-center gap-1.5 text-[11px] font-mono text-signal-go bg-signal-go/10 px-2.5 py-1 rounded border border-signal-go/30 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-signal-go" /> STREAMING REAL-TIME DEBRIEF
               </span>
             )}
           </div>

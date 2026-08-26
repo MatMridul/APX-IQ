@@ -4,7 +4,8 @@ import { useMemo, useRef } from "react";
 import { useCanvas } from "@/lib/cockpit/canvas";
 import { demoFrame, cockpitCursor, TRACK_LEN } from "@/lib/cockpit/demo";
 import { CHANNEL } from "@/design/system";
-import { MicroLabel, SimBadge } from "./primitives";
+import { MicroLabel } from "./primitives";
+import { PanelHeader } from "./PanelHeader";
 
 /**
  * Circuit map — canvas-rendered, MoTeC grammar: racing line colored by
@@ -203,11 +204,8 @@ export function TrackMap() {
   });
 
   return (
-    <div className="apx-panel !rounded-lg h-full flex flex-col p-2 relative">
-      <div className="flex items-center justify-between px-1 pb-1">
-        <MicroLabel>Circuit · Speed channel</MicroLabel>
-        <SimBadge />
-      </div>
+    <div className="apx-panel h-full w-full flex flex-col p-2 relative">
+      <PanelHeader label="Circuit · Speed channel" />
       <canvas
         ref={ref}
         className="flex-1 w-full cursor-crosshair"

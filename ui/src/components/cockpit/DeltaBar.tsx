@@ -16,7 +16,7 @@ import { MicroLabel } from "./primitives";
 
 const MAX_ABS = 2.0; // seconds — full bar deflection
 
-export function DeltaBar() {
+export function DeltaBar({ compact = false }: { compact?: boolean }) {
   const barRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLSpanElement | null>(null);
 
@@ -49,18 +49,38 @@ export function DeltaBar() {
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-1.5">
-        <MicroLabel>Delta vs best</MicroLabel>
-        <span
-          ref={textRef}
-          className="font-display text-3xl leading-none tabular-nums"
-        >
-          +0.000
-        </span>
-      </div>
+      {!compact && (
+        <div className="flex items-baseline justify-between mb-1.5">
+          <MicroLabel>Delta vs best</MicroLabel>
+          <span
+            ref={textRef}
+            className="font-display text-3xl leading-none tabular-nums"
+          >
+            +0.000
+          </span>
+        </div>
+      )}
+      {compact && (
+        <div className="flex items-baseline justify-end mb-0.5">
+          <span
+            ref={textRef}
+            className="font-display text-[17px] leading-none tabular-nums"
+          >
+            +0.000
+          </span>
+        </div>
+      )}
       {/* Center-anchored track: bar grows left (faster/green) or right (slower/red) */}
-      <div className="relative h-2.5 rounded-full bg-white/5 overflow-hidden">
-        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/20" />
+      <div className={`relative rounded-full bg-white/5 overflow-hidden ${compact ? "h-1.5" : "h-2.5"}`}>
+        {/* center ticks make the from-center design legible (audit 11) */}
+        {[25, 50, 75].map((p) => (
+          <div
+            key={p}
+            className="absolute top-0 bottom-0 w-px bg-white/10"
+            style={{ left: `${p}%` }}
+          />
+        ))}
+        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/25" />
         <div
           ref={barRef}
           className="absolute top-0 bottom-0 left-1/2 rounded-full"

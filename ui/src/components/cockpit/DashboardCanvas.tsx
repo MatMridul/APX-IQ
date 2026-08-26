@@ -59,11 +59,19 @@ export const DashboardCanvas: React.FC = () => {
           "inset 0 0 35px rgba(0,0,0,0.95), 0 0 45px rgba(0,0,0,0.9)",
       }}
     >
-      {/* Background circuit / carbon texture */}
+      {/* Background circuit / carbon texture + engineered field grid */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#111115] via-[#08080A] to-[#040405] opacity-90" />
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(207,163,73,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(207,163,73,0.5) 1px, transparent 1px)",
+          backgroundSize: "56px 56px",
+        }}
+      />
 
-      {/* ── Status bar ─────────────────────────────────────────────── */}
-      <Region top="1%" left="1%" width="98%" height="6.5%" z={20}>
+      {/* ── Status bar (docked full-width) ─────────────────────────── */}
+      <Region top="0.6%" left="0.4%" width="99.2%" height="6.2%" z={20}>
         <StatusBar demoTime />
       </Region>
 

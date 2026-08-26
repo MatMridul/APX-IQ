@@ -128,7 +128,7 @@ export default function IntelligencePage() {
             className="text-2xl font-black italic tracking-tighter text-white"
             style={{ fontFamily: "var(--font-rajdhani)" }}
           >
-            <span className="text-gold">APX</span> IQ <span className="text-white font-normal text-lg not-italic font-sans">Mission Control</span>
+            <Link href="/" title="Back to home" className="hover:opacity-80 transition-opacity"><span className="text-gold">APX</span> IQ</Link> <span className="text-white font-normal text-lg not-italic font-sans">Mission Control</span>
           </h1>
         </div>
 

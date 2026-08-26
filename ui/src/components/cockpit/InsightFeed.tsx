@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MicroLabel, SimBadge } from "./primitives";
+import { MicroLabel } from "./primitives";
 import { useDur } from "@/lib/cockpit/preferences";
+import { PanelHeader } from "./PanelHeader";
 
 /**
  * Insight feed — our Track Pulse: the intelligence engines surfaced as
@@ -51,7 +52,7 @@ export function InsightFeed() {
       const src = POOL[poolIdx.current % POOL.length];
       poolIdx.current += 1;
       const item: Insight = { ...src, id: idRef.current++, t: Date.now() };
-      setItems((prev) => [item, ...prev].slice(0, 3));
+      setItems((prev) => [item, ...prev].slice(0, 5));
     };
     push();
     const iv = setInterval(push, 7000);
@@ -59,11 +60,8 @@ export function InsightFeed() {
   }, []);
 
   return (
-    <div className="apx-panel !rounded-lg h-full flex flex-col p-2.5 gap-2 relative overflow-hidden">
-      <div className="flex items-center justify-between">
-        <MicroLabel>Insights · Live</MicroLabel>
-        <SimBadge />
-      </div>
+    <div className="apx-panel h-full w-full flex flex-col p-2.5 gap-2 relative overflow-hidden">
+      <PanelHeader label="Insights · Live" />
 
       <div className="flex-1 flex flex-col gap-1.5 min-h-0 overflow-hidden">
         <AnimatePresence initial={false}>

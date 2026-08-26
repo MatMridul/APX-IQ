@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
 import { useTelemetryStore } from '@/store/telemetryStore';
 import { useEffect, useState } from 'react';
@@ -44,7 +45,12 @@ export default function DebugPage() {
 
     return (
         <div className="min-h-screen bg-black text-white p-8">
-            <h1 className="text-4xl font-bold mb-8">🔧 APX-IQ Debug Dashboard</h1>
+            <h1 className="text-4xl font-bold mb-8">
+                <Link href="/" title="Back to home" className="hover:text-gold transition-colors">
+                    APX IQ
+                </Link>{" "}
+                <span className="text-2xl text-silver/70">Debug Dashboard</span>
+            </h1>
 
             <div className="grid grid-cols-2 gap-8">
                 {/* Socket.IO Status */}

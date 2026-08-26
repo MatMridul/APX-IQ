@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { SimBadge, NoSignal } from "./primitives";
 import { scheduler } from "@/lib/cockpit/scheduler";
 import { usePrefs, type MotionLevel, type Density } from "@/lib/cockpit/preferences";
@@ -41,9 +42,17 @@ export function StatusBar({ demoTime }: { demoTime: boolean }) {
     "font-mono text-[9px] tracking-[0.14em] uppercase border rounded px-2 py-1 transition-colors duration-150 hover:border-gold/60 hover:text-gold cursor-pointer";
 
   return (
-    <div className="apx-panel !rounded-lg h-full flex items-center px-5 gap-5">
+    <div className="apx-panel h-full w-full flex items-center px-5 gap-5 !rounded-l-none !rounded-r-none border-x-0 border-t-0">
+      <Link href="/" className="shrink-0" title="Back to home">
+        <span className="text-gold font-black tracking-tight text-lg leading-none hover:text-gold-light transition-colors">
+          APX IQ
+        </span>
+      </Link>
+
+      <div className="h-5 w-px bg-white/10" />
+
       {/* Flag / race state */}
-      <div className="flex items-center gap-2.5 min-w-[120px]">
+      <div className="flex items-center gap-2.5">
         <span
           className={`w-2.5 h-2.5 rounded-full ${
             flag === "yellow"
@@ -110,7 +119,7 @@ export function StatusBar({ demoTime }: { demoTime: boolean }) {
       </div>
 
       <div className="font-mono text-[11px] tracking-[0.18em] text-gold uppercase whitespace-nowrap">
-        APX IQ · Pit Wall
+        PIT WALL
       </div>
     </div>
   );

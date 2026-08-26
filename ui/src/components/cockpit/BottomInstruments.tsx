@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MicroLabel, SimBadge } from "./primitives";
+import { MicroLabel } from "./primitives";
 
 /**
  * Bottom instruments — now driven by the demo generator:
@@ -31,32 +31,35 @@ export function BottomInstruments() {
   const clickFlash = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
-    // Tyre pressures — 5 Hz discrete updates, CSS transitions smooth
+    // Tyre pressures — 5 Hz discrete updates, CSS transitions smooth.
+    // Dynamics amplified to be perceivable (audit: bars looked frozen):
+    // warm-up 2.2 psi over stint + ±1.15 psi thermal sine + load coupling.
     const psiIv = setInterval(() => {
       const t = performance.now() / 1000;
       const f = demoFrameSafe(t);
       CORNERS.forEach((c, i) => {
-        const warm = Math.min(1, f.lap * 0.12); // climbs over first laps
+        const warm = Math.min(1, f.lap * 0.12);
         const psi =
-          20.8 +
-          warm * 1.9 +
-          0.55 * Math.sin(t / 9 + PHASE[i]) +
-          (i >= 2 ? f.brake * 0.35 : f.throttle * 0.15);
+          20.6 +
+          warm * 2.2 +
+          1.15 * Math.sin(t / 9 + PHASE[i]) +
+          (i >= 2 ? f.brake * 0.5 : f.throttle * 0.2);
         const el = psiRefs.current[i];
         if (el) el.textContent = psi.toFixed(1);
         const bar = barRefs.current?.[i];
         if (bar) {
-          bar.style.width = `${((psi - 19) / 6) * 100}%`;
+          const frac = Math.min(1, Math.max(0, (psi - 20) / 4));
+          bar.style.width = `${frac * 100}%`;
           bar.style.background =
             psi > 23.4 ? "var(--color-signal-caution)" : "var(--color-signal-go)";
         }
       });
     }, 200);
 
-    // Bias "clicks" — every ~7 s the engineer takes 0.4–0.9% out/in
+    // Bias "clicks" — every ~7 s, ±0.5–1.0% within a 54.5–57.5 window
     const clickIv = setInterval(() => {
-      const delta = (Math.random() > 0.5 ? 1 : -1) * (0.4 + Math.random() * 0.5);
-      biasTarget.current = Math.min(58.5, Math.max(54, biasTarget.current + delta));
+      const delta = (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);
+      biasTarget.current = Math.min(57.5, Math.max(54.5, biasTarget.current + delta));
       setBiasTxt(biasTarget.current.toFixed(1));
       if (clickFlash.current) {
         clickFlash.current.textContent = `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}`;
@@ -67,12 +70,13 @@ export function BottomInstruments() {
       }
     }, 7000);
 
-    // Needle lerp — Domain A
+    // Needle lerp — Domain A. Needle domain zoomed to 52–60% so a
+    // 0.5% click visibly travels (audit: movement imperceptible).
     const unsub = schedulerLerp((dt: number) => {
       biasShown.current +=
         (biasTarget.current - biasShown.current) * (1 - Math.exp(-6 * dt));
       if (needleRef.current) {
-        needleRef.current.style.left = `${biasShown.current}%`;
+        needleRef.current.style.left = `${10 + ((biasShown.current - 52) / 8) * 80}%`;
       }
     });
 
@@ -86,11 +90,8 @@ export function BottomInstruments() {
   return (
     <div className="w-full h-full flex items-stretch gap-2.5 select-none">
       {/* ── TYRE PRESSURE ─────────────────────────────────────────── */}
-      <div className="apx-panel !rounded-lg flex-1 h-full flex flex-col p-2.5 relative">
-        <div className="flex items-center justify-between mb-1.5">
-          <MicroLabel>Tyre press · psi</MicroLabel>
-          <SimBadge />
-        </div>
+      <div className="apx-panel flex-1 h-full flex flex-col p-2.5 relative">
+        <PanelHeader label="Tyre press · psi" />
         <div className="grid grid-cols-2 gap-x-3 gap-y-2 flex-1 content-center">
           {CORNERS.map((c, i) => (
             <div key={c}>
@@ -127,9 +128,9 @@ export function BottomInstruments() {
       </div>
 
       {/* ── BRAKE BIAS ────────────────────────────────────────────── */}
-      <div className="apx-panel !rounded-lg flex-1 h-full flex flex-col p-2.5 relative">
+      <div className="apx-panel flex-1 h-full flex flex-col p-2.5 relative">
         <div className="flex items-center justify-between mb-1.5">
-          <MicroLabel>Brake bias</MicroLabel>
+          <PanelHeader label="Brake bias" className="!mb-0" />
           <div className="flex items-center gap-1.5">
             <span
               ref={clickFlash}
@@ -150,14 +151,14 @@ export function BottomInstruments() {
             {/* click zone shading 54–58.5 */}
             <div
               className="absolute top-1/2 -translate-y-1/2 h-3 rounded-sm bg-gold/10 border-x border-gold/30"
-              style={{ left: "54%", width: "4.5%" }}
+              style={{ left: "31%", width: "38%" }}
             />
             {/* needle */}
             <div
               ref={needleRef}
               className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-8 rounded-full"
               style={{
-                left: "56%",
+                left: "50%",
                 background: "var(--color-gold)",
                 boxShadow: "0 0 8px rgba(207,163,73,0.6)",
                 transition: "none",
@@ -165,7 +166,7 @@ export function BottomInstruments() {
             />
           </div>
           <div className="flex justify-between font-mono text-[8px] tracking-[0.14em] text-silver/30">
-            <span>50</span>
+            <span>52</span>
             <span>REAR ← → FRONT</span>
             <span>60</span>
           </div>
@@ -180,6 +181,7 @@ export function BottomInstruments() {
 
 import { demoFrame } from "@/lib/cockpit/demo";
 import { scheduler } from "@/lib/cockpit/scheduler";
+import { PanelHeader } from "./PanelHeader";
 
 function demoFrameSafe(t: number) {
   try {

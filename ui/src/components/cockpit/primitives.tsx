@@ -39,7 +39,7 @@ export function MicroLabel({
 }) {
   return (
     <span
-      className={`font-mono text-[10px] tracking-[0.14em] text-silver/50 uppercase ${className}`}
+      className={`font-mono text-[10px] tracking-[0.14em] text-silver/65 uppercase ${className}`}
     >
       {children}
     </span>

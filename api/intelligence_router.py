@@ -341,7 +341,9 @@ async def get_track_layout(
     session_type: str = "Q",
 ):
     """
-    Fetch normalized 2D circuit geometry coordinates (X, Y) for the Virtual Track Ribbon.
+    Circuit geometry for the map — library-first (docs/architecture/
+    era_profiles.md §4): serve the persisted circuit when seeded,
+    otherwise fetch from FastF1 and promote it into the library.
     """
     from intelligence.fastf1_client import FastF1Client, resolve_track_name
 
@@ -349,11 +351,34 @@ async def get_track_layout(
     if not track_name:
         raise HTTPException(status_code=404, detail=f"Unknown track ID: {track_id}")
 
-    cache     = get_cache()
+    # 1. Library hit
+    from core.database import db
+    if db.pool is not None:
+        async with db.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT name, layout, sectors, aero_zones
+                FROM circuits WHERE track_id = $1
+                """,
+                track_id,
+            )
+        if row and row["layout"]:
+            cached = {
+                "source": "library",
+                "track_name": row["name"],
+                **row["layout"],
+                "sectors": row["sectors"],
+                "aero_zones": row["aero_zones"],
+            }
+            await cache.set(f"track_layout:{track_id}:{year}", cached, ttl=86400)
+            return cached
+
+    # 2. FastF1 fetch
+    cache   = get_cache()
     cache_key = f"track_layout:{track_id}:{year}:{driver}:{session_type}"
-    cached    = await cache.get(cache_key)
-    if cached:
-        return cached
+    hit = await cache.get(cache_key)
+    if hit:
+        return hit
 
     def _fetch():
         client = FastF1Client()
@@ -363,8 +388,29 @@ async def get_track_layout(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Could not load track layout for track {track_id}")
 
-    await cache.set(cache_key, result, ttl=86400)
-    return result
+    payload = {**result, "source": "fastf1", "track_name": track_name}
+    await cache.set(cache_key, payload, ttl=86400)
+
+    # 3. Promote into the library
+    if db.pool is not None:
+        import json
+        async with db.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO circuits (track_id, name, game_years, layout)
+                VALUES ($1, $2, ARRAY[$3::int], $4::jsonb)
+                ON CONFLICT (track_id) DO UPDATE
+                    SET layout = EXCLUDED.layout,
+                        game_years = array_append(DISTINCT circuits.game_years || EXCLUDED.game_years, $3::int),
+                        updated_at = NOW()
+                """,
+                track_id,
+                track_name,
+                year,
+                json.dumps(result),
+            )
+
+    return payload
 
 
 @router.post("/reports/save")

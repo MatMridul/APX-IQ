@@ -9,7 +9,8 @@ import {
   TRACK_LEN,
 } from "@/lib/cockpit/demo";
 import { CHANNEL } from "@/design/system";
-import { MicroLabel, SimBadge } from "./primitives";
+import { MicroLabel } from "./primitives";
+import { PanelHeader } from "./PanelHeader";
 
 /**
  * Telemetry ribbon — TRUE lap-domain view (MoTeC grammar): the full
@@ -43,21 +44,38 @@ export function TelemetryRibbon() {
     const pedalMid = speedBot + 10 + pedalH / 2;
     const ySpeed = (kph: number) => speedBot - (kph / 360) * speedH;
 
-    // ── Grid ───────────────────────────────────────────────────────
+    // ── Grid + sector shading + distance axis ─────────────────────
     ctx.strokeStyle = "rgba(255,255,255,0.06)";
     ctx.lineWidth = 1;
-    for (const d of [TRACK_LEN / 3, (2 * TRACK_LEN) / 3]) {
+    const sectorBands: Array<[string, number, number]> = [
+      ["S1", 0, TRACK_LEN / 3],
+      ["S2", TRACK_LEN / 3, (2 * TRACK_LEN) / 3],
+      ["S3", (2 * TRACK_LEN) / 3, TRACK_LEN],
+    ];
+    sectorBands.forEach(([label, d0, d1], i) => {
+      if (i % 2 === 1) {
+        ctx.fillStyle = "rgba(255,255,255,0.025)";
+        ctx.fillRect(x(d0), padT - 8, x(d1) - x(d0), h - padB - padT + 8);
+      }
       ctx.beginPath();
-      ctx.moveTo(x(d), padT - 8);
-      ctx.lineTo(x(d), h - padB);
+      ctx.moveTo(x(d1 < TRACK_LEN ? d1 : d1), padT - 8);
+      ctx.lineTo(x(d1), h - padB);
       ctx.stroke();
-    }
+      ctx.fillStyle = "rgba(207,163,73,0.6)";
+      ctx.textAlign = "center";
+      ctx.fillText(label, x((d0 + d1) / 2), h - padB + 12);
+    });
     ctx.font = "9px var(--font-mono), monospace";
     ctx.textAlign = "right";
     ctx.fillStyle = "rgba(159,166,178,0.45)";
     for (const kph of [100, 200, 300]) {
       const yy = ySpeed(kph);
       ctx.fillText(String(kph), padL - 5, yy + 3);
+    }
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(159,166,178,0.4)";
+    for (const dm of [0, Math.round(TRACK_LEN / 2), TRACK_LEN]) {
+      ctx.fillText(dm === 0 ? "0m" : `${(dm / 1000).toFixed(1)}k`, x(dm), h - padB + 12);
     }
 
     // ── Speed profile: full lap, min/max decimated ─────────────────
@@ -105,7 +123,7 @@ export function TelemetryRibbon() {
     ctx.rect(curX, 0, w - curX, h);
     ctx.clip();
     tracePath();
-    ctx.strokeStyle = "rgba(234,179,8,0.35)";
+    ctx.strokeStyle = "rgba(234,179,8,0.55)";
     ctx.lineWidth = 1.4;
     ctx.stroke();
     ctx.restore();
@@ -201,11 +219,8 @@ export function TelemetryRibbon() {
   });
 
   return (
-    <div className="apx-panel !rounded-lg h-full flex flex-col p-2 relative">
-      <div className="flex items-center justify-between px-1 pb-1">
-        <MicroLabel>Telemetry · Lap domain</MicroLabel>
-        <SimBadge />
-      </div>
+    <div className="apx-panel h-full w-full flex flex-col p-2 relative">
+      <PanelHeader label="Telemetry · Lap domain" />
       <canvas
         ref={ref}
         className="flex-1 w-full cursor-crosshair"

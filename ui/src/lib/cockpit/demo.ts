@@ -86,7 +86,8 @@ export function demoFrame(t: number): Frame {
   const sector: 1 | 2 | 3 = lapDist < TRACK_LEN / 3 ? 1 : lapDist < (2 * TRACK_LEN) / 3 ? 2 : 3;
 
   const drsZone = lapDist > 620 && lapDist < 1180;
-  const drs = drsZone && throttle > 0.85 && brake < 0.05;
+  // DRS requires both the zone AND realistic activation speed (audit 16)
+  const drs = drsZone && speed > 150 && throttle > 0.85 && brake < 0.05;
 
   // Delta vs rolling best: dips in complex sectors, gains on straights
   const deltaMs =

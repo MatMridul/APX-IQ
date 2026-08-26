@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MicroLabel, SimBadge } from "./primitives";
+import { MicroLabel } from "./primitives";
 
 /**
  * RaceCarTelemetry — 2022-regulation F1 top view (proportions from the
@@ -68,13 +68,18 @@ export function RaceCarTelemetry() {
   }, []);
 
   return (
-    <div className="apx-panel !rounded-lg w-full h-full relative flex flex-col p-2">
-      <div className="flex items-center justify-between px-1">
-        <MicroLabel>Car · Thermals</MicroLabel>
-        <SimBadge />
-      </div>
+    <div className="apx-panel w-full h-full relative flex flex-col p-2">
+      <PanelHeader label="Car · Thermals" />
 
-      <div className="flex-1 relative min-h-0">
+      <div className="flex-1 relative min-h-0 flex items-center justify-center">
+        {/* Directional cues (audit: front/rear were indistinguishable) */}
+        <span className="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[9px] tracking-[0.3em] text-gold/60">
+          FRONT
+        </span>
+        <span className="absolute bottom-6 left-1/2 -translate-x-1/2 font-mono text-[9px] tracking-[0.3em] text-silver/40">
+          REAR
+        </span>
+
         {/* ── Corner thermal blocks (outside the silhouette) ───────── */}
         {CORNERS.map((c, i) => (
           <div
@@ -125,10 +130,10 @@ export function RaceCarTelemetry() {
           </div>
         ))}
 
-        {/* ── The car ──────────────────────────────────────────────── */}
+        {/* ── The car (flex-centered, audit 2: was left-anchored) ──── */}
         <svg
           viewBox="0 0 200 380"
-          className="absolute inset-0 m-auto h-full w-auto max-w-[62%]"
+          className="relative h-full w-auto max-w-[68%]"
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
@@ -146,10 +151,18 @@ export function RaceCarTelemetry() {
               <stop offset="70%" stopColor="#ff4d00" stopOpacity="0.35" />
               <stop offset="100%" stopColor="#ff4d00" stopOpacity="0" />
             </radialGradient>
+            <radialGradient id="body-highlight" cx="50%" cy="22%" r="80%">
+              <stop offset="0%" stopColor="#8a93a5" stopOpacity="0.28" />
+              <stop offset="55%" stopColor="#8a93a5" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="#8a93a5" stopOpacity="0" />
+            </radialGradient>
           </defs>
 
           {/* ground shadow */}
           <ellipse cx="100" cy="192" rx="96" ry="182" fill="rgba(0,0,0,0.5)" />
+
+          {/* body shading pass (audit 13): top-light sheen over chassis+cover */}
+          <ellipse cx="100" cy="150" rx="30" ry="120" fill="url(#body-highlight)" />
 
           {/* ── FLOOR ──────────────────────────────────────────────── */}
           <path
@@ -297,6 +310,7 @@ export function RaceCarTelemetry() {
 
 /* ── demo accessors (kept tiny; full frame not needed here) ───────── */
 import { demoFrame } from "@/lib/cockpit/demo";
+import { PanelHeader } from "./PanelHeader";
 function demoBrake(t: number) {
   return demoFrame(t).brake;
 }

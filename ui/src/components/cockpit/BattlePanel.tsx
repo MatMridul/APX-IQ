@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { scheduler } from "@/lib/cockpit/scheduler";
 import { demoFrame } from "@/lib/cockpit/demo";
-import { MicroLabel, SimBadge } from "./primitives";
+import { MicroLabel } from "./primitives";
 import { CHANNEL } from "@/design/system";
+import { PanelHeader } from "./PanelHeader";
 
 /**
  * Battle panel — the race around you: gaps to the cars ahead/behind
@@ -62,18 +63,23 @@ export function BattlePanel() {
         : "text-silver/70 border-white/15";
 
   return (
-    <div className="apx-panel !rounded-lg h-full flex flex-col p-3 gap-3 relative overflow-hidden">
-      <div className="flex items-center justify-between">
-        <MicroLabel>Battle</MicroLabel>
-        <SimBadge />
-      </div>
+    <div className="apx-panel h-full w-full flex flex-col p-3 gap-3 relative overflow-hidden">
+      <PanelHeader label="Battle" />
 
       {/* Ahead */}
       <div className="rounded-lg border border-white/10 bg-black/30 p-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="font-mono text-[10px] tracking-[0.14em] text-silver/60 uppercase">
-            Car ahead · HAM
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="font-mono text-[10px] font-bold text-white rounded px-1.5 py-0.5"
+              style={{ background: "#E80020" }}
+            >
+              HAM
+            </span>
+            <span className="font-mono text-[10px] tracking-[0.14em] text-silver/60 uppercase">
+              ahead
+            </span>
+          </div>
           <span className="font-display text-2xl text-signal-stop leading-none tabular-nums">
             +{snap.ahead.toFixed(2)}
           </span>
@@ -90,9 +96,17 @@ export function BattlePanel() {
       {/* Behind */}
       <div className="rounded-lg border border-white/10 bg-black/30 p-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="font-mono text-[10px] tracking-[0.14em] text-silver/60 uppercase">
-            Car behind · LEC
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="font-mono text-[10px] font-bold text-black rounded px-1.5 py-0.5"
+              style={{ background: "#F1CD00" }}
+            >
+              LEC
+            </span>
+            <span className="font-mono text-[10px] tracking-[0.14em] text-silver/60 uppercase">
+              behind
+            </span>
+          </div>
           <span className="font-display text-2xl text-signal-go leading-none tabular-nums">
             −{snap.behind.toFixed(2)}
           </span>

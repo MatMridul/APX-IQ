@@ -3,17 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import { SimBadge, NoSignal } from "./primitives";
 import { scheduler } from "@/lib/cockpit/scheduler";
+import { usePrefs, type MotionLevel, type Density } from "@/lib/cockpit/preferences";
 
 /**
  * Broadcast-style status bar: flag state · session clock · track ·
- * weather. Absent sources render NoSignal (weather/track until the
- * session packet is wired). Clock ticks via the scheduler (ref writes,
- * zero re-renders).
+ * weather · motion & density toggles. Absent sources render NoSignal.
+ * Clock ticks via the scheduler (ref writes, zero re-renders).
  */
+
+const MOTION_CYCLE: MotionLevel[] = ["full", "reduced", "off"];
+const DENSITY_CYCLE: Density[] = ["comfortable", "compact"];
 
 export function StatusBar({ demoTime }: { demoTime: boolean }) {
   const clockRef = useRef<HTMLSpanElement | null>(null);
   const [flag, setFlag] = useState<"none" | "yellow">("none");
+  const { motion, density, setMotion, setDensity } = usePrefs();
 
   useEffect(() => {
     if (!demoTime) return;
@@ -33,10 +37,13 @@ export function StatusBar({ demoTime }: { demoTime: boolean }) {
     return unsub;
   }, [demoTime]);
 
+  const toggleBtn =
+    "font-mono text-[9px] tracking-[0.14em] uppercase border rounded px-2 py-1 transition-colors duration-150 hover:border-gold/60 hover:text-gold cursor-pointer";
+
   return (
-    <div className="apx-panel !rounded-lg h-full flex items-center px-5 gap-6">
+    <div className="apx-panel !rounded-lg h-full flex items-center px-5 gap-5">
       {/* Flag / race state */}
-      <div className="flex items-center gap-2.5 min-w-[130px]">
+      <div className="flex items-center gap-2.5 min-w-[120px]">
         <span
           className={`w-2.5 h-2.5 rounded-full ${
             flag === "yellow"
@@ -44,7 +51,7 @@ export function StatusBar({ demoTime }: { demoTime: boolean }) {
               : "bg-signal-go shadow-[0_0_8px_rgba(34,197,94,0.7)]"
           }`}
         />
-        <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-white font-bold">
+        <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-white font-bold whitespace-nowrap">
           {flag === "yellow" ? "Yellow sector" : "Track clear"}
         </span>
         {demoTime && <SimBadge />}
@@ -80,7 +87,29 @@ export function StatusBar({ demoTime }: { demoTime: boolean }) {
         <NoSignal label="no car status" />
       </div>
 
-      <div className="ml-auto font-mono text-[11px] tracking-[0.18em] text-gold uppercase">
+      {/* Preferences */}
+      <div className="ml-auto flex items-center gap-2">
+        <button
+          className={toggleBtn}
+          onClick={() =>
+            setMotion(MOTION_CYCLE[(MOTION_CYCLE.indexOf(motion) + 1) % MOTION_CYCLE.length])
+          }
+          title="Animation level (design/MOTION.md)"
+        >
+          MOTION: {motion.toUpperCase()}
+        </button>
+        <button
+          className={toggleBtn}
+          onClick={() =>
+            setDensity(DENSITY_CYCLE[(DENSITY_CYCLE.indexOf(density) + 1) % DENSITY_CYCLE.length])
+          }
+          title="Panel density"
+        >
+          {density === "comfortable" ? "COMFORT" : "COMPACT"}
+        </button>
+      </div>
+
+      <div className="font-mono text-[11px] tracking-[0.18em] text-gold uppercase whitespace-nowrap">
         APX IQ · Pit Wall
       </div>
     </div>

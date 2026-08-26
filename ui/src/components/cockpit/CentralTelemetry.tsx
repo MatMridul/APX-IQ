@@ -7,6 +7,7 @@ import { DeltaBar } from "./DeltaBar";
 import { MicroLabel, SimBadge } from "./primitives";
 import { scheduler } from "@/lib/cockpit/scheduler";
 import { demoFrame } from "@/lib/cockpit/demo";
+import { useDur } from "@/lib/cockpit/preferences";
 
 /**
  * The wheel cluster — hero of the cockpit. Shift lights on top, giant
@@ -23,6 +24,7 @@ export function CentralTelemetry() {
   // Discrete state (Domain B)
   const [gear, setGear] = useState(1);
   const [drs, setDrs] = useState(false);
+  const dur = useDur();
 
   // Continuous refs (Domain A)
   const speedRef = useRef<HTMLSpanElement | null>(null);
@@ -110,7 +112,7 @@ export function CentralTelemetry() {
                 initial={{ scale: 1.14, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.88, opacity: 0 }}
-                transition={{ duration: 0.12, ease: [0.4, 0, 0.2, 1] }}
+                transition={{ duration: dur.ui, ease: [0.4, 0, 0.2, 1] }}
                 className="absolute font-display text-[100px] leading-none text-white"
                 style={{ textShadow: "0 0 26px rgba(207,163,73,0.35)" }}
               >

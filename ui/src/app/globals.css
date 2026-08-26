@@ -195,3 +195,12 @@ a {
 .animate-pulse-gold {
   animation: gold-pulse 2s infinite;
 }
+
+/* ── Density modes (see src/design/README.md) ──────────────────────── */
+.density-compact .apx-panel {
+  padding: 0.6rem;
+}
+.density-compact .apx-panel.\!rounded-lg,
+.density-compact .apx-panel.\!rounded-xl {
+  padding: 0.5rem;
+}

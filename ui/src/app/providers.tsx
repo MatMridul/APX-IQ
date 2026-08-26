@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { CockpitPreferencesProvider } from "@/lib/cockpit/preferences";
 
 /**
  * SocketTelemetryBridge
@@ -39,12 +40,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SocketTelemetryBridge />
-      {children}
-      {/* DevTools only in development — zero prod bundle impact */}
-      {process.env.NODE_ENV === "development" && (
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
-      )}
+      <CockpitPreferencesProvider>
+        <SocketTelemetryBridge />
+        {children}
+        {/* DevTools only in development — zero prod bundle impact */}
+        {process.env.NODE_ENV === "development" && (
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+        )}
+      </CockpitPreferencesProvider>
     </QueryClientProvider>
   );
 }

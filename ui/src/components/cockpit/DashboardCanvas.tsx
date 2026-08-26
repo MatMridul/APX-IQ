@@ -9,6 +9,7 @@ import { TrackMap } from "./TrackMap";
 import { TelemetryRibbon } from "./TelemetryRibbon";
 import { BattlePanel } from "./BattlePanel";
 import { InsightFeed } from "./InsightFeed";
+import { usePrefs } from "@/lib/cockpit/preferences";
 
 /**
  * DashboardCanvas — 16:9 broadcast pit wall, deterministic percentage
@@ -49,9 +50,10 @@ function Region({
 }
 
 export const DashboardCanvas: React.FC = () => {
+  const { density } = usePrefs();
   return (
     <div
-      className="relative w-full h-full bg-[#070709] text-silver overflow-hidden select-none border border-[#B7A06A]/45 rounded-xl"
+      className={`relative w-full h-full bg-[#070709] text-silver overflow-hidden select-none border border-[#B7A06A]/45 rounded-xl density-${density}`}
       style={{
         boxShadow:
           "inset 0 0 35px rgba(0,0,0,0.95), 0 0 45px rgba(0,0,0,0.9)",

@@ -1,15 +1,19 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useCanvas } from "@/lib/cockpit/canvas";
 import { demoFrame } from "@/lib/cockpit/demo";
 import { LED_RAMP } from "@/design/system";
+import { usePrefs } from "@/lib/cockpit/preferences";
 
 /**
  * F1 shift-light engine — 15 LEDs, progressive green→red→blue fill,
  * limiter flash with hysteresis, upshift white blink (design/MOTION.md).
  * Canvas-rendered on the shared scheduler; React never re-renders for
  * light state.
+ *
+ * Motion levels: off → steady fill, no flashes; reduced → flashes
+ * become steady highlight, no glow; full → everything.
  */
 
 const N = 15;
@@ -23,23 +27,41 @@ function ledColor(i: number): [number, number, number] {
 }
 
 export function ShiftLights({ height = 26 }: { height?: number }) {
+  const { motion } = usePrefs();
+  const motionRef = useRef(motion);
+  useEffect(() => {
+    motionRef.current = motion;
+  }, [motion]);
+
   const limiterOn = useRef(false);
   const lastGear = useRef(1);
   const upshiftUntil = useRef(0);
 
   const ref = useCanvas((ctx, w, h, t) => {
     const f = demoFrame(t);
+    const level = motionRef.current;
 
-    // Upshift detection (gear increase → white blink beat)
-    if (f.gear > lastGear.current) upshiftUntil.current = t + LED_RAMP.upshiftBlinkMs / 1000;
-    if (f.gear !== 0) lastGear.current = f.gear;
+    if (level !== "off") {
+      // Upshift detection (gear increase → white blink beat)
+      if (f.gear > lastGear.current) upshiftUntil.current = t + LED_RAMP.upshiftBlinkMs / 1000;
+      if (f.gear !== 0) lastGear.current = f.gear;
 
-    // Limiter with hysteresis
-    if (f.rpmPct >= LED_RAMP.limiterEnterPct) limiterOn.current = true;
-    else if (f.rpmPct < LED_RAMP.limiterExitPct) limiterOn.current = false;
+      // Limiter with hysteresis
+      if (f.rpmPct >= LED_RAMP.limiterEnterPct) limiterOn.current = true;
+      else if (f.rpmPct < LED_RAMP.limiterExitPct) limiterOn.current = false;
+    } else {
+      limiterOn.current = false;
+      upshiftUntil.current = 0;
+    }
 
-    const upshift = t < upshiftUntil.current;
-    const flashOn = limiterOn.current && Math.floor(t * LED_RAMP.limiterFlashHz * 2) % 2 === 0;
+    const upshift = level === "full" && t < upshiftUntil.current;
+    const flashOn =
+      limiterOn.current &&
+      (level === "off"
+        ? false
+        : level === "reduced"
+          ? true // steady highlight instead of strobe
+          : Math.floor(t * LED_RAMP.limiterFlashHz * 2) % 2 === 0);
 
     const pad = 4;
     const gap = 5;
@@ -60,15 +82,13 @@ export function ShiftLights({ height = 26 }: { height?: number }) {
       let glow = 0;
 
       if (limiterOn.current || upshift) {
-        // Full-strip flash (white on the "on" beat, dim on the off beat)
-        fill = flashOn || (upshift && !limiterOn.current)
+        fill = flashOn
           ? LED_RAMP.white
           : `rgba(248,250,252,${LED_RAMP.unlitAlpha})`;
-        glow = flashOn ? 14 : 0;
+        glow = flashOn && level === "full" ? 14 : 0;
       } else if (i < litCount) {
         fill = `rgb(${r},${g},${b})`;
-        // Lit LEDs near the front of the strip get a soft glow
-        glow = i >= litCount - 3 ? 8 : 0;
+        glow = level === "full" && i >= litCount - 3 ? 8 : 0;
       } else {
         fill = `rgba(${r},${g},${b},${LED_RAMP.unlitAlpha})`;
       }

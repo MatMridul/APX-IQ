@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MicroLabel, SimBadge } from "./primitives";
+import { useDur } from "@/lib/cockpit/preferences";
 
 /**
  * Insight feed — our Track Pulse: the intelligence engines surfaced as
@@ -43,6 +44,7 @@ export function InsightFeed() {
   const [items, setItems] = useState<Insight[]>([]);
   const idRef = useRef(0);
   const poolIdx = useRef(0);
+  const dur = useDur();
 
   useEffect(() => {
     const push = () => {
@@ -69,10 +71,10 @@ export function InsightFeed() {
             <motion.div
               key={it.id}
               layout
-              initial={{ x: 40, opacity: 0 }}
+              initial={{ x: dur.data ? 40 : 0, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              transition={{ duration: dur.ui, ease: [0.4, 0, 0.2, 1] }}
               className={`rounded-md border bg-black/30 px-2.5 py-1.5 overflow-hidden shrink-0 ${KIND_STYLE[it.kind]}`}
             >
               <span className="font-mono text-[8px] tracking-[0.18em] font-bold block mb-0.5">

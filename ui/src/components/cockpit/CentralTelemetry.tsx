@@ -245,9 +245,9 @@ export function CentralTelemetry() {
           <circle cx="260" cy="322" r="4" fill="none" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
         </svg>
 
-        {/* ═══ LED ARC (canvas) ══════════════════════════════════════ */}
-        <div className="absolute" style={{ left: "17%", top: "4%", width: "66%", height: "17%" }}>
-          <ShiftLights arc fill />
+        {/* ═══ LED STRIP (canvas — straight, per review) ═════════════ */}
+        <div className="absolute" style={{ left: "17%", top: "6%", width: "66%", height: "14%" }}>
+          <ShiftLights fill />
         </div>
 
         {/* ═══ DRS button (upper-left edge, era-labeled) ═════════════ */}

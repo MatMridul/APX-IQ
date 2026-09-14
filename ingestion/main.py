@@ -232,6 +232,7 @@ async def packet_processor(listener: TelemetryListener) -> None:
 
                 # ── Car Status (ID=7) ─────────────────────────────────────────
                 elif packet_type_id == 7:
+                    recorder.update_car_status(player_idx, packet)
                     if not settings.stealth_mode:
                         status_dict = adapter.extract_car_status(packet, player_idx)
                         await sio.emit("car_status_update", {

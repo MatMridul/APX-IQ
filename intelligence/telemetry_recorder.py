@@ -64,6 +64,7 @@ class TelemetryRecorder:
         self._latest_lap_data: Optional[dict] = None
         self._latest_car_telemetry: Optional[dict] = None
         self._latest_motion: Optional[dict] = None
+        self._latest_car_status: Optional[dict] = None
 
         # Current lap buffer
         self._current_lap_buffer: list[dict] = []
@@ -167,6 +168,11 @@ class TelemetryRecorder:
             "gear": telem.m_gear,
             "rpm": telem.m_engineRPM,
             "drs": telem.m_drs,
+            # Thermal enrichment — order is [RL, RR, FL, FR] in the EA spec
+            # (indices 0-3). Downstream coaching reads these arrays directly.
+            "tyres_surface_temp": [float(t) for t in telem.m_tyresSurfaceTemperature],
+            "tyres_inner_temp": [float(t) for t in telem.m_tyresInnerTemperature],
+            "brakes_temp": [float(t) for t in telem.m_brakesTemperature],
         }
 
         # Accumulate steer trace for hardware profiling
@@ -190,6 +196,24 @@ class TelemetryRecorder:
             "g_long": car.m_gForceLongitudinal,
         }
 
+    def update_car_status(self, player_idx: int, car_status_packet):
+        """
+        Update the latest car-status snapshot from a Car Status packet (ID=7).
+
+        Supplies ERS energy/deploy state to the recorded row so the coaching
+        engine's energy-management rule can run on persisted laps.
+
+        Args:
+            player_idx: Index of the player car.
+            car_status_packet: The decoded PacketCarStatusData struct.
+        """
+        status = car_status_packet.m_carStatusData[player_idx]
+
+        self._latest_car_status = {
+            "ers_store_energy": float(status.m_ersStoreEnergy),
+            "ers_deploy_mode": int(status.m_ersDeployMode),
+        }
+
     def _record_tick(self):
         """
         Compose a telemetry row from the latest snapshots and append
@@ -209,18 +233,30 @@ class TelemetryRecorder:
             "g_lat": 0.0, "g_long": 0.0,
         }
 
+        car = self._latest_car_telemetry
+        status = self._latest_car_status or {}
+
         row = {
             "distance_m": self._latest_lap_data["lap_distance"],
-            "speed_kph": float(self._latest_car_telemetry["speed"]),
-            "throttle": float(self._latest_car_telemetry["throttle"]),
-            "brake": float(self._latest_car_telemetry["brake"]),
-            "steer": float(self._latest_car_telemetry["steer"]),
-            "gear": int(self._latest_car_telemetry["gear"]),
-            "rpm": int(self._latest_car_telemetry["rpm"]),
-            "drs": bool(self._latest_car_telemetry["drs"]),
+            "speed_kph": float(car["speed"]),
+            "throttle": float(car["throttle"]),
+            "brake": float(car["brake"]),
+            "steer": float(car["steer"]),
+            "gear": int(car["gear"]),
+            "rpm": int(car["rpm"]),
+            "drs": bool(car["drs"]),
             "x": float(motion["x"]),
             "y": float(motion["y"]),
             "z": float(motion["z"]),
+            # Thermal & energy enrichment — exact TelemetryPoint field names so
+            # they survive record → model_dump → DataFrame into the coach engine.
+            # Absent-until-received defaults are zeros; the coach guards against
+            # treating physically-impossible zeros as real telemetry.
+            "tyres_surface_temp": car.get("tyres_surface_temp", [0.0, 0.0, 0.0, 0.0]),
+            "tyres_inner_temp": car.get("tyres_inner_temp", [0.0, 0.0, 0.0, 0.0]),
+            "brakes_temp": car.get("brakes_temp", [0.0, 0.0, 0.0, 0.0]),
+            "ers_store_energy": float(status.get("ers_store_energy", 0.0)),
+            "ers_deploy_mode": int(status.get("ers_deploy_mode", 0)),
         }
         self._current_lap_buffer.append(row)
 

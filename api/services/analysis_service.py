@@ -88,7 +88,12 @@ class AnalysisService:
             delta = engine.compute(ua, ga, user_corners, ghost_corners)
 
             coach = CoachEngine(hardware_profile=hardware_profile)
-            tips = coach.analyze(delta, user_corners, ghost_corners)
+            tips = coach.analyze(
+                delta,
+                user_corners,
+                ghost_corners,
+                user_telemetry_df=user_df,
+            )
 
             return ua, ga, user_corners, ghost_corners, delta, tips
 

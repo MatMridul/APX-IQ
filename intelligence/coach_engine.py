@@ -81,7 +81,8 @@ class CoachingTip:
     message: str
     corner_index: Optional[int] = None    # Which corner this applies to (if any)
     distance_m: Optional[float] = None    # Where on track this applies
-    time_impact_ms: float = 0.0           # How much time this costs
+    time_impact_ms: float = 0.0           # MEASURED impact, derived from the delta trace
+    estimated_impact_ms: float = 0.0      # HEURISTIC estimate — NOT measured from telemetry
     data: dict = field(default_factory=dict)  # Raw numbers for UI rendering
 
     @property
@@ -232,7 +233,7 @@ class CoachEngine:
                                         f"Rear tyre surface graining ({max_rear_s:.0f}°C surface vs {max_rear_i:.0f}°C core). "
                                         "Over-sliding on corner exit — smooth out throttle pick-up."
                                     ),
-                                    time_impact_ms=150.0,
+                                    estimated_impact_ms=150.0,
                                     data={"surface_temp": max_rear_s, "core_temp": max_rear_i, "delta": diff},
                                 ))
                                 return tips
@@ -245,7 +246,7 @@ class CoachEngine:
                                     f"Rear tyre overheating ({max_rear_s:.0f}°C). "
                                     "Smooth out corner exit throttle to prevent wheelspin."
                                 ),
-                                time_impact_ms=120.0,
+                                estimated_impact_ms=120.0,
                                 data={"max_rear_temp": max_rear_s},
                             ))
             except Exception:
@@ -268,7 +269,7 @@ class CoachEngine:
                                     f"Brake rotor glazing ({max_front:.0f}°C). "
                                     "Brake 10m earlier to manage thermal fade."
                                 ),
-                                time_impact_ms=250.0,
+                                estimated_impact_ms=250.0,
                                 data={"max_front_brake_temp": max_front},
                             ))
                         elif max_front < 190 and max_front > 10:
@@ -279,7 +280,7 @@ class CoachEngine:
                                     f"Brakes below operating window ({max_front:.0f}°C). "
                                     "Warm rotors under deceleration to avoid front lockups."
                                 ),
-                                time_impact_ms=50.0,
+                                estimated_impact_ms=50.0,
                                 data={"max_front_brake_temp": max_front},
                             ))
             except Exception:
@@ -327,7 +328,7 @@ class CoachEngine:
                         ),
                         corner_index=c.index,
                         distance_m=apex_m - 40,
-                        time_impact_ms=85.0,
+                        estimated_impact_ms=85.0,
                         data={"corner": c.index, "brake_drop": brake_drop},
                     ))
                     break
@@ -344,7 +345,7 @@ class CoachEngine:
                         ),
                         corner_index=c.index,
                         distance_m=apex_m - 30,
-                        time_impact_ms=110.0,
+                        estimated_impact_ms=110.0,
                         data={"corner": c.index},
                     ))
                     break
@@ -363,6 +364,9 @@ class CoachEngine:
 
         try:
             energy_series = df["ers_store_energy"].dropna()
+            # Exclude zero-filled rows: 0.0 means "Car Status never arrived",
+            # not a genuinely depleted battery (missing ≠ measured empty).
+            energy_series = energy_series[energy_series > 0.0]
             if len(energy_series) > 0:
                 min_energy = energy_series.min()
                 if min_energy < 300_000 and delta.avg_speed_delta_kph < -5:
@@ -373,7 +377,7 @@ class CoachEngine:
                             "MGU-K battery depleted (<8% SOC) on main straight. "
                             "Time loss caused by early engine derating."
                         ),
-                        time_impact_ms=200.0,
+                        estimated_impact_ms=200.0,
                         data={"min_ers_energy": min_energy},
                     ))
         except Exception:
@@ -481,7 +485,7 @@ class CoachEngine:
                     ),
                     corner_index=user_corner.index,
                     distance_m=user_corner.apex_distance_m,
-                    time_impact_ms=abs(speed_diff) * 5,  # Rough estimate
+                    estimated_impact_ms=abs(speed_diff) * 5,  # Heuristic, not measured
                     data={
                         "speed_diff": speed_diff,
                         "user_apex": user_corner.apex_speed_kph,

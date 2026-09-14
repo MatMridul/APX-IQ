@@ -14,7 +14,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.config import settings  # noqa: E402
 from intelligence.fastf1_client import resolve_track_name  # noqa: E402
 
 # Game track IDs present across supported titles (F1 20-25 share most).

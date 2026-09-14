@@ -133,6 +133,7 @@ async def compute_delta(req: DeltaRequest, request: Request):
                 "message":        t.message,
                 "corner_index":   t.corner_index,
                 "time_impact_ms": t.time_impact_ms,
+                "estimated_impact_ms": t.estimated_impact_ms,
             }
             for t in tips
         ],
@@ -351,6 +352,8 @@ async def get_track_layout(
     if not track_name:
         raise HTTPException(status_code=404, detail=f"Unknown track ID: {track_id}")
 
+    cache = get_cache()
+
     # 1. Library hit
     from core.database import db
     if db.pool is not None:
@@ -374,7 +377,6 @@ async def get_track_layout(
             return cached
 
     # 2. FastF1 fetch
-    cache   = get_cache()
     cache_key = f"track_layout:{track_id}:{year}:{driver}:{session_type}"
     hit = await cache.get(cache_key)
     if hit:

@@ -64,7 +64,24 @@ def configure_logging() -> None:
         foreign_pre_chain=shared_processors,
     )
 
-    handler = logging.StreamHandler(sys.stdout)
+    # Force UTF-8 on the log stream. On Windows the console defaults to a
+    # legacy code page (cp1252) and any non-ASCII character in a log message
+    # (e.g. "→", "°C") raises UnicodeEncodeError and crashes the process —
+    # which happens on the live path the moment a lap is analyzed or a UDP
+    # packet is logged. Reconfiguring to UTF-8 makes all log output safe
+    # regardless of the host console code page.
+    stream = sys.stdout
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        # Stream doesn't support reconfigure (already wrapped/redirected);
+        # fall back to a UTF-8 writer around its underlying buffer.
+        buffer = getattr(stream, "buffer", None)
+        if buffer is not None:
+            import io
+            stream = io.TextIOWrapper(buffer, encoding="utf-8", errors="replace")
+
+    handler = logging.StreamHandler(stream)
     handler.setFormatter(formatter)
 
     root = logging.getLogger()

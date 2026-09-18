@@ -219,3 +219,63 @@ def test_career_progression_reflects_real_deltas(client, wiped):
     assert trend == [2500.0, 2100.0, 1700.0]
     assert data["improvement_trend_ms"] is not None and data["improvement_trend_ms"] > 0
     assert data["data_sufficiency"]["sufficient"] is True
+
+
+
+# ─── Thermal / ERS persistence (wiring_map HALF-WIRED fix, migration 006) ─────
+
+
+def _thermal_lap_payload(session_uid: int, points: int = 20) -> dict:
+    """A lap whose telemetry carries non-zero thermal + ERS enrichment."""
+    telemetry = [
+        {
+            "distance_m": float(i * 100),
+            "speed_kph": 150.0 + i,
+            "throttle": 0.8,
+            "brake": 0.1,
+            "steer": -0.1,
+            "gear": 5,
+            "rpm": 11_000,
+            "drs": True,
+            "x": float(i),
+            "y": 0.0,
+            "z": float(i * 2),
+            "tyres_surface_temp": [98.0, 99.0, 116.0, 118.0],
+            "tyres_inner_temp": [96.0, 96.0, 99.0, 100.0],
+            "brakes_temp": [420.0, 420.0, 360.0, 360.0],
+            "ers_store_energy": 1_250_000.0,
+            "ers_deploy_mode": 2,
+        }
+        for i in range(points)
+    ]
+    return {
+        "session_uid": session_uid,
+        "lap_number": 1,
+        "lap_time_ms": 91_000,
+        "sector_1_time_ms": 30_000,
+        "sector_2_time_ms": 31_000,
+        "sector_3_time_ms": 30_000,
+        "is_valid": True,
+        "telemetry": telemetry,
+    }
+
+
+def test_thermal_and_ers_survive_db_roundtrip(client, wiped):
+    """
+    Before migration 006 the INSERT dropped thermal/ERS columns, so a lap
+    reloaded from Postgres lost them and thermal/energy coaching silently
+    degraded. This proves they now round-trip intact through the real DB.
+    """
+    uid = _unique_session_uid()
+    save = client.post("/telemetry/lap/save", json=_thermal_lap_payload(uid))
+    assert save.status_code == 200, save.text
+    lap_id = save.json()["lap_id"]
+
+    lap = client.get(f"/telemetry/lap/{lap_id}").json()
+    first = lap["telemetry"][0]
+
+    assert first["tyres_surface_temp"] == [98.0, 99.0, 116.0, 118.0], first["tyres_surface_temp"]
+    assert first["tyres_inner_temp"] == [96.0, 96.0, 99.0, 100.0]
+    assert first["brakes_temp"] == [420.0, 420.0, 360.0, 360.0]
+    assert first["ers_store_energy"] == 1_250_000.0
+    assert first["ers_deploy_mode"] == 2

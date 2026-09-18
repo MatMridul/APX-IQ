@@ -234,6 +234,10 @@ class DatabaseLapService:
                         t.throttle, t.brake, t.steer,
                         t.gear, t.rpm, t.drs,
                         t.x, t.y, t.z,
+                        # Thermal & ERS enrichment — persisted so the coach's
+                        # thermal/energy rules work on reloaded laps too.
+                        t.tyres_surface_temp, t.tyres_inner_temp, t.brakes_temp,
+                        t.ers_store_energy, t.ers_deploy_mode,
                     )
                     for t in data.telemetry
                 ]
@@ -244,8 +248,10 @@ class DatabaseLapService:
                         distance_m, speed_kph,
                         throttle, brake, steer,
                         gear, rpm, drs,
-                        x, y, z
-                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+                        x, y, z,
+                        tyres_surface_temp, tyres_inner_temp, brakes_temp,
+                        ers_store_energy, ers_deploy_mode
+                    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
                     ON CONFLICT (user_lap_id, distance_m) DO NOTHING
                     """,
                     rows,
@@ -279,7 +285,12 @@ class DatabaseLapService:
             telem_rows = await conn.fetch(
                 """
                 SELECT distance_m, speed_kph, throttle, brake, steer,
-                       gear, rpm, drs, x, y, z
+                       gear, rpm, drs, x, y, z,
+                       COALESCE(tyres_surface_temp, ARRAY[0,0,0,0]::real[]) AS tyres_surface_temp,
+                       COALESCE(tyres_inner_temp,   ARRAY[0,0,0,0]::real[]) AS tyres_inner_temp,
+                       COALESCE(brakes_temp,        ARRAY[0,0,0,0]::real[]) AS brakes_temp,
+                       COALESCE(ers_store_energy, 0.0) AS ers_store_energy,
+                       COALESCE(ers_deploy_mode,  0)   AS ers_deploy_mode
                 FROM user_lap_telemetry
                 WHERE user_lap_id = $1
                 ORDER BY distance_m

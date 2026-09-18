@@ -65,13 +65,15 @@ async def save_lap_to_api(lap_info: dict) -> bool:
     """
     telemetry = lap_info["dataframe"].to_dict(orient="records")
     payload = {
-        "session_uid":    lap_info["session_uid"],
-        "lap_number":     lap_info["lap_num"],
-        "lap_time_ms":    lap_info.get("lap_time_ms"),
-        "sector_1_ms":    lap_info.get("sector_1_ms"),
-        "sector_2_ms":    lap_info.get("sector_2_ms"),
-        "telemetry":      telemetry,
-        "is_valid":       lap_info.get("is_valid", True),
+        "session_uid":      lap_info["session_uid"],
+        "lap_number":       lap_info["lap_num"],
+        "lap_time_ms":      lap_info.get("lap_time_ms"),
+        # Field names MUST match api.models.shared.SaveLapRequest, or Pydantic
+        # silently drops them and every persisted lap gets NULL sectors.
+        "sector_1_time_ms": lap_info.get("sector_1_ms"),
+        "sector_2_time_ms": lap_info.get("sector_2_ms"),
+        "telemetry":        telemetry,
+        "is_valid":         lap_info.get("is_valid", True),
     }
 
     try:

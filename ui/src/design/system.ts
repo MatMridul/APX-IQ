@@ -99,3 +99,15 @@ export const EASING = {
 } as const;
 
 export const DURATION = { fast: 80, base: 150, slow: 300 } as const;
+
+/**
+ * Pirelli Tyre Compound Colors (DESIGN_SPEC §2.2).
+ * Strictly used in explicit compound contexts (badges), never on signal surfaces.
+ */
+export const COMPOUND = {
+  soft: "#ef4444",
+  medium: "#eab308",
+  hard: "#ffffff",
+  intermediate: "#22c55e",
+  wet: "#3b82f6",
+} as const;

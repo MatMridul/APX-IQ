@@ -1,49 +1,114 @@
-"use client";
-
 import { useEffect, useRef } from "react";
-import { MicroLabel } from "./primitives";
+import { Flame } from "lucide-react";
+import { SourceBadge } from "./primitives";
+import { useLiveOrDemo, getActiveFrame } from "@/hooks/useLiveOrDemo";
+import { cockpitCursor, lapProfile, TRACK_LEN } from "@/lib/cockpit/demo";
+import { useTelemetryStore } from "@/store/telemetryStore";
+import { useUxStore } from "@/store/uxStore";
+import { PanelHeader } from "./PanelHeader";
+import { cn } from "@/lib/utils";
 
 /**
- * RaceCarTelemetry — 2022-regulation F1 top view (proportions from the
- * real car: 2.0 m width, ~5.6 m length, 72 cm front / 86 cm rear tyres,
- * halo, wheel covers, floor edges, coke-bottle sidepods) rendered in
- * the house gold-line/carbon style.
- *
- * Thermal readouts live OUTSIDE the silhouette (corner blocks) and are
- * demo-driven at 5 Hz: surface/inner tyre temps color-lerped cold→hot,
- * brake temps spiking under braking, wheel glow tracking brake energy.
+ * RaceCarTelemetry — Broadcast & Esports High-Octane Chassis & Thermal HUD:
+ *  - 2022-regulation F1 top view with dynamic carbon-ceramic incandescent brake discs
+ *  - 4-corner tactical HUD pods (FL, FR, RL, RR) with dynamic thermal health mini-bars
+ *  - Official F1 broadcast tyre compound badge (C4 Soft / Stint Laps)
+ *  - 5 Hz RAF telemetry loop with zero React re-renders
  */
 
 const CORNERS = ["FL", "FR", "RL", "RR"] as const;
 const PHASE = [0.4, 1.7, 2.9, 3.8];
 
-/** temp → hue: cold 210° (blue) → optimal 130° (green) → hot 0° (red) */
+/** Temp -> Hue: cold 210° (cyan/blue) -> optimal 140° (neon green) -> hot 0° (neon red) */
 function tempColor(t: number, cold: number, optimal: number, hot: number): string {
+  if (!Number.isFinite(t)) return "hsl(210, 90%, 55%)";
   let norm: number;
-  if (t < optimal) norm = ((t - cold) / (optimal - cold)) * 0.5;
-  else norm = 0.5 + Math.min(1, (t - optimal) / (hot - optimal)) * 0.5;
+  if (t < optimal) {
+    const range = Math.max(1, optimal - cold);
+    norm = ((t - cold) / range) * 0.5;
+  } else {
+    const range = Math.max(1, hot - optimal);
+    norm = 0.5 + Math.min(1, (t - optimal) / range) * 0.5;
+  }
   const hue = 210 - 210 * Math.min(1, Math.max(0, norm));
-  return `hsl(${hue}, 80%, 55%)`;
+  return `hsl(${hue}, 90%, 55%)`;
 }
 
 export function RaceCarTelemetry() {
   const surfRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const innerRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const brkRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const wearRefs = useRef<Array<HTMLSpanElement | null>>([]);
+  const barRefs = useRef<Array<HTMLDivElement | null>>([]);
   const glowRefs = useRef<Array<SVGCircleElement | null>>([]);
   const wearRef = useRef<HTMLSpanElement | null>(null);
+  const avgWearRef = useRef<HTMLSpanElement | null>(null);
+  const compoundRef = useRef<HTMLSpanElement | null>(null);
+  const compoundDotRef = useRef<HTMLSpanElement | null>(null);
+  const { source } = useLiveOrDemo();
 
   useEffect(() => {
     const iv = setInterval(() => {
       const t = performance.now() / 1000;
-      const brake = demoBrake(t);
-      const lap = demoLap(t);
-      CORNERS.forEach((c, i) => {
-        const surf = 88 + 13 * Math.sin(t / 9 + PHASE[i]) + brake * 6 + (i >= 2 ? 4 : 0);
-        const inner = surf + 7 + 3 * Math.sin(t / 6 + PHASE[i]);
-        const brk = 380 + brake * 460 + 45 * Math.sin(t / 4.5 + PHASE[i]);
+      const state = useTelemetryStore.getState();
+      const isLive = state.isConnected && state.telemetry !== null;
 
-        const sc = tempColor(surf, 60, 96, 130);
+      const { data: f } = getActiveFrame(t);
+      const isScrubbing = !isLive && cockpitCursor.dist !== null;
+      let brake = f ? f.brake : 0;
+      const lap = f ? f.lap : 1;
+
+      let scrubBrake = brake;
+      if (isScrubbing) {
+        const norm = Math.max(0, Math.min(1, cockpitCursor.dist! / TRACK_LEN));
+        const prof = lapProfile(600);
+        const pLen = prof.dist.length;
+        const pIdx = Math.min(pLen - 1, Math.max(0, Math.floor(norm * pLen)));
+        scrubBrake = prof.brake[pIdx] ?? 0;
+        brake = scrubBrake;
+      }
+
+      const liveSurfs = state.telemetry?.tyreTemps;
+      const liveInners = state.telemetry?.tyreInnerTemps;
+      const liveBrakes = state.telemetry?.brakesTemp;
+      const liveWear = state.carDamage?.tyresWear;
+
+      CORNERS.forEach((c, i) => {
+        let surf: number;
+        if (isLive && liveSurfs && liveSurfs[i] != null && liveSurfs[i] > 0) {
+          surf = liveSurfs[i];
+        } else if (isScrubbing) {
+          surf = 88 + scrubBrake * 26 + (i >= 2 ? 4 : 0);
+        } else {
+          surf = 88 + 13 * Math.sin(t / 9 + PHASE[i]) + brake * 6 + (i >= 2 ? 4 : 0);
+        }
+
+        let inner: number;
+        if (isLive && liveInners && liveInners[i] != null && liveInners[i] > 0) {
+          inner = liveInners[i];
+        } else if (isScrubbing) {
+          inner = surf + 7 + scrubBrake * 8;
+        } else {
+          inner = surf + 7 + 3 * Math.sin(t / 6 + PHASE[i]);
+        }
+
+        let brk: number;
+        if (isLive && liveBrakes && liveBrakes[i] != null && liveBrakes[i] > 0) {
+          brk = liveBrakes[i];
+        } else if (isScrubbing) {
+          brk = 380 + scrubBrake * 560 + (i >= 2 ? -40 : 0);
+        } else {
+          brk = 380 + brake * 460 + 45 * Math.sin(t / 4.5 + PHASE[i]);
+        }
+
+        let wearPct: number;
+        if (isLive && liveWear && liveWear[i] != null) {
+          wearPct = liveWear[i];
+        } else {
+          wearPct = 4 + ((Math.floor(lap) * 2.2 + i * 1.3) % 40);
+        }
+
+        const sc = tempColor(surf, 60, 96, 125);
         const bc = tempColor(brk, 350, 600, 950);
 
         if (surfRefs.current[i]) {
@@ -58,246 +123,331 @@ export function RaceCarTelemetry() {
           brkRefs.current[i].textContent = `${Math.round(brk)}°C`;
           brkRefs.current[i].style.color = bc;
         }
-        // Wheel glow tracks brake energy
+        if (wearRefs.current[i]) {
+          wearRefs.current[i].textContent = `${Math.round(wearPct)}%`;
+          wearRefs.current[i].style.color = wearPct > 60 ? "#EF4444" : wearPct > 35 ? "#F59E0B" : "#A3A3A3";
+        }
+        if (barRefs.current[i]) {
+          const frac = Math.min(1, Math.max(0, (surf - 60) / 65));
+          barRefs.current[i]!.style.width = `${frac * 100}%`;
+          barRefs.current[i]!.style.backgroundColor = sc;
+          barRefs.current[i]!.style.boxShadow = `0 0 8px ${sc}`;
+        }
+
+        // Wheel brake-energy incandescence glow
         const glow = glowRefs.current[i];
-        if (glow) glow.style.opacity = String(0.12 + brake * 0.55);
+        if (glow) {
+          const glowIntensity = isLive && brk > 0 
+            ? Math.min(1, Math.max(0.15, (brk - 300) / 600)) 
+            : (0.15 + brake * 0.85);
+          glow.style.opacity = String(glowIntensity);
+          glow.style.transform = `scale(${1 + (isLive ? glowIntensity * 0.15 : brake * 0.15)})`;
+        }
       });
-      if (wearRef.current) wearRef.current.textContent = String(6 + (Math.floor(lap) % 30));
-    }, 200);
+
+      // Tyre age & compound in live mode
+      if (isLive) {
+        const age = state.carStatus?.tyresAgeLaps ?? state.lapData?.lap ?? 1;
+        if (wearRef.current) wearRef.current.textContent = String(age);
+
+        if (liveWear && avgWearRef.current && Array.isArray(liveWear) && liveWear.length > 0) {
+          const validPoints = liveWear.slice(0, 4).filter((w) => typeof w === "number" && Number.isFinite(w));
+          const avg = validPoints.length > 0 ? Math.round(validPoints.reduce((a, b) => a + b, 0) / validPoints.length) : 12;
+          avgWearRef.current.textContent = `${avg}%`;
+        }
+
+        const compoundName = typeof state.carStatus?.tyreCompound === "string"
+          ? state.carStatus.tyreCompound.toUpperCase()
+          : "PIRELLI MEDIUM";
+        if (compoundRef.current) compoundRef.current.textContent = `PIRELLI ${compoundName}`;
+      } else {
+        if (wearRef.current) wearRef.current.textContent = String(6 + (Math.floor(lap) % 30));
+        if (avgWearRef.current) avgWearRef.current.textContent = `${Math.round(8 + ((Math.floor(lap) * 2.2) % 40))}%`;
+        if (compoundRef.current) compoundRef.current.textContent = "PIRELLI C4 SOFT";
+      }
+    }, 180);
+
     return () => clearInterval(iv);
   }, []);
 
+  const carStatus = useTelemetryStore((s) => s.carStatus);
+  const visualCompound = carStatus?.visualTyreCompound;
+  const compoundLabel = visualCompound === 16 ? "SOFT" : visualCompound === 17 ? "MED" : visualCompound === 18 ? "HARD" : visualCompound === 7 ? "INTER" : visualCompound === 8 ? "WET" : "SOFT";
+  const compoundColor = visualCompound === 16 ? "text-red-400 bg-red-500/20 border-red-500/40" : visualCompound === 17 ? "text-yellow-400 bg-yellow-500/20 border-yellow-500/40" : visualCompound === 18 ? "text-neutral-200 bg-neutral-200/20 border-neutral-200/40" : visualCompound === 7 ? "text-emerald-400 bg-emerald-500/20 border-emerald-500/40" : visualCompound === 8 ? "text-blue-400 bg-blue-500/20 border-blue-500/40" : "text-red-400 bg-red-500/20 border-red-500/40";
+
   return (
-    <div className="apx-panel w-full h-full relative flex flex-col p-2">
-      <PanelHeader label="Car · Thermals" />
+    <div className="apx-panel w-full h-full relative flex flex-col p-2.5 bg-gradient-to-b from-[#111116] via-[#0A0A0E] to-[#070709] border border-gold/30 shadow-[0_0_25px_rgba(0,0,0,0.85)]">
+      <PanelHeader label="Car · Thermals & Chassis" right={<SourceBadge source={source} />} />
 
       <div className="flex-1 relative min-h-0 flex items-center justify-center">
-        {/* Directional cues (audit: front/rear were indistinguishable) */}
-        <span className="absolute top-0 left-1/2 -translate-x-1/2 font-mono text-[9px] tracking-[0.3em] text-gold/60">
-          FRONT
+        {/* Directional broadcast cues */}
+        <span className="absolute top-0.5 left-1/2 -translate-x-1/2 font-mono text-[9px] tracking-[0.25em] text-gold/70 font-bold">
+          ▲ FRONT AERO
         </span>
-        <span className="absolute bottom-6 left-1/2 -translate-x-1/2 font-mono text-[9px] tracking-[0.3em] text-silver/40">
-          REAR
+        <span className="absolute bottom-6 left-1/2 -translate-x-1/2 font-mono text-[9px] tracking-[0.25em] text-silver/40">
+          ▼ REAR DIFFUSER
         </span>
 
-        {/* ── Corner thermal blocks — ADJACENT to their wheels
-               (self-audit 1: claimed before, actually applied now).
-               Car box spans ~19-81% of panel width; front wheels start
-               ~25%, rear ~25% — blocks right-align to just outside. ── */}
+        {/* ── 4-CORNER TACTICAL HUD PODS ─────────────────────────────────── */}
         {CORNERS.map((c, i) => (
           <div
             key={c}
-            className={`absolute flex flex-col gap-px ${
-              i < 2 ? "top-[19%]" : "top-[57%]"
-            } ${
+            onClick={() => {
+              const state = useTelemetryStore.getState();
+              const surfs = state.telemetry?.tyreTemps;
+              const inners = state.telemetry?.tyreInnerTemps;
+              const brakes = state.telemetry?.brakesTemp;
+              const wear = state.carDamage?.tyresWear;
+              const s = surfs && surfs[i] ? surfs[i] : (c.startsWith("F") ? 98 : 88);
+              const inn = inners && inners[i] ? inners[i] : (s + 6);
+              const brk = brakes && brakes[i] ? brakes[i] : (c.startsWith("F") ? 645 : 440);
+              const w = wear && wear[i] ? wear[i] : (c.startsWith("F") ? 10 : 12);
+
+              useUxStore.getState().openTyreModal({
+                corner: c,
+                surfaceTempC: s,
+                coreTempC: inn,
+                brakeTempC: brk,
+                psi: c.startsWith("F") ? 22.0 : 20.6,
+                wearPct: w,
+                compound: "C4 SOFT",
+              });
+            }}
+            className={cn(
+              "absolute flex flex-col gap-1 p-2 rounded-xl bg-black/75 ring-1 ring-white/10 shadow-[0_0_15px_rgba(0,0,0,0.9)] backdrop-blur-md z-20 min-w-[76px] cursor-pointer hover:ring-gold/50 hover:bg-black/90 transition-all active:scale-95 select-none",
+              i < 2 ? "top-[16%]" : "top-[56%]",
               i % 2 === 0
-                ? "left-[1%] w-[20%] items-end text-right"
-                : "right-[1%] w-[20%] items-start"
-            }`}
+                ? "left-[1%] items-end text-right"
+                : "right-[1%] items-start text-left"
+            )}
+            title={`Click for ${c} Tyre & Brake Diagnostics`}
           >
-            <span className="font-mono text-[10px] tracking-[0.18em] text-white font-bold">
-              {c}
-            </span>
-            <span className="font-mono text-[8px] tracking-[0.12em] text-silver/40">
-              SURF
-            </span>
-            <span
-              ref={(el) => {
-                surfRefs.current[i] = el;
-              }}
-              className="font-mono text-[13px] font-bold tabular-nums transition-colors duration-500"
-              style={{ color: "var(--color-signal-go)" }}
-            >
-              90°C
-            </span>
-            <span className="font-mono text-[8px] tracking-[0.12em] text-silver/40">
-              INNER
-            </span>
-            <span
-              ref={(el) => {
-                innerRefs.current[i] = el;
-              }}
-              className="font-mono text-[11px] tabular-nums transition-colors duration-500"
-              style={{ color: "var(--color-silver)" }}
-            >
-              97°C
-            </span>
-            <span className="font-mono text-[8px] tracking-[0.12em] text-silver/40 mt-0.5">
-              BRK
-            </span>
-            <span
-              ref={(el) => {
-                brkRefs.current[i] = el;
-              }}
-              className="font-mono text-[11px] tabular-nums transition-colors duration-500"
-              style={{ color: "var(--color-signal-caution)" }}
-            >
-              420°C
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[11px] tracking-[0.16em] text-white font-black">
+                {c}
+              </span>
+              <span className={cn("font-mono text-[8px] px-1 py-px rounded font-bold border", compoundColor)}>
+                {compoundLabel}
+              </span>
+            </div>
+
+
+            {/* Surface Temperature */}
+            <div className="flex flex-col gap-0.5 w-full">
+              <div className="flex items-baseline justify-between gap-1">
+                <span className="font-mono text-[8px] tracking-[0.12em] text-silver/50">SURF</span>
+                <span
+                  ref={(el) => {
+                    surfRefs.current[i] = el;
+                  }}
+                  className="font-mono text-[13px] font-black tabular-nums transition-colors duration-300"
+                  style={{ color: "var(--color-signal-go)" }}
+                >
+                  90°C
+                </span>
+              </div>
+              {/* Thermal gradient mini-bar */}
+              <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  ref={(el) => {
+                    barRefs.current[i] = el;
+                  }}
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: "60%", backgroundColor: "var(--color-signal-go)" }}
+                />
+              </div>
+            </div>
+
+            {/* Inner Tyre Temp */}
+            <div className="flex items-baseline justify-between gap-2 w-full pt-0.5 border-t border-white/5">
+              <span className="font-mono text-[8px] tracking-[0.12em] text-silver/50">CORE</span>
+              <span
+                ref={(el) => {
+                  innerRefs.current[i] = el;
+                }}
+                className="font-mono text-[10px] tabular-nums font-bold text-silver"
+              >
+                97°C
+              </span>
+            </div>
+
+            {/* Brake Rotor Temp */}
+            <div className="flex items-baseline justify-between gap-2 w-full">
+              <span className="font-mono text-[8px] tracking-[0.12em] text-silver/50 flex items-center gap-0.5">
+                <Flame size={8} className="text-signal-caution" /> BRK
+              </span>
+              <span
+                ref={(el) => {
+                  brkRefs.current[i] = el;
+                }}
+                className="font-mono text-[10px] tabular-nums font-bold text-signal-caution"
+              >
+                420°C
+              </span>
+            </div>
+
+            {/* Tyre Degradation / Wear % */}
+            <div className="flex items-baseline justify-between gap-2 w-full pt-0.5 border-t border-white/5">
+              <span className="font-mono text-[8px] tracking-[0.12em] text-silver/50">WEAR</span>
+              <span
+                ref={(el) => {
+                  wearRefs.current[i] = el;
+                }}
+                className="font-mono text-[10px] tabular-nums font-bold text-neutral-300"
+              >
+                12%
+              </span>
+            </div>
           </div>
         ))}
 
-        {/* ── The car (flex-centered, audit 2: was left-anchored) ──── */}
+        {/* ── 2022 F1 CAR SILHOUETTE (SVG) ─────────────────────────────────── */}
         <svg
           viewBox="0 0 200 380"
-          className="relative h-full w-auto max-w-[68%]"
+          className="relative h-full w-auto max-w-[66%] drop-shadow-[0_0_20px_rgba(0,0,0,0.9)]"
           preserveAspectRatio="xMidYMid meet"
         >
           <defs>
             <linearGradient id="carbon-body" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#23252b" />
-              <stop offset="55%" stopColor="#15161a" />
-              <stop offset="100%" stopColor="#0c0d10" />
+              <stop offset="0%" stopColor="#252830" />
+              <stop offset="55%" stopColor="#131418" />
+              <stop offset="100%" stopColor="#0B0B0E" />
             </linearGradient>
             <linearGradient id="wing-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2a2c33" />
-              <stop offset="100%" stopColor="#101114" />
+              <stop offset="0%" stopColor="#2F323B" />
+              <stop offset="100%" stopColor="#111215" />
             </linearGradient>
-            <radialGradient id="tyre-warm" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#ff7a18" stopOpacity="0.9" />
-              <stop offset="70%" stopColor="#ff4d00" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#ff4d00" stopOpacity="0" />
+            <radialGradient id="brake-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FF3B30" stopOpacity="0.95" />
+              <stop offset="50%" stopColor="#FF9500" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#FF3B30" stopOpacity="0" />
             </radialGradient>
             <radialGradient id="body-highlight" cx="50%" cy="22%" r="80%">
-              <stop offset="0%" stopColor="#8a93a5" stopOpacity="0.28" />
-              <stop offset="55%" stopColor="#8a93a5" stopOpacity="0.06" />
-              <stop offset="100%" stopColor="#8a93a5" stopOpacity="0" />
+              <stop offset="0%" stopColor="#8A93A5" stopOpacity="0.35" />
+              <stop offset="55%" stopColor="#8A93A5" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#8A93A5" stopOpacity="0" />
             </radialGradient>
           </defs>
 
-          {/* ground shadow */}
-          <ellipse cx="100" cy="192" rx="96" ry="182" fill="rgba(0,0,0,0.5)" />
+          {/* Ground shadow */}
+          <ellipse cx="100" cy="192" rx="96" ry="182" fill="rgba(0,0,0,0.6)" />
 
-          {/* body shading pass (audit 13): top-light sheen over chassis+cover */}
+          {/* Body sheen */}
           <ellipse cx="100" cy="150" rx="30" ry="120" fill="url(#body-highlight)" />
 
           {/* ── FLOOR ──────────────────────────────────────────────── */}
           <path
             d="M 56 176 L 144 176 L 146 296 L 118 306 L 82 306 L 54 296 Z"
-            fill="#0a0b0d"
-            stroke="rgba(207,163,73,0.35)"
+            fill="#090A0D"
+            stroke="rgba(207,163,73,0.4)"
             strokeWidth="0.8"
           />
-          {/* floor-edge wings */}
-          <line x1="56" y1="182" x2="56" y2="292" stroke="rgba(207,163,73,0.5)" strokeWidth="1" />
-          <line x1="144" y1="182" x2="144" y2="292" stroke="rgba(207,163,73,0.5)" strokeWidth="1" />
+          <line x1="56" y1="182" x2="56" y2="292" stroke="rgba(207,163,73,0.6)" strokeWidth="1" />
+          <line x1="144" y1="182" x2="144" y2="292" stroke="rgba(207,163,73,0.6)" strokeWidth="1" />
 
-          {/* ── REAR ANATOMY (self-audit 10): beam wing + thicker
-                 diffuser + rear-wing lower element ─────────────────── */}
+          {/* ── REAR DIFFUSER & BEAM WING ──────────────────────────── */}
           <rect x="60" y="336" width="80" height="6" rx="1" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.5)" strokeWidth="0.8" />
-          <path d="M 70 348 L 130 348 L 136 362 L 64 362 Z" fill="#0d0e12" stroke="rgba(207,163,73,0.45)" strokeWidth="0.8" />
+          <path d="M 70 348 L 130 348 L 136 362 L 64 362 Z" fill="#0D0E12" stroke="rgba(207,163,73,0.45)" strokeWidth="0.8" />
           <line x1="85" y1="350" x2="81" y2="361" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
           <line x1="100" y1="350" x2="100" y2="361" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
           <line x1="115" y1="350" x2="119" y2="361" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
 
-          {/* ── DIFFUSER ───────────────────────────────────────────── */}
-          <path d="M 74 332 L 126 332 L 134 352 L 66 352 Z" fill="#101115" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
-          <line x1="88" y1="334" x2="84" y2="351" stroke="rgba(207,163,73,0.3)" strokeWidth="0.7" />
-          <line x1="100" y1="334" x2="100" y2="351" stroke="rgba(207,163,73,0.3)" strokeWidth="0.7" />
-          <line x1="112" y1="334" x2="116" y2="351" stroke="rgba(207,163,73,0.3)" strokeWidth="0.7" />
-
           {/* ── SIDEPODS ───────────────────────────────────────────── */}
           <path
             d="M 88 168 L 64 172 C 56 190 56 226 66 252 L 88 262 Z"
-            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.9"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.65)" strokeWidth="1"
           />
           <path
             d="M 112 168 L 136 172 C 144 190 144 226 134 252 L 112 262 Z"
-            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.9"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.65)" strokeWidth="1"
           />
-          {/* sidepod inlets */}
-          <rect x="63" y="174" width="7" height="14" rx="2" fill="#050506" stroke="rgba(207,163,73,0.5)" strokeWidth="0.6" />
-          <rect x="130" y="174" width="7" height="14" rx="2" fill="#050506" stroke="rgba(207,163,73,0.5)" strokeWidth="0.6" />
+          <rect x="63" y="174" width="7" height="14" rx="2" fill="#050506" stroke="rgba(207,163,73,0.6)" strokeWidth="0.6" />
+          <rect x="130" y="174" width="7" height="14" rx="2" fill="#050506" stroke="rgba(207,163,73,0.6)" strokeWidth="0.6" />
 
           {/* ── ENGINE COVER + AIRBOX + FIN ────────────────────────── */}
-          <rect x="91" y="146" width="18" height="16" rx="5" fill="#050506" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
+          <rect x="91" y="146" width="18" height="16" rx="5" fill="#050506" stroke="rgba(207,163,73,0.7)" strokeWidth="0.8" />
           <path
             d="M 88 168 L 112 168 C 112 220 108 268 104 296 L 96 296 C 92 268 88 220 88 168 Z"
-            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.9"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.7)" strokeWidth="1"
           />
-          <path d="M 98 208 L 102 208 L 101.5 292 L 98.5 292 Z" fill="rgba(207,163,73,0.35)" />
+          <path d="M 98 208 L 102 208 L 101.5 292 L 98.5 292 Z" fill="rgba(207,163,73,0.4)" />
 
           {/* ── COCKPIT + HALO ─────────────────────────────────────── */}
-          <ellipse cx="100" cy="158" rx="13" ry="20" fill="#050506" stroke="rgba(207,163,73,0.55)" strokeWidth="0.8" />
+          <ellipse cx="100" cy="158" rx="13" ry="20" fill="#050506" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
           <path
             d="M 76 170 Q 100 148 124 170"
-            fill="none" stroke="#3a3d45" strokeWidth="5.5" strokeLinecap="round"
+            fill="none" stroke="#3E424B" strokeWidth="6" strokeLinecap="round"
           />
           <path
             d="M 76 170 Q 100 148 124 170"
-            fill="none" stroke="rgba(207,163,73,0.5)" strokeWidth="1" strokeLinecap="round"
+            fill="none" stroke="rgba(207,163,73,0.6)" strokeWidth="1" strokeLinecap="round"
           />
-          <line x1="100" y1="150" x2="100" y2="164" stroke="#3a3d45" strokeWidth="4" />
+          <line x1="100" y1="150" x2="100" y2="164" stroke="#3E424B" strokeWidth="4.5" />
 
-          {/* ── CHASSIS / NOSE ─────────────────────────────────────── */}
+          {/* ── NOSE & FRONT WING ──────────────────────────────────── */}
           <path
             d="M 88 96 L 112 96 L 112 176 L 88 176 Z"
-            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.9"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.65)" strokeWidth="0.9"
           />
           <path
             d="M 74 30 C 80 52 84 74 88 96 L 112 96 C 116 74 120 52 126 30 Z"
-            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.9"
+            fill="url(#carbon-body)" stroke="rgba(207,163,73,0.7)" strokeWidth="1"
           />
-          {/* nose cape line */}
-          <path d="M 78 52 C 86 60 114 60 122 52" fill="none" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
-
-          {/* ── FRONT WING ─────────────────────────────────────────── */}
-          <rect x="10" y="4" width="9" height="30" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
-          <rect x="181" y="4" width="9" height="30" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
-          <path d="M 19 10 C 60 16 140 16 181 10 L 181 15 C 140 21 60 21 19 15 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.65)" strokeWidth="0.9" />
-          <path d="M 19 20 C 60 26 140 26 181 20 L 181 25 C 140 31 60 31 19 25 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.5)" strokeWidth="0.8" />
-          <path d="M 19 29 C 60 35 140 35 181 29 L 181 33 C 140 38 60 38 19 33 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.4)" strokeWidth="0.7" />
+          <rect x="10" y="4" width="9" height="30" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.7)" strokeWidth="0.8" />
+          <rect x="181" y="4" width="9" height="30" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.7)" strokeWidth="0.8" />
+          <path d="M 19 10 C 60 16 140 16 181 10 L 181 15 C 140 21 60 21 19 15 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.7)" strokeWidth="1" />
+          <path d="M 19 20 C 60 26 140 26 181 20 L 181 25 C 140 31 60 31 19 25 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.8" />
 
           {/* ── REAR WING ──────────────────────────────────────────── */}
-          <rect x="42" y="318" width="10" height="52" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
-          <rect x="148" y="318" width="10" height="52" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.6)" strokeWidth="0.8" />
-          {/* swan neck */}
-          <path d="M 96 296 L 104 296 L 103 336 L 97 336 Z" fill="#15161a" stroke="rgba(207,163,73,0.4)" strokeWidth="0.7" />
-          {/* main + DRS flap */}
-          <path d="M 52 340 L 148 340 L 148 350 L 52 350 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.65)" strokeWidth="0.9" />
-          <path d="M 52 326 L 148 326 L 148 335 L 52 335 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.5)" strokeWidth="0.8" />
-          <line x1="52" y1="330.5" x2="148" y2="330.5" stroke="rgba(207,163,73,0.35)" strokeWidth="0.6" />
-          {/* rain light */}
-          <rect x="96.5" y="352" width="7" height="10" rx="1.5" fill="#3d0a0d" stroke="rgba(239,68,68,0.7)" strokeWidth="0.7" />
+          <rect x="42" y="318" width="10" height="52" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.7)" strokeWidth="0.8" />
+          <rect x="148" y="318" width="10" height="52" rx="1.5" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.7)" strokeWidth="0.8" />
+          <path d="M 52 340 L 148 340 L 148 350 L 52 350 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.7)" strokeWidth="1" />
+          <path d="M 52 326 L 148 326 L 148 335 L 52 335 Z" fill="url(#wing-grad)" stroke="rgba(207,163,73,0.55)" strokeWidth="0.8" />
 
-          {/* ── WHEELS ─────────────────────────────────────────────── */}
+          {/* ── WHEELS & INCANDESCENT BRAKE GLOWS ───────────────────── */}
           {[["F", 37, 132], ["F", 163, 132], ["R", 30, 295], ["R", 170, 295]].map(
             ([end, cx, cy], i) => {
               const w = end === "F" ? 30 : 40;
               const h = end === "F" ? 72 : 86;
               return (
                 <g key={i}>
-                  {/* brake-energy glow (ref-driven opacity) */}
+                  {/* Dynamic Glowing Carbon-Ceramic Brake Disc Incandescence */}
                   <circle
                     ref={(el) => {
                       glowRefs.current[i] = el;
                     }}
                     cx={cx as number}
                     cy={cy as number}
-                    r={h / 2.6}
-                    fill="url(#tyre-warm)"
-                    style={{ opacity: 0.15, transition: "opacity 400ms" }}
+                    r={h / 2.2}
+                    fill="url(#brake-glow)"
+                    style={{
+                      opacity: 0.15,
+                      transformOrigin: `${cx}px ${cy}px`,
+                      transition: "opacity 300ms, transform 300ms",
+                    }}
                   />
+
+                  {/* Wheel Tyre Body */}
                   <rect
                     x={(cx as number) - w / 2}
                     y={(cy as number) - h / 2}
                     width={w}
                     height={h}
                     rx={w / 2.6}
-                    fill="#0c0c0f"
-                    stroke="rgba(207,163,73,0.65)"
-                    strokeWidth="1.1"
+                    fill="#0A0B0E"
+                    stroke="rgba(207,163,73,0.75)"
+                    strokeWidth="1.2"
                   />
-                  {/* 2022 wheel-cover disc */}
-                  <circle cx={cx as number} cy={cy as number} r={w / 3.1} fill="#131418" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
-                  <circle cx={cx as number} cy={cy as number} r={w / 7} fill="none" stroke="rgba(207,163,73,0.35)" strokeWidth="0.7" />
+                  {/* 2022 Aerodynamic Wheel-Cover Disc */}
+                  <circle cx={cx as number} cy={cy as number} r={w / 3.1} fill="#14161C" stroke="rgba(207,163,73,0.5)" strokeWidth="0.9" />
+                  <circle cx={cx as number} cy={cy as number} r={w / 7} fill="#1E2028" stroke="rgba(207,163,73,0.4)" strokeWidth="0.8" />
                 </g>
               );
             }
           )}
 
-          {/* ── SUSPENSION ─────────────────────────────────────────── */}
-          <g stroke="#2c2f36" strokeWidth="2.4" strokeLinecap="round">
+          {/* Suspension Wishbones */}
+          <g stroke="#353842" strokeWidth="2.6" strokeLinecap="round">
             <line x1="88" y1="116" x2="52" y2="126" />
             <line x1="88" y1="134" x2="52" y2="138" />
             <line x1="112" y1="116" x2="148" y2="126" />
@@ -309,26 +459,35 @@ export function RaceCarTelemetry() {
           </g>
         </svg>
 
-        {/* ── Compound + age badge ─────────────────────────────────── */}
-        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2">
-          <span className="font-mono text-[10px] font-bold text-white border border-red-500/60 bg-red-500/15 rounded px-1.5 py-px">
-            C4
+        {/* ── Official F1 Compound & Age Broadcast Badge ─────────────────── */}
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full bg-black/80 border border-gold/40 shadow-[0_0_12px_rgba(207,163,73,0.15)] backdrop-blur-md">
+          <div className="flex items-center gap-1.5">
+            <span
+              ref={compoundDotRef}
+              className={cn(
+                "w-2 h-2 rounded-full shadow-[0_0_6px_rgba(239,68,68,0.8)]",
+                visualCompound === 17
+                  ? "bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.8)]"
+                  : visualCompound === 18
+                    ? "bg-neutral-200 shadow-[0_0_6px_rgba(229,229,229,0.8)]"
+                    : visualCompound === 7
+                      ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                      : visualCompound === 8
+                        ? "bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.8)]"
+                        : "bg-red-500"
+              )}
+            />
+            <span ref={compoundRef} className="font-mono text-[10px] font-black text-white tracking-wider uppercase">
+              PIRELLI C4 SOFT
+            </span>
+          </div>
+          <div className="h-3 w-px bg-white/20" />
+          <span className="font-mono text-[9px] text-silver/80 tracking-[0.14em] uppercase">
+            WEAR <span ref={avgWearRef} className="text-white font-bold">12%</span> · LAP <span ref={wearRef} className="text-white font-bold">7</span> ON SET
           </span>
-          <MicroLabel>
-            LAP <span ref={wearRef} className="text-white">6</span> ON SET
-          </MicroLabel>
         </div>
+
       </div>
     </div>
   );
-}
-
-/* ── demo accessors (kept tiny; full frame not needed here) ───────── */
-import { demoFrame } from "@/lib/cockpit/demo";
-import { PanelHeader } from "./PanelHeader";
-function demoBrake(t: number) {
-  return demoFrame(t).brake;
-}
-function demoLap(t: number) {
-  return demoFrame(t).lap;
 }

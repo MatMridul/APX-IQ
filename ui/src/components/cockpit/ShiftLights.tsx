@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useCanvas } from "@/lib/cockpit/canvas";
-import { demoFrame } from "@/lib/cockpit/demo";
+import { getActiveFrame } from "@/hooks/useLiveOrDemo";
+import { useTelemetryStore } from "@/store/telemetryStore";
 import { LED_RAMP } from "@/design/system";
 import { usePrefs } from "@/lib/cockpit/preferences";
 
@@ -52,7 +53,8 @@ export function ShiftLights({
   const upshiftUntil = useRef(0);
 
   const ref = useCanvas((ctx, w, h, t) => {
-    const f = demoFrame(t);
+    const { data: f } = getActiveFrame(t);
+    if (!f) return;
     const level = motionRef.current;
 
     if (level !== "off") {
@@ -77,7 +79,13 @@ export function ShiftLights({
 
     ctx.clearRect(0, 0, w, h);
 
-    const litCount = Math.round(f.rpmPct * N);
+    const liveState = useTelemetryStore.getState();
+    const isLive = liveState.isConnected && liveState.telemetry !== null;
+    const revLightsPct = isLive && liveState.telemetry?.revLightsPercent != null && liveState.telemetry.revLightsPercent > 0
+      ? liveState.telemetry.revLightsPercent / 100
+      : f.rpmPct;
+
+    const litCount = Math.round(revLightsPct * N);
 
     // LED centers — straight row or arc (real wheel: LEDs curve over gear)
     const centers: Array<{ x: number; y: number; d: number }> = [];

@@ -230,7 +230,7 @@ class DeltaEngine:
             total_time_delta_ms=total_time,
             max_time_gained_ms=max_gained,
             max_time_lost_ms=max_lost,
-            avg_speed_delta_kph=float(np.mean(speed_delta)),
+            avg_speed_delta_kph=float(np.mean(speed_delta)) if len(speed_delta) > 0 else 0.0,
             worst_corner_index=worst_corner,
             best_corner_index=best_corner,
         )

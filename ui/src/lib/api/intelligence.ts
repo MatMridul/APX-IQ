@@ -92,6 +92,54 @@ export type SaveReportPayload = {
   hardware_profile: HardwareProfile | null;
 };
 
+export type CoachingTipItem = {
+  category: string;
+  severity: string;
+  message: string;
+  corner_index: number;
+  time_impact_ms: number;
+  estimated_impact_ms?: number;
+};
+
+export type BrakePointDeltaItem = {
+  corner_index: number;
+  delta_m: number;
+  user_brake_distance_m: number;
+  ghost_brake_distance_m: number;
+};
+
+export type DeltaResponse = {
+  total_time_delta_ms: number;
+  avg_speed_delta_kph: number;
+  worst_corner_index: number;
+  best_corner_index: number;
+  corner_count: number;
+  distance_grid: number[];
+  speed_delta_kph: number[];
+  cumulative_time_delta_ms: number[];
+  brake_point_deltas: BrakePointDeltaItem[];
+  coaching_tips: CoachingTipItem[];
+};
+
+export type BattleRequest = {
+  current_position: number;
+  gap_ahead_s: number;
+  gap_behind_s: number;
+  laps_remaining: number;
+  gap_to_leader_s?: number;
+};
+
+export type BattleProjectionResponse = {
+  current_position: number;
+  predicted_finish: number;
+  risk_level: string;
+  ahead_overtake_probability: number;
+  ahead_laps_to_overtake: number | null;
+  ahead_action: string;
+  behind_overtake_probability: number;
+  behind_action: string;
+};
+
 export type GenerateReportPayload = {
   user_telemetry: TelemetryPoint[];
   ghost_telemetry: TelemetryPoint[];
@@ -236,25 +284,69 @@ export async function fetchReportById(reportId: number): Promise<LapReport> {
   return res.json();
 }
 
-// ─── Mock telemetry for testing without a running game ───────────────────────
+export async function fetchDelta(payload: GenerateReportPayload): Promise<DeltaResponse> {
+  const res = await fetch(`${BASE}/intelligence/delta`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Delta computation failed: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+export async function predictBattle(payload: BattleRequest): Promise<BattleProjectionResponse> {
+  const res = await fetch(`${BASE}/intelligence/battle`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Battle prediction failed: ${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+// ─── Mock telemetry for testing without a running game (Physics-Plausible) ───
+
+import { lapProfile } from "@/lib/cockpit/demo";
 
 export function buildMockPayload(): GenerateReportPayload {
-  const makeTrace = (speedOffset = 0, throttleScale = 1) =>
-    Array.from({ length: 500 }, (_, i) => ({
-      distance_m: i * 10,
-      speed_kph:  250 + speedOffset + 30 * Math.sin(i / 50),
-      throttle:   Math.min(1, (0.8 + 0.2 * Math.sin(i / 50)) * throttleScale),
-      brake:      Math.max(0, -0.2 * Math.sin(i / 50)),
-      steer:      0.1 * Math.sin(i / 30),
-      gear:       Math.min(8, Math.max(1, Math.floor(i / 60))),
-      rpm:        10000 + 2000 * Math.sin(i / 50),
-      drs:        i % 100 > 50,
-      x: i * 5, y: 100 * Math.sin(i / 100), z: 0,
-    }));
+  const profile = lapProfile(500);
+  
+  const userTrace: TelemetryPoint[] = profile.dist.map((d, i) => ({
+    distance_m: d,
+    speed_kph: profile.speed[i],
+    throttle: profile.throttle[i],
+    brake: profile.brake[i],
+    steer: 0.12 * Math.sin(d / 120),
+    gear: profile.gear[i],
+    rpm: 9000 + 3500 * (profile.throttle[i] > 0.1 ? 0.8 : 0.2),
+    drs: profile.speed[i] > 220 && profile.throttle[i] > 0.9,
+    x: d * 0.5,
+    y: 100 * Math.sin(d / 180),
+    z: 0,
+  }));
+
+  // Ghost: 2-3% faster on exits and braking 8m later into corners
+  const ghostTrace: TelemetryPoint[] = profile.dist.map((d, i) => {
+    const isBraking = profile.brake[i] > 0.1;
+    const speedBoost = isBraking ? 5 : 8 * profile.throttle[i];
+    return {
+      distance_m: d,
+      speed_kph: Math.min(345, profile.speed[i] + speedBoost),
+      throttle: Math.min(1.0, profile.throttle[i] * 1.05),
+      brake: isBraking ? Math.max(0, profile.brake[i] - 0.05) : 0,
+      steer: 0.11 * Math.sin(d / 120),
+      gear: profile.gear[i],
+      rpm: 9200 + 3600 * (profile.throttle[i] > 0.1 ? 0.85 : 0.2),
+      drs: profile.speed[i] + speedBoost > 220 && profile.throttle[i] > 0.9,
+      x: d * 0.5,
+      y: 100 * Math.sin(d / 180),
+      z: 0,
+    };
+  });
 
   return {
-    user_telemetry:  makeTrace(0, 1),
-    ghost_telemetry: makeTrace(5, 1.05),
-    grid_points:     1000,
+    user_telemetry: userTrace,
+    ghost_telemetry: ghostTrace,
+    grid_points: 1000,
   };
 }

@@ -1,196 +1,244 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { MicroLabel } from "./primitives";
+import { useEffect, useRef } from "react";
+import { SourceBadge } from "./primitives";
+import { useLiveOrDemo } from "@/hooks/useLiveOrDemo";
+import { useTelemetryStore } from "@/store/telemetryStore";
+import { PanelHeader } from "./PanelHeader";
+import { demoFrame } from "@/lib/cockpit/demo";
+import { scheduler } from "@/lib/cockpit/scheduler";
+import { useUxStore } from "@/store/uxStore";
+import { soundFx } from "@/lib/cockpit/soundFx";
 
 /**
- * Bottom instruments — now driven by the demo generator:
- *
- *   TYRE PRESSURE — four corner readouts (psi). Physical behavior:
- *   pressures climb as tyres warm through a stint, with per-corner
- *   phase and load coupling. Bars + values, ref-written at 5 Hz.
- *
- *   BRAKE BIAS — the engineer's lever: steps between 54–58.5% every
- *   few corners (a "click"), needle lerps to target each frame
- *   (Domain A), value readout snaps.
+ * BottomInstruments — Broadcast & Esports High-Octane Chassis Telemetry:
+ *  - Tyre Pressures: 4-corner clickable diagnostics gauges with target operating window brackets
+ *  - Brake Bias: Mechanical balance lever with interactive click/drag and live front/rear split
  */
 
 const CORNERS = ["FL", "FR", "RL", "RR"] as const;
 const PHASE = [0.0, 1.3, 2.4, 3.6];
 
 export function BottomInstruments() {
+  const { source } = useLiveOrDemo();
+  const brakeBiasPct = useUxStore((s) => s.brakeBiasPct);
+  const setBrakeBias = useUxStore((s) => s.setBrakeBias);
+  const openTyreModal = useUxStore((s) => s.openTyreModal);
+
   // Tyre pressure refs
   const psiRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const barRefs = useRef<Array<HTMLDivElement | null>>([]);
 
-  // Brake bias state
-  const [biasTxt, setBiasTxt] = useState("56.0");
-  const biasTarget = useRef(56);
-  const biasShown = useRef(56);
+  // Brake bias refs
+  const biasShown = useRef(56.4);
   const needleRef = useRef<HTMLDivElement | null>(null);
   const clickFlash = useRef<HTMLSpanElement | null>(null);
+  const prevBias = useRef<number>(56.4);
 
   useEffect(() => {
-    // Tyre pressures — 5 Hz discrete updates, CSS transitions smooth.
-    // Dynamics amplified to be perceivable (audit: bars looked frozen):
-    // warm-up 2.2 psi over stint + ±1.15 psi thermal sine + load coupling.
+    // Flash indicator when bias changes
+    if (prevBias.current !== brakeBiasPct) {
+      const delta = brakeBiasPct - prevBias.current;
+      if (clickFlash.current && Math.abs(delta) > 0.05) {
+        clickFlash.current.textContent = `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}%`;
+        clickFlash.current.style.opacity = "1";
+        setTimeout(() => {
+          if (clickFlash.current) clickFlash.current.style.opacity = "0";
+        }, 850);
+      }
+      prevBias.current = brakeBiasPct;
+    }
+  }, [brakeBiasPct]);
+
+  useEffect(() => {
+    // Tyre pressures — 5 Hz discrete updates
     const psiIv = setInterval(() => {
+      const state = useTelemetryStore.getState();
+      const isLive = state.isConnected && state.telemetry !== null;
+      const livePressures = state.telemetry?.tyresPressure;
+
       const t = performance.now() / 1000;
-      const f = demoFrameSafe(t);
+      let f;
+      try {
+        f = demoFrame(t);
+      } catch {
+        f = { lap: 1, brake: 0, throttle: 0.5 };
+      }
+
       CORNERS.forEach((c, i) => {
-        const warm = Math.min(1, f.lap * 0.12);
-        const psi =
-          20.6 +
-          warm * 2.2 +
-          1.15 * Math.sin(t / 9 + PHASE[i]) +
-          (i >= 2 ? f.brake * 0.5 : f.throttle * 0.2);
+        let psi: number;
+        if (isLive && livePressures && livePressures[i] != null && livePressures[i] > 0) {
+          psi = livePressures[i];
+        } else {
+          const warm = Math.min(1, f.lap * 0.12);
+          psi =
+            20.6 +
+            warm * 2.2 +
+            1.15 * Math.sin(t / 9 + PHASE[i]) +
+            (i >= 2 ? f.brake * 0.5 : f.throttle * 0.2);
+        }
+
         const el = psiRefs.current[i];
         if (el) el.textContent = psi.toFixed(1);
+
         const bar = barRefs.current?.[i];
         if (bar) {
-          const frac = Math.min(1, Math.max(0, (psi - 20) / 4));
+          const frac = Math.min(1, Math.max(0, (psi - 20) / 4.2));
           bar.style.width = `${frac * 100}%`;
-          bar.style.background =
-            psi > 23.4 ? "var(--color-signal-caution)" : "var(--color-signal-go)";
+          const isOptimal = psi >= 21.0 && psi <= 23.5;
+          bar.style.background = isOptimal ? "var(--color-signal-go)" : "var(--color-signal-caution)";
+          bar.style.boxShadow = isOptimal
+            ? "0 0 8px rgba(34,197,94,0.6)"
+            : "0 0 8px rgba(234,179,8,0.6)";
         }
       });
     }, 200);
 
-    // Bias "clicks" — every ~7 s, ±0.5–1.0% within a 54.5–57.5 window
-    const clickIv = setInterval(() => {
-      const delta = (Math.random() > 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);
-      biasTarget.current = Math.min(57.5, Math.max(54.5, biasTarget.current + delta));
-      setBiasTxt(biasTarget.current.toFixed(1));
-      if (clickFlash.current) {
-        clickFlash.current.textContent = `${delta > 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}`;
-        clickFlash.current.style.opacity = "1";
-        setTimeout(() => {
-          if (clickFlash.current) clickFlash.current.style.opacity = "0";
-        }, 900);
-      }
-    }, 7000);
-
-    // Needle lerp — Domain A. Needle domain zoomed to 52–60% so a
-    // 0.5% click visibly travels (audit: movement imperceptible).
-    const unsub = schedulerLerp((dt: number) => {
-      biasShown.current +=
-        (biasTarget.current - biasShown.current) * (1 - Math.exp(-6 * dt));
+    // Smooth needle lerp
+    const unsub = scheduler.add((_t, dt) => {
+      const safeDt = Math.max(0.001, Math.min(0.2, Number.isFinite(dt) ? dt : 0.016));
+      const target = useUxStore.getState().brakeBiasPct;
+      biasShown.current += (target - biasShown.current) * (1 - Math.exp(-8 * safeDt));
+      if (!Number.isFinite(biasShown.current)) biasShown.current = 56.4;
       if (needleRef.current) {
-        needleRef.current.style.left = `${10 + ((biasShown.current - 52) / 8) * 80}%`;
+        const leftPct = Math.min(100, Math.max(0, ((biasShown.current - 50) / 14) * 100));
+        needleRef.current.style.left = `${leftPct.toFixed(2)}%`;
       }
     });
 
     return () => {
       clearInterval(psiIv);
-      clearInterval(clickIv);
       unsub();
     };
   }, []);
 
+  const rearSplit = (100 - brakeBiasPct).toFixed(1);
+
+  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const newBias = 50.0 + frac * 14.0;
+    soundFx.playButtonClick();
+    setBrakeBias(Number(newBias.toFixed(1)));
+  };
+
   return (
     <div className="w-full h-full flex items-stretch gap-2.5 select-none">
+      
       {/* ── TYRE PRESSURE ─────────────────────────────────────────── */}
-      <div className="apx-panel flex-1 h-full flex flex-col p-2.5 relative">
-        <PanelHeader label="Tyre press · psi" />
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 flex-1 content-center">
+      <div className="apx-panel flex-1 h-full flex flex-col p-2.5 bg-gradient-to-b from-[#111116] to-[#08080B] border border-gold/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] relative">
+        <PanelHeader label="Tyre Press · PSI" right={<SourceBadge source={source} />} />
+
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 flex-1 content-center">
           {CORNERS.map((c, i) => (
-            <div key={c}>
+            <div
+              key={c}
+              onClick={() => {
+                const psiVal = psiRefs.current[i] ? parseFloat(psiRefs.current[i]!.textContent || "21.6") : 21.6;
+                openTyreModal({
+                  corner: c,
+                  surfaceTempC: c.startsWith("F") ? 98 : 88,
+                  coreTempC: c.startsWith("F") ? 104 : 95,
+                  brakeTempC: c.startsWith("F") ? 645 : 440,
+                  psi: psiVal,
+                  wearPct: c.startsWith("F") ? 10 : 12,
+                  compound: "C4 SOFT",
+                });
+              }}
+              className="p-1.5 rounded-lg bg-black/40 ring-1 ring-white/5 hover:ring-gold/50 hover:bg-black/80 transition-all cursor-pointer select-none"
+              title={`Click for ${c} Detailed Diagnostics`}
+            >
               <div className="flex justify-between items-baseline">
-                <span className="font-mono text-[9px] tracking-[0.14em] text-silver/50">
+                <span className="font-mono text-[9px] tracking-[0.14em] text-silver/60 font-bold">
                   {c}
                 </span>
                 <span
                   ref={(el) => {
                     psiRefs.current[i] = el;
                   }}
-                  className="font-mono text-[13px] text-white tabular-nums"
+                  className="font-mono text-xs font-black text-white tabular-nums tracking-tight"
                 >
-                  21.0
+                  21.6
                 </span>
               </div>
-              <div className="h-1 rounded-full bg-white/5 overflow-hidden mt-0.5">
+              <div className="h-1 rounded-full bg-white/10 overflow-hidden mt-1">
                 <div
                   ref={(el) => {
                     if (barRefs.current) barRefs.current[i] = el;
                   }}
-                  className="h-full rounded-full transition-[width,background-color] duration-300"
-                  style={{ width: "30%", background: "var(--color-signal-go)" }}
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: "45%", background: "var(--color-signal-go)" }}
                 />
               </div>
             </div>
           ))}
         </div>
-        <div className="flex justify-between font-mono text-[8px] tracking-[0.14em] text-silver/30 mt-1">
-          <span>19</span>
-          <span>WINDOW 21–24</span>
-          <span>25</span>
+
+        <div className="flex justify-between items-center font-mono text-[8px] tracking-[0.12em] text-silver/40 pt-1 border-t border-white/5">
+          <span>MIN 19</span>
+          <span className="text-signal-go font-bold">WINDOW 21–24 PSI</span>
+          <span>MAX 25</span>
         </div>
       </div>
 
       {/* ── BRAKE BIAS ────────────────────────────────────────────── */}
-      <div className="apx-panel flex-1 h-full flex flex-col p-2.5 relative">
-        <div className="flex items-center justify-between mb-1.5">
-          <PanelHeader label="Brake bias" className="!mb-0" />
+      <div className="apx-panel flex-1 h-full flex flex-col p-2.5 bg-gradient-to-b from-[#111116] to-[#08080B] border border-gold/30 shadow-[0_0_20px_rgba(0,0,0,0.8)] relative">
+        <div className="flex items-center justify-between mb-1">
+          <PanelHeader label="Brake Bias" className="!mb-0" right={<SourceBadge source={source} />} />
           <div className="flex items-center gap-1.5">
             <span
               ref={clickFlash}
-              className="font-mono text-[9px] text-gold transition-opacity duration-500"
+              className="font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-gold/20 text-gold border border-gold/40 shadow-[0_0_8px_rgba(207,163,73,0.5)] transition-opacity duration-300"
               style={{ opacity: 0 }}
             />
-            <span className="font-mono text-[13px] text-white tabular-nums">
-              {biasTxt}
-              <span className="text-silver/40 text-[9px]"> % FRONT</span>
+            <span className="font-mono text-xs font-black text-white tabular-nums">
+              {brakeBiasPct.toFixed(1)}<span className="text-gold text-[9px]"> % F</span>
             </span>
           </div>
         </div>
 
         <div className="flex-1 flex flex-col justify-center">
-          <div className="relative h-10">
-            {/* track */}
-            <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 rounded-full bg-white/5" />
-            {/* click zone shading 54–58.5 */}
+          <div
+            onClick={handleTrackClick}
+            className="relative h-7 flex items-center cursor-pointer group"
+            title="Click or drag to adjust Front/Rear Brake Balance"
+          >
+            {/* Track Line */}
+            <div className="w-full h-1.5 rounded-full bg-white/10 relative overflow-hidden">
+              <div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-500/40 via-gold/50 to-green-500/40"
+                style={{ width: "100%" }}
+              />
+            </div>
+
+            {/* Target Operating Zone Shading (54-58%) */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 h-3 rounded-sm bg-gold/10 border-x border-gold/30"
-              style={{ left: "31%", width: "38%" }}
+              className="absolute h-3 rounded-sm bg-gold/15 border-x border-gold/50 shadow-[0_0_8px_rgba(207,163,73,0.2)] pointer-events-none"
+              style={{ left: "28.5%", width: "43%" }}
             />
-            {/* needle */}
+
+            {/* Glowing Indicator Needle */}
             <div
               ref={needleRef}
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[3px] h-8 rounded-full"
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-6 rounded-full bg-gold shadow-[0_0_12px_rgba(207,163,73,0.9)] border border-white pointer-events-none transition-transform group-hover:scale-110"
               style={{
-                left: "50%",
-                background: "var(--color-gold)",
-                boxShadow: "0 0 8px rgba(207,163,73,0.6)",
+                left: "45.7%",
                 transition: "none",
               }}
             />
           </div>
-          <div className="flex justify-between font-mono text-[8px] tracking-[0.14em] text-silver/30">
-            <span>52</span>
-            <span>REAR ← → FRONT</span>
-            <span>60</span>
+
+          <div className="flex justify-between font-mono text-[8px] tracking-[0.12em] text-silver/50">
+            <span>50% REAR</span>
+            <span className="text-white font-bold tracking-wider">{brakeBiasPct.toFixed(1)} : {rearSplit}</span>
+            <span>64% FRONT</span>
           </div>
         </div>
-        <MicroLabel className="text-center">adjusts per corner · SIM</MicroLabel>
+
+        <div className="text-center font-mono text-[8px] tracking-[0.16em] uppercase text-silver/40">
+          CLICK OR DRAG TO CALIBRATE BIAS
+        </div>
       </div>
     </div>
   );
-}
-
-/* ── helpers ─────────────────────────────────────────────────────── */
-
-import { demoFrame } from "@/lib/cockpit/demo";
-import { scheduler } from "@/lib/cockpit/scheduler";
-import { PanelHeader } from "./PanelHeader";
-
-function demoFrameSafe(t: number) {
-  try {
-    return demoFrame(t);
-  } catch {
-    return { lap: 1, brake: 0, throttle: 0.5 };
-  }
-}
-
-function schedulerLerp(fn: (dt: number) => void) {
-  return scheduler.add((_t, dt) => fn(dt));
 }

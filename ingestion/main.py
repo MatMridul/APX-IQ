@@ -197,6 +197,45 @@ async def packet_processor(listener: TelemetryListener) -> None:
                 # ── Motion (ID=0) ─────────────────────────────────────────────
                 if packet_type_id == 0:
                     recorder.update_motion(player_idx, packet)
+                    if not settings.stealth_mode:
+                        motion_dict = adapter.extract_motion(packet, player_idx)
+                        await sio.emit("motion_update", {
+                            "worldPosX": motion_dict["world_pos_x"],
+                            "worldPosY": motion_dict["world_pos_y"],
+                            "worldPosZ": motion_dict["world_pos_z"],
+                            "worldVelX": motion_dict["world_vel_x"],
+                            "worldVelY": motion_dict["world_vel_y"],
+                            "worldVelZ": motion_dict["world_vel_z"],
+                            "gForceLat": motion_dict["g_force_lat"],
+                            "gForceLon": motion_dict["g_force_lon"],
+                            "gForceVert": motion_dict["g_force_vert"],
+                            "yaw": motion_dict["yaw"],
+                            "pitch": motion_dict["pitch"],
+                            "roll": motion_dict["roll"],
+                        })
+
+                # ── Participants (ID=4) ───────────────────────────────────────
+                elif packet_type_id == 4:
+                    if not settings.stealth_mode:
+                        part_dict = adapter.extract_participants(packet)
+                        await sio.emit("participants_update", {
+                            "numActiveCars": part_dict.get("num_active_cars", 0),
+                            "participants": [
+                                {
+                                    "carIndex": p.get("car_index", i),
+                                    "aiControlled": p.get("ai_controlled", False),
+                                    "driverId": p.get("driver_id", 0),
+                                    "networkId": p.get("network_id", 0),
+                                    "teamId": p.get("team_id", 0),
+                                    "myTeam": p.get("my_team", False),
+                                    "raceNumber": p.get("race_number", 0),
+                                    "nationality": p.get("nationality", 0),
+                                    "name": p.get("name", ""),
+                                    "yourTelemetry": p.get("your_telemetry", 0),
+                                }
+                                for i, p in enumerate(part_dict.get("participants", []))
+                            ],
+                        })
 
                 # ── Car Telemetry (ID=6) ──────────────────────────────────────
                 elif packet_type_id == 6:
@@ -205,13 +244,22 @@ async def packet_processor(listener: TelemetryListener) -> None:
                     if not settings.stealth_mode and (now - last_telemetry_emit >= _TELEMETRY_INTERVAL):
                         telem_dict = adapter.extract_telemetry(packet, player_idx)
                         await sio.emit("telemetry_update", {
-                            "speed":      telem_dict["speed_kph"],
-                            "throttle":   telem_dict["throttle"],
-                            "brake":      telem_dict["brake"],
-                            "gear":       telem_dict["gear"],
-                            "rpm":        telem_dict["rpm"],
-                            "drs":        telem_dict["drs"],
-                            "tyreTemps":  telem_dict["tyre_surface_temps"],
+                            "speed": telem_dict["speed_kph"],
+                            "throttle": telem_dict["throttle"],
+                            "brake": telem_dict["brake"],
+                            "steer": telem_dict["steer"],
+                            "gear": telem_dict["gear"],
+                            "rpm": telem_dict["rpm"],
+                            "drs": telem_dict["drs"],
+                            "tyreTemps": telem_dict["tyre_surface_temps"],
+                            "tyreInnerTemps": telem_dict["tyre_inner_temps"],
+                            "brakesTemp": telem_dict["brakes_temperature"],
+                            "tyresPressure": telem_dict["tyres_pressure"],
+                            "clutch": telem_dict["clutch"],
+                            "engineTemp": telem_dict["engine_temperature"],
+                            "revLightsPercent": telem_dict["rev_lights_percent"],
+                            "surfaceType": telem_dict["surface_type"],
+                            "suggestedGear": telem_dict["suggested_gear"],
                         })
                         last_telemetry_emit = now
 
@@ -221,14 +269,19 @@ async def packet_processor(listener: TelemetryListener) -> None:
                         lap_dict = adapter.extract_lap_data(packet, player_idx)
                         await sio.emit("lap_update", {
                             "currentLapTime": lap_dict["current_lap_time_ms"],
-                            "lastLapTime":    lap_dict["last_lap_time_ms"],
-                            "sector1":        lap_dict["sector_1_ms"],
-                            "sector2":        lap_dict["sector_2_ms"],
-                            "position":       lap_dict["position"],
-                            "lap":            lap_dict["lap_number"],
-                            "totalDistance":  lap_dict["total_distance_m"],
-                            "lapDistance":    lap_dict["lap_distance_m"],
-                            "deltaToFront":   0.0,
+                            "lastLapTime": lap_dict["last_lap_time_ms"],
+                            "sector1": lap_dict["sector_1_ms"],
+                            "sector2": lap_dict["sector_2_ms"],
+                            "position": lap_dict["position"],
+                            "lap": lap_dict["lap_number"],
+                            "totalDistance": lap_dict["total_distance_m"],
+                            "lapDistance": lap_dict["lap_distance_m"],
+                            "deltaToFrontMs": lap_dict["delta_to_front_ms"],
+                            "deltaToLeaderMs": lap_dict["delta_to_leader_ms"],
+                            "safetyCarDelta": lap_dict["safety_car_delta"],
+                            "sector": lap_dict["sector"],
+                            "pitStatus": lap_dict["pit_status"],
+                            "numPitStops": lap_dict["num_pit_stops"],
                         })
                     recorder.update_lap_data(player_idx, packet)
 
@@ -238,34 +291,263 @@ async def packet_processor(listener: TelemetryListener) -> None:
                     if not settings.stealth_mode:
                         status_dict = adapter.extract_car_status(packet, player_idx)
                         await sio.emit("car_status_update", {
-                            "fuelInTank":        status_dict["fuel_in_tank"],
+                            "fuelInTank": status_dict["fuel_in_tank"],
                             "fuelRemainingLaps": status_dict["fuel_remaining_laps"],
-                            "maxRPM":            status_dict["max_rpm"],
-                            "drsAllowed":        status_dict["drs_allowed"],
-                            "tyreCompound":      status_dict["tyre_compound"],
-                            "ersStoreEnergy":    status_dict["ers_store_energy"],
+                            "maxRPM": status_dict["max_rpm"],
+                            "drsAllowed": status_dict["drs_allowed"],
+                            "tyreCompound": status_dict["tyre_compound"],
+                            "ersStoreEnergy": status_dict["ers_store_energy"],
+                            "frontBrakeBias": status_dict["front_brake_bias"],
+                            "fuelMix": status_dict["fuel_mix"],
+                            "ersDeployMode": status_dict["ers_deploy_mode"],
+                            "ersHarvestedMGUK": status_dict["ers_harvested_mguk"],
+                            "ersHarvestedMGUH": status_dict["ers_harvested_mguh"],
+                            "ersDeployedThisLap": status_dict["ers_deployed_this_lap"],
+                            "tyresAgeLaps": status_dict["tyres_age_laps"],
+                            "visualTyreCompound": status_dict["visual_tyre_compound"],
+                            "vehicleFiaFlags": status_dict["vehicle_fia_flags"],
+                            "drsActivationDist": status_dict["drs_activation_distance"],
                         })
 
                 # ── Session (ID=1) ────────────────────────────────────────────
                 elif packet_type_id == 1:
+                    session_dict = adapter.extract_session(packet)
+                    session_uid = getattr(header, "m_sessionUID", 0)
                     if not settings.stealth_mode:
                         await sio.emit("session_update", {
-                            "trackId":     packet.m_trackId,
-                            "weather":     packet.m_weather,
-                            "totalLaps":   packet.m_totalLaps,
-                            "trackLength": packet.m_trackLength,
-                            "uid":         str(packet.m_header.m_sessionUID),
+                            "trackId": session_dict["track_id"],
+                            "weather": session_dict["weather"],
+                            "totalLaps": session_dict["total_laps"],
+                            "trackLength": session_dict["track_length"],
+                            "uid": str(session_uid),
+                            "trackTemp": session_dict["track_temperature"],
+                            "airTemp": session_dict["air_temperature"],
+                            "sessionType": session_dict["session_type"],
+                            "sessionTimeLeft": session_dict["session_time_left"],
+                            "sessionDuration": session_dict["session_duration"],
+                            "safetyCarStatus": session_dict["safety_car_status"],
+                            "networkGame": session_dict["network_game"],
+                            "formula": session_dict["formula"],
+                            "aiDifficulty": session_dict["ai_difficulty"],
                         })
                     recorder.on_session_start(
-                        session_uid=packet.m_header.m_sessionUID,
-                        track_id=packet.m_trackId,
-                        track_length=packet.m_trackLength,
+                        session_uid=session_uid,
+                        track_id=session_dict["track_id"],
+                        track_length=session_dict["track_length"],
                     )
                     await bridge_session_to_api(
-                        packet.m_header.m_sessionUID,
-                        packet.m_trackId,
-                        packet.m_trackLength,
+                        session_uid,
+                        session_dict["track_id"],
+                        session_dict["track_length"],
                     )
+
+                # ── Car Damage (ID=10) ────────────────────────────────────────
+                elif packet_type_id == 10:
+                    if not settings.stealth_mode:
+                        damage_dict = adapter.extract_car_damage(packet, player_idx)
+                        await sio.emit("car_damage_update", {
+                            "tyresWear": damage_dict["tyres_wear"],
+                            "tyresDamage": damage_dict["tyres_damage"],
+                            "brakesDamage": damage_dict["brakes_damage"],
+                            "tyreBlisters": damage_dict["tyre_blisters"],
+                            "frontLeftWingDamage": damage_dict["front_left_wing_damage"],
+                            "frontRightWingDamage": damage_dict["front_right_wing_damage"],
+                            "rearWingDamage": damage_dict["rear_wing_damage"],
+                            "floorDamage": damage_dict["floor_damage"],
+                            "diffuserDamage": damage_dict["diffuser_damage"],
+                            "sidepodDamage": damage_dict["sidepod_damage"],
+                            "drsFault": damage_dict["drs_fault"],
+                            "ersFault": damage_dict["ers_fault"],
+                            "gearboxDamage": damage_dict["gearbox_damage"],
+                            "engineDamage": damage_dict["engine_damage"],
+                            "engineMGUHWear": damage_dict["engine_mguh_wear"],
+                            "engineESWear": damage_dict["engine_es_wear"],
+                            "engineCEWear": damage_dict["engine_ce_wear"],
+                            "engineICEWear": damage_dict["engine_ice_wear"],
+                            "engineMGUKWear": damage_dict["engine_mguk_wear"],
+                            "engineTCWear": damage_dict["engine_tc_wear"],
+                            "engineBlown": damage_dict["engine_blown"],
+                            "engineSeized": damage_dict["engine_seized"],
+                        })
+
+                # ── Session History (ID=11) ───────────────────────────────────
+                elif packet_type_id == 11:
+                    if not settings.stealth_mode:
+                        history_dict = adapter.extract_session_history(packet)
+                        # Only emit if it relates to player car or general session
+                        await sio.emit("session_history_update", {
+                            "carIdx": history_dict["car_idx"],
+                            "numLaps": history_dict["num_laps"],
+                            "numTyreStints": history_dict["num_tyre_stints"],
+                            "bestLapTimeLapNum": history_dict["best_lap_time_lap_num"],
+                            "bestSector1LapNum": history_dict["best_sector1_lap_num"],
+                            "bestSector2LapNum": history_dict["best_sector2_lap_num"],
+                            "bestSector3LapNum": history_dict["best_sector3_lap_num"],
+                            "laps": [
+                                {
+                                    "lapNum": l["lap_num"],
+                                    "lapTimeMs": l["lap_time_ms"],
+                                    "sector1Ms": l["sector_1_ms"],
+                                    "sector2Ms": l["sector_2_ms"],
+                                    "sector3Ms": l["sector_3_ms"],
+                                    "isValid": l["is_valid"],
+                                }
+                                for l in history_dict["laps"]
+                            ],
+                            "stints": [
+                                {
+                                    "stintIdx": s["stint_idx"],
+                                    "endLap": s["end_lap"],
+                                    "actualCompound": s["actual_compound"],
+                                    "visualCompound": s["visual_compound"],
+                                }
+                                for s in history_dict["stints"]
+                            ],
+                        })
+
+                # ── Car Setups (ID=5) ─────────────────────────────────────────
+                elif packet_type_id == 5:
+                    if not settings.stealth_mode:
+                        setup_dict = adapter.extract_car_setups(packet, player_idx)
+                        await sio.emit("car_setups_update", {
+                            "frontWing": setup_dict["front_wing"],
+                            "rearWing": setup_dict["rear_wing"],
+                            "onThrottle": setup_dict["on_throttle"],
+                            "offThrottle": setup_dict["off_throttle"],
+                            "frontCamber": setup_dict["front_camber"],
+                            "rearCamber": setup_dict["rear_camber"],
+                            "frontToe": setup_dict["front_toe"],
+                            "rearToe": setup_dict["rear_toe"],
+                            "frontSuspension": setup_dict["front_suspension"],
+                            "rearSuspension": setup_dict["rear_suspension"],
+                            "frontAntiRollBar": setup_dict["front_anti_roll_bar"],
+                            "rearAntiRollBar": setup_dict["rear_anti_roll_bar"],
+                            "frontSuspensionHeight": setup_dict["front_suspension_height"],
+                            "rearSuspensionHeight": setup_dict["rear_suspension_height"],
+                            "brakePressure": setup_dict["brake_pressure"],
+                            "brakeBias": setup_dict["brake_bias"],
+                            "engineBraking": setup_dict["engine_braking"],
+                            "rearLeftTyrePressure": setup_dict["rear_left_tyre_pressure"],
+                            "rearRightTyrePressure": setup_dict["rear_right_tyre_pressure"],
+                            "frontLeftTyrePressure": setup_dict["front_left_tyre_pressure"],
+                            "frontRightTyrePressure": setup_dict["front_right_tyre_pressure"],
+                            "ballast": setup_dict["ballast"],
+                            "fuelLoad": setup_dict["fuel_load"],
+                            "nextFrontWingValue": setup_dict["next_front_wing_value"],
+                        })
+
+                # ── Motion Ex (ID=13) ─────────────────────────────────────────
+                elif packet_type_id == 13:
+                    if not settings.stealth_mode:
+                        motion_ex_dict = adapter.extract_motion_ex(packet)
+                        await sio.emit("motion_ex_update", {
+                            "suspensionPosition": motion_ex_dict["suspension_position"],
+                            "suspensionVelocity": motion_ex_dict["suspension_velocity"],
+                            "suspensionAcceleration": motion_ex_dict["suspension_acceleration"],
+                            "wheelSpeed": motion_ex_dict["wheel_speed"],
+                            "wheelSlipRatio": motion_ex_dict["wheel_slip_ratio"],
+                            "wheelSlipAngle": motion_ex_dict["wheel_slip_angle"],
+                            "wheelLatForce": motion_ex_dict["wheel_lat_force"],
+                            "wheelLongForce": motion_ex_dict["wheel_long_force"],
+                            "heightOfCOGAboveGround": motion_ex_dict["height_of_cog_above_ground"],
+                            "localVelocityX": motion_ex_dict["local_velocity_x"],
+                            "localVelocityY": motion_ex_dict["local_velocity_y"],
+                            "localVelocityZ": motion_ex_dict["local_velocity_z"],
+                            "angularVelocityX": motion_ex_dict["angular_velocity_x"],
+                            "angularVelocityY": motion_ex_dict["angular_velocity_y"],
+                            "angularVelocityZ": motion_ex_dict["angular_velocity_z"],
+                            "angularAccelerationX": motion_ex_dict["angular_acceleration_x"],
+                            "angularAccelerationY": motion_ex_dict["angular_acceleration_y"],
+                            "angularAccelerationZ": motion_ex_dict["angular_acceleration_z"],
+                            "frontWheelsAngle": motion_ex_dict["front_wheels_angle"],
+                        })
+
+                # ── Event (ID=3) ──────────────────────────────────────────────
+                elif packet_type_id == 3:
+                    if not settings.stealth_mode:
+                        event_dict = adapter.extract_event(packet)
+                        await sio.emit("event_update", {
+                            "eventCode": event_dict.get("event_code", ""),
+                            "eventType": event_dict.get("event_type", "UNKNOWN"),
+                            "vehicleIdx": event_dict.get("vehicle_idx"),
+                            "lapTime": event_dict.get("lap_time"),
+                            "penaltyType": event_dict.get("penalty_type"),
+                            "infringementType": event_dict.get("infringement_type"),
+                            "otherVehicleIdx": event_dict.get("other_vehicle_idx"),
+                            "time": event_dict.get("time"),
+                            "lapNum": event_dict.get("lap_num"),
+                            "placesGained": event_dict.get("places_gained"),
+                            "speed": event_dict.get("speed"),
+                            "isOverallFastest": event_dict.get("is_overall_fastest"),
+                            "isDriverFastest": event_dict.get("is_driver_fastest"),
+                            "fastestVehicleIdx": event_dict.get("fastest_vehicle_idx"),
+                            "fastestSpeed": event_dict.get("fastest_speed"),
+                            "numLights": event_dict.get("num_lights"),
+                            "frameIdentifier": event_dict.get("frame_identifier"),
+                            "sessionTime": event_dict.get("session_time"),
+                            "buttonStatus": event_dict.get("button_status"),
+                            "overtakingVehicleIdx": event_dict.get("overtaking_vehicle_idx"),
+                            "beingOvertakenVehicleIdx": event_dict.get("being_overtaken_vehicle_idx"),
+                            "reason": event_dict.get("reason"),
+                        })
+
+                # ── Tyre Sets (ID=12) ─────────────────────────────────────────
+                elif packet_type_id == 12:
+                    if not settings.stealth_mode:
+                        tyre_sets_dict = adapter.extract_tyre_sets(packet)
+                        await sio.emit("tyre_sets_update", {
+                            "carIdx": tyre_sets_dict["car_idx"],
+                            "fittedIdx": tyre_sets_dict["fitted_idx"],
+                            "tyreSets": [
+                                {
+                                    "actualCompound": s["actual_compound"],
+                                    "visualCompound": s["visual_compound"],
+                                    "wear": s["wear"],
+                                    "available": s["available"],
+                                    "recommendedSession": s["recommended_session"],
+                                    "lifeSpan": s["life_span"],
+                                    "usableLife": s["usable_life"],
+                                    "lapDeltaTimeMs": s["lap_delta_time_ms"],
+                                    "fitted": s["fitted"],
+                                }
+                                for s in tyre_sets_dict["tyre_sets"]
+                            ],
+                        })
+
+                # ── Time Trial (ID=14) ────────────────────────────────────────
+                elif packet_type_id == 14:
+                    if not settings.stealth_mode:
+                        tt_dict = adapter.extract_time_trial(packet)
+                        await sio.emit("time_trial_update", {
+                            "playerSessionBest": {
+                                "carIdx": tt_dict["player_session_best"].get("car_idx"),
+                                "teamId": tt_dict["player_session_best"].get("team_id"),
+                                "lapTimeMs": tt_dict["player_session_best"].get("lap_time_ms"),
+                                "sector1Ms": tt_dict["player_session_best"].get("sector_1_ms"),
+                                "sector2Ms": tt_dict["player_session_best"].get("sector_2_ms"),
+                                "sector3Ms": tt_dict["player_session_best"].get("sector_3_ms"),
+                                "isValid": tt_dict["player_session_best"].get("is_valid"),
+                            } if tt_dict.get("player_session_best") else None,
+                            "personalBest": {
+                                "carIdx": tt_dict["personal_best"].get("car_idx"),
+                                "teamId": tt_dict["personal_best"].get("team_id"),
+                                "lapTimeMs": tt_dict["personal_best"].get("lap_time_ms"),
+                                "sector1Ms": tt_dict["personal_best"].get("sector_1_ms"),
+                                "sector2Ms": tt_dict["personal_best"].get("sector_2_ms"),
+                                "sector3Ms": tt_dict["personal_best"].get("sector_3_ms"),
+                                "isValid": tt_dict["personal_best"].get("is_valid"),
+                            } if tt_dict.get("personal_best") else None,
+                            "rival": {
+                                "carIdx": tt_dict["rival"].get("car_idx"),
+                                "teamId": tt_dict["rival"].get("team_id"),
+                                "lapTimeMs": tt_dict["rival"].get("lap_time_ms"),
+                                "sector1Ms": tt_dict["rival"].get("sector_1_ms"),
+                                "sector2Ms": tt_dict["rival"].get("sector_2_ms"),
+                                "sector3Ms": tt_dict["rival"].get("sector_3_ms"),
+                                "isValid": tt_dict["rival"].get("is_valid"),
+                            } if tt_dict.get("rival") else None,
+                        })
+
 
         except Exception as exc:
             log.error("packet_processor_error", error=str(exc))

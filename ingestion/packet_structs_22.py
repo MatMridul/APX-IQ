@@ -258,17 +258,131 @@ class PacketSessionData(ctypes.LittleEndianStructure):
 # Event Packet (ID=3)
 # -------------------------------------------------------------------------
 
+class FastestLap(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+        ('m_lapTime', float32),
+    ]
+
+
+class Retirement(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class TeamMateInPits(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class RaceWinner(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class Penalty(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_penaltyType', uint8),
+        ('m_infringementType', uint8),
+        ('m_vehicleIdx', uint8),
+        ('m_otherVehicleIdx', uint8),
+        ('m_time', uint8),
+        ('m_lapNum', uint8),
+        ('m_placesGained', uint8),
+    ]
+
+
+class SpeedTrap(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+        ('m_speed', float32),
+        ('m_isOverallFastestInSession', uint8),
+        ('m_isDriverFastestInSession', uint8),
+        ('m_fastestVehicleIdxInSession', uint8),
+        ('m_fastestSpeedInSession', float32),
+    ]
+
+
+class StartLights(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_numLights', uint8),
+    ]
+
+
+class DriveThroughPenaltyServed(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class StopGoPenaltyServed(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class Flashback(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_flashbackFrameIdentifier', uint32),
+        ('m_flashbackSessionTime', float32),
+    ]
+
+
+class Buttons(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_buttonStatus', uint32),
+    ]
+
+
+class Overtake(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_overtakingVehicleIdx', uint8),
+        ('m_beingOvertakenVehicleIdx', uint8),
+    ]
+
+
+class EventDataDetails(ctypes.Union):
+    _pack_ = 1
+    _fields_ = [
+        ('FastestLap', FastestLap),
+        ('Retirement', Retirement),
+        ('TeamMateInPits', TeamMateInPits),
+        ('RaceWinner', RaceWinner),
+        ('Penalty', Penalty),
+        ('SpeedTrap', SpeedTrap),
+        ('StartLights', StartLights),
+        ('DriveThroughPenaltyServed', DriveThroughPenaltyServed),
+        ('StopGoPenaltyServed', StopGoPenaltyServed),
+        ('Flashback', Flashback),
+        ('Buttons', Buttons),
+        ('Overtake', Overtake),
+        ('m_rawBytes', uint8 * 16),
+    ]
+
+
 class PacketEventData(ctypes.LittleEndianStructure):
     _pack_ = 1
     _fields_ = [
-        ('m_header', PacketHeader),             # Header
-        ('m_eventStringCode', uint8 * 4),       # Event string code, see below
-        # Event Details - Union of different event data types
-        # NOTE: For simplicity in Python, we might just expose the raw bytes 
-        # or define specific unions if needed. For now just capturing the generic structure
-        # The union is max 8 bytes based on the spec
-        ('m_eventDetails', uint8 * 8),          
+        ('m_header', PacketHeader),
+        ('m_eventStringCode', uint8 * 4),
+        ('m_eventDetails', EventDataDetails),
     ]
+
 
 # -------------------------------------------------------------------------
 # Participants Packet (ID=4)
@@ -516,4 +630,6 @@ class PacketSessionHistoryData(ctypes.LittleEndianStructure):
         ('m_lapHistoryData', LapHistoryData * 100), # 100 laps of data max
         ('m_tyreStintsHistoryData', TyreStintHistoryData * 8),
     ]
+
+
 

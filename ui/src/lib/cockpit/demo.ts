@@ -1,3 +1,5 @@
+import { useUxStore } from "@/store/uxStore";
+
 /**
  * Demo signal generator — the cockpit's stand-in for live telemetry
  * during the visuals-first phase. Produces physically plausible F1
@@ -5,9 +7,8 @@
  * brake derived from acceleration) so instruments animate beautifully
  * and repeatably. Every consumer displays a SIM badge (honesty rule).
  *
- * At wiring phase, instruments swap `demoFrame(t)` for real store
- * frames — the Frame shape mirrors what CanonicalTelemetryFrame will
- * provide.
+ * Fully integrated with useUxStore for direct timeline scrubbing,
+ * DRS override, Pit limiter, and Overtake modes.
  */
 
 export interface Frame {
@@ -60,41 +61,82 @@ function speedAt(dist: number): number {
   return 200;
 }
 
+// Discrete gear speed bands (kph)
+const GEAR_BOUNDS = [0, 85, 125, 165, 205, 245, 280, 315, 360];
+
+function getGear(speed: number): number {
+  if (speed < 5) return 0;
+  for (let g = 1; g <= 8; g++) {
+    if (speed < GEAR_BOUNDS[g]) return g;
+  }
+  return 8;
+}
+
+function getRpm(speed: number, gear: number): { rpm: number; rpmPct: number } {
+  if (gear === 0) return { rpm: 4200, rpmPct: 0 };
+  const minSpd = GEAR_BOUNDS[gear - 1];
+  const maxSpd = GEAR_BOUNDS[gear];
+  const frac = Math.min(1, Math.max(0, (speed - minSpd) / Math.max(1, maxSpd - minSpd)));
+  
+  // Powerband: 9,000 to 12,800 RPM (shift light territory at >11,800)
+  const minRpm = 8800;
+  const maxRpm = 12900;
+  const rpm = minRpm + (maxRpm - minRpm) * Math.pow(frac, 0.95);
+  const rpmPct = Math.min(1, Math.max(0, (rpm - minRpm) / (maxRpm - minRpm)));
+  return { rpm: Math.round(rpm), rpmPct };
+}
+
 export function demoFrame(t: number): Frame {
+  const ux = useUxStore.getState();
+
   const totalDist = t * AVG_SPEED;
-  const lapDist = totalDist % TRACK_LEN;
+  const lapDist = ux.manualScrubDist !== null ? ux.manualScrubDist : (totalDist % TRACK_LEN);
   const lap = 1 + Math.floor(totalDist / TRACK_LEN);
 
-  const speed = speedAt(lapDist);
+  let speed = speedAt(lapDist);
 
-  // Gear bands of ~46 kph → RPM sawtooth inside each band
-  const gear = speed < 5 ? 0 : Math.min(8, 1 + Math.floor(speed / 46));
-  const bandMin = (gear - 1) * 46;
-  const bandFrac = gear === 0 ? 0 : Math.min(1, Math.max(0, (speed - bandMin) / 46));
-  const rpm = gear === 0 ? 4200 : 5200 + 7600 * bandFrac;
-  const rpmPct = Math.min(1, Math.max(0, (rpm - 5200) / (12800 - 5200)));
+  // Pit Limiter override
+  if (ux.pitLimiterActive) {
+    speed = Math.min(60, speed);
+  }
 
-  // Acceleration → pedals (numeric derivative of the profile)
-  const v1 = speedAt(lapDist - 6);
-  const dv = (speed - v1) / (6 / AVG_SPEED); // kph per second
-  const brake = dv < -14 ? Math.min(1, (-dv - 14) / 46) : 0;
-  const throttle = brake > 0.05 ? 0 : Math.min(1, Math.max(0.12, 0.5 + dv / 60));
+  // Pedals & Acceleration physics
+  const vPrev = speedAt(lapDist - 4);
+  const dv = (speed - vPrev) / (4 / AVG_SPEED); // kph / s
 
-  // Steering: strong in slow corners, gentle at speed
+  let brake = 0;
+  let throttle = 0;
+
+  if (dv < -8) {
+    const brakeIntensity = Math.min(1.0, (-dv - 8) / 38);
+    brake = Math.min(1.0, Math.max(0.1, brakeIntensity));
+    throttle = 0;
+  } else if (dv > 2) {
+    brake = 0;
+    throttle = Math.min(1.0, Math.max(0.2, 0.4 + (dv / 35)));
+  } else {
+    brake = 0;
+    throttle = 0.25 + 0.1 * Math.sin(lapDist / 20);
+  }
+
+  const gear = getGear(speed);
+  const { rpm, rpmPct } = getRpm(speed, gear);
+
   const steer = Math.sin(lapDist / 118) * (1 - speed / 420);
-
   const sector: 1 | 2 | 3 = lapDist < TRACK_LEN / 3 ? 1 : lapDist < (2 * TRACK_LEN) / 3 ? 2 : 3;
 
-  const drsZone = lapDist > 620 && lapDist < 1180;
-  // DRS requires both the zone AND realistic activation speed (audit 16)
-  const drs = drsZone && speed > 150 && throttle > 0.85 && brake < 0.05;
+  const drsZone = (lapDist > 620 && lapDist < 1180) || (lapDist > 2500 && lapDist < 2800);
+  const drs = (drsZone && speed > 210 && throttle > 0.85 && brake < 0.05) || ux.drsOverride;
 
-  // Delta vs rolling best: dips in complex sectors, gains on straights
+  let ersPct = 0.25 + 0.7 * (0.5 + 0.5 * Math.sin(t / 6.5));
+  if (ux.overtakeActive) {
+    ersPct = 1.0;
+  }
+
   const deltaMs =
     -180 + 1650 * Math.pow(Math.sin((lapDist / TRACK_LEN) * Math.PI * 2 * 1.5 + 0.7), 3) +
     90 * Math.sin(t * 0.9);
 
-  // Yellow flag incident for 10 s every ~2 min
   const flag: "none" | "yellow" = t % 120 > 74 && t % 120 < 84 ? "yellow" : "none";
 
   return {
@@ -112,7 +154,7 @@ export function demoFrame(t: number): Frame {
     sector,
     drs,
     fuelKg: Math.max(0, 108 - (lap - 1) * 2.35 - (lapDist / TRACK_LEN) * 2.35),
-    ersPct: 0.25 + 0.7 * (0.5 + 0.5 * Math.sin(t / 6.5)),
+    ersPct,
     deltaMs,
     flag,
     gapAheadS: 1.35 + 0.85 * Math.sin(t / 11),
@@ -149,11 +191,23 @@ export function lapProfile(n = 600): LapProfile {
   for (let i = 0; i < n; i++) {
     const d = (i / n) * TRACK_LEN;
     const v = speedAt(d);
-    const vPrev = speedAt(d - 6);
-    const dv = (v - vPrev) / (6 / AVG_SPEED);
-    const br = dv < -14 ? Math.min(1, (-dv - 14) / 46) : 0;
-    const th = br > 0.05 ? 0 : Math.min(1, Math.max(0.12, 0.5 + dv / 60));
-    const g = v < 5 ? 0 : Math.min(8, 1 + Math.floor(v / 46));
+    const vPrev = speedAt(d - 4);
+    const dv = (v - vPrev) / (4 / AVG_SPEED);
+
+    let br = 0;
+    let th = 0;
+    if (dv < -8) {
+      br = Math.min(1.0, Math.max(0.1, (-dv - 8) / 38));
+      th = 0;
+    } else if (dv > 2) {
+      br = 0;
+      th = Math.min(1.0, Math.max(0.2, 0.4 + (dv / 35)));
+    } else {
+      br = 0;
+      th = 0.25;
+    }
+
+    const g = getGear(v);
     dist.push(d);
     speed.push(v);
     throttle.push(th);

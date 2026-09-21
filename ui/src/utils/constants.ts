@@ -33,3 +33,12 @@ export const TRACK_IDS: { [key: number]: string } = {
     31: "Las Vegas",
     32: "Qatar"
 };
+
+export const WEATHER_TYPES: { [key: number]: string } = {
+    0: "Clear",
+    1: "Light Cloud",
+    2: "Overcast",
+    3: "Light Rain",
+    4: "Heavy Rain",
+    5: "Storm"
+};

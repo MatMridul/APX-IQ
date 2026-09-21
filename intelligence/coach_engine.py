@@ -522,7 +522,7 @@ class CoachEngine:
         import numpy as np
 
         # Overall throttle comparison
-        avg_throttle_delta = float(np.mean(delta.throttle_delta))
+        avg_throttle_delta = float(np.mean(delta.throttle_delta)) if len(delta.throttle_delta) > 0 else 0.0
 
         if avg_throttle_delta < -0.05:  # User uses 5%+ less throttle overall
             tips.append(CoachingTip(

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "APX IQ — Real-Time F1 Intelligence Platform",
+    "output": "apxiq-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    { "id": "game", "type": "external", "label": "EA F1 Game", "sublabel": "2020–2025", "pos": [40, 300], "size": [120, 60] },
+    { "id": "ingestion", "type": "backend", "label": "Ingestion", "sublabel": "UDP :20777 → decode", "pos": [250, 300], "size": [140, 60] },
+    { "id": "socket_io", "type": "messagebus", "label": "Socket.IO", "sublabel": "live stream", "pos": [250, 150], "size": [140, 60] },
+    { "id": "recorder", "type": "backend", "label": "Lap Recorder", "sublabel": "POST /lap/save", "pos": [460, 300], "size": [140, 60] },
+    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": ":8000", "pos": [670, 300], "size": [130, 60] },
+    { "id": "psql", "type": "database", "label": "PostgreSQL", "sublabel": "laps, reports", "pos": [880, 300], "size": [130, 60] },
+    { "id": "intel", "type": "backend", "label": "Intelligence Engines", "sublabel": "align·corners·delta·coach", "pos": [670, 150], "size": [180, 60], "tag": "stratified" },
+    { "id": "llm", "type": "backend", "label": "LLM Debriefs", "sublabel": "Ollama→Gemini→template", "pos": [670, 450], "size": [160, 60], "tag": "fallback chain" },
+    { "id": "ui", "type": "frontend", "label": "Next.js UI", "sublabel": ":3000", "pos": [460, 150], "size": [130, 60] },
+    { "id": "cockpit", "type": "frontend", "label": "Live Cockpit", "sublabel": "Zustand + Socket.IO", "pos": [40, 150], "size": [140, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Real-time loop", "wraps": ["ingestion", "socket_io", "recorder", "api"] },
+    { "kind": "region", "label": "Persistence", "wraps": ["psql"] }
+  ],
+  "connections": [
+    { "id": "game-ingestion", "from": "game", "to": "ingestion", "label": "UDP :20777", "variant": "emphasis" },
+    { "id": "ingestion-socket", "from": "ingestion", "to": "socket_io", "label": "decode+stream", "variant": "dashed" },
+    { "id": "ingestion-recorder", "from": "ingestion", "to": "recorder", "label": "lap complete" },
+    { "id": "recorder-api", "from": "recorder", "to": "api", "label": "POST /lap/save" },
+    { "id": "api-psql", "from": "api", "to": "psql", "label": "persist" },
+    { "id": "api-intel", "from": "api", "to": "intel", "label": "enrich", "fromSide": "top", "toSide": "bottom", "labelDy": -54 },
+    { "id": "api-llm", "from": "api", "to": "llm", "label": "debrief", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "api-ui", "from": "api", "to": "ui", "label": "REST + live", "fromSide": "left", "toSide": "right" },
+    { "id": "socket-cockpit", "from": "socket_io", "to": "cockpit", "label": "telemetry stream", "variant": "dashed", "fromSide": "left", "toSide": "right" },
+    { "id": "ui-cockpit", "from": "ui", "to": "cockpit", "label": "live + reports", "fromSide": "left", "toSide": "right" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Ingestion", "items": ["UDP listener decodes 6 F1 game generations (2020–2025)", "Tap-and-stream to live cockpit + lap recorder"] },
+    { "dot": "emerald", "title": "Intelligence", "items": ["Stratified engines: alignment, corner analysis, delta comparison, coaching", "FastF1 ghost lap integration", "Graceful degradation: Ollama → Gemini → template fallback"] },
+    { "dot": "rose", "title": "Durability", "items": ["PostgreSQL persists every completed lap + analysis", "In-memory fallback for dev/testing (zero infrastructure)"] }
+  ]
+}

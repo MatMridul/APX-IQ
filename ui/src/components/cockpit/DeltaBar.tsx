@@ -2,15 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import { scheduler } from "@/lib/cockpit/scheduler";
-import { demoFrame } from "@/lib/cockpit/demo";
+import { getActiveFrame } from "@/hooks/useLiveOrDemo";
 import { MicroLabel } from "./primitives";
 
 /**
  * Delta-to-best — the real F1 wheel function: live gap vs personal
- * best, recomputed each "50 m" (here, each frame).
+ * best, recomputed each frame.
  *
  * Motion contract (design/MOTION.md): the BAR lerps every frame and
- * crossfades green↔red through zero; the NUMERIC readout snaps.
+ * crossfades green/purple↔red through zero; the NUMERIC readout snaps.
  * Both are written via refs — zero React re-renders.
  */
 
@@ -23,25 +23,42 @@ export function DeltaBar({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     let shown = 0;
     const unsub = scheduler.add((t, dt) => {
-      const target = demoFrame(t).deltaMs / 1000; // seconds, signed
+      const { data: f } = getActiveFrame(t);
+      const rawTarget = (f?.deltaMs ?? 0) / 1000; // seconds, signed
+      const target = Number.isFinite(rawTarget) ? rawTarget : 0;
+      const safeDt = Math.max(0.001, Math.min(0.2, Number.isFinite(dt) ? dt : 0.016));
+      
       // Frame-rate-independent lerp (k = 10/s)
-      shown += (target - shown) * (1 - Math.exp(-10 * dt));
+      shown += (target - shown) * (1 - Math.exp(-10 * safeDt));
+      if (!Number.isFinite(shown)) shown = 0;
 
       const frac = Math.min(1, Math.abs(shown) / MAX_ABS);
-      const side = shown >= 0 ? 1 : -1; // + = slower (red), - = faster (green)
+      const isSlower = shown >= 0;
+      const isPurple = shown < -0.20; // purple delta territory
+      const side = isSlower ? 1 : -1; // + = slower (red), - = faster (green/purple)
+
+      const color = isSlower
+        ? "var(--color-signal-stop)"
+        : isPurple
+        ? "#A855F7"
+        : "var(--color-signal-go)";
+
+      const glow = isSlower
+        ? "0 0 10px rgba(239,68,68,.5)"
+        : isPurple
+        ? "0 0 14px rgba(168,85,247,.7)"
+        : "0 0 10px rgba(34,197,94,.5)";
 
       if (barRef.current) {
         barRef.current.style.width = `${(frac * 50).toFixed(2)}%`;
-        barRef.current.style.transform = `translateX(${side < 0 ? `${(frac * 100).toFixed(1)}%` : "0%"})`;
-        barRef.current.style.background =
-          shown >= 0 ? "var(--color-signal-stop)" : "var(--color-signal-go)";
-        barRef.current.style.boxShadow = `0 0 10px ${shown >= 0 ? "rgba(239,68,68,.5)" : "rgba(34,197,94,.5)"}`;
+        barRef.current.style.transform = side < 0 ? "translateX(-100%)" : "translateX(0%)";
+        barRef.current.style.background = color;
+        barRef.current.style.boxShadow = glow;
       }
       if (textRef.current) {
-        const sign = shown >= 0 ? "+" : "−";
+        const sign = isSlower ? "+" : "−";
         textRef.current.textContent = `${sign}${Math.abs(shown).toFixed(3)}`;
-        textRef.current.style.color =
-          shown >= 0 ? "var(--color-signal-stop)" : "var(--color-signal-go)";
+        textRef.current.style.color = color;
       }
     });
     return unsub;

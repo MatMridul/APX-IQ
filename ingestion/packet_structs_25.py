@@ -370,3 +370,373 @@ class PacketCarStatusData(ctypes.LittleEndianStructure):
         ('m_header', PacketHeader),             # Header
         ('m_carStatusData', CarStatusData * 22) # Car status data for all cars
     ]
+
+
+class CarDamageData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_tyresWear', float32 * 4),           # Tyre wear percentage
+        ('m_tyresDamage', uint8 * 4),           # Tyre damage percentage
+        ('m_brakesDamage', uint8 * 4),          # Brakes damage percentage
+        ('m_tyreBlisters', uint8 * 4),          # Tyre blisters percentage (F1 25)
+        ('m_frontLeftWingDamage', uint8),       # Front left wing damage percentage
+        ('m_frontRightWingDamage', uint8),      # Front right wing damage percentage
+        ('m_rearWingDamage', uint8),            # Rear wing damage percentage
+        ('m_floorDamage', uint8),               # Floor damage percentage
+        ('m_diffuserDamage', uint8),            # Diffuser damage percentage
+        ('m_sidepodDamage', uint8),             # Sidepod damage percentage
+        ('m_drsFault', uint8),                  # Indicator for DRS fault, 0 = OK, 1 = fault
+        ('m_ersFault', uint8),                  # Indicator for ERS fault, 0 = OK, 1 = fault
+        ('m_gearBoxDamage', uint8),             # Gear box damage percentage
+        ('m_engineDamage', uint8),              # Engine damage percentage
+        ('m_engineMGUHWear', uint8),            # Engine MGU-H wear percentage
+        ('m_engineESWear', uint8),              # Engine ES wear percentage
+        ('m_engineCEWear', uint8),              # Engine CE wear percentage
+        ('m_engineICEWear', uint8),             # Engine ICE wear percentage
+        ('m_engineMGUKWear', uint8),            # Engine MGU-K wear percentage
+        ('m_engineTCWear', uint8),              # Engine TC wear percentage
+        ('m_engineBlown', uint8),               # Engine blown, 0 = OK, 1 = fault
+        ('m_engineSeized', uint8),              # Engine seized, 0 = OK, 1 = fault
+    ]
+
+
+class PacketCarDamageData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_carDamageData', CarDamageData * 22),
+    ]
+
+
+class LapHistoryData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_lapTimeInMS', uint32),
+        ('m_sector1TimeMSPart', uint16),
+        ('m_sector1TimeMinutesPart', uint8),
+        ('m_sector2TimeMSPart', uint16),
+        ('m_sector2TimeMinutesPart', uint8),
+        ('m_sector3TimeMSPart', uint16),
+        ('m_sector3TimeMinutesPart', uint8),
+        ('m_lapValidBitFlags', uint8),
+    ]
+
+
+class TyreStintHistoryData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_endLap', uint8),
+        ('m_tyreActualCompound', uint8),
+        ('m_tyreVisualCompound', uint8),
+    ]
+
+
+class PacketSessionHistoryData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_carIdx', uint8),
+        ('m_numLaps', uint8),
+        ('m_numTyreStints', uint8),
+        ('m_bestLapTimeLapNum', uint8),
+        ('m_bestSector1LapNum', uint8),
+        ('m_bestSector2LapNum', uint8),
+        ('m_bestSector3LapNum', uint8),
+        ('m_lapHistoryData', LapHistoryData * 100),
+        ('m_tyreStintsHistoryData', TyreStintHistoryData * 8),
+    ]
+
+
+class CarSetupData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_frontWing', uint8),
+        ('m_rearWing', uint8),
+        ('m_onThrottle', uint8),
+        ('m_offThrottle', uint8),
+        ('m_frontCamber', float32),
+        ('m_rearCamber', float32),
+        ('m_frontToe', float32),
+        ('m_rearToe', float32),
+        ('m_frontSuspension', uint8),
+        ('m_rearSuspension', uint8),
+        ('m_frontAntiRollBar', uint8),
+        ('m_rearAntiRollBar', uint8),
+        ('m_frontSuspensionHeight', uint8),
+        ('m_rearSuspensionHeight', uint8),
+        ('m_brakePressure', uint8),
+        ('m_brakeBias', uint8),
+        ('m_engineBraking', uint8),                 # Added in F1 24/25
+        ('m_rearLeftTyrePressure', float32),
+        ('m_rearRightTyrePressure', float32),
+        ('m_frontLeftTyrePressure', float32),
+        ('m_frontRightTyrePressure', float32),
+        ('m_ballast', uint8),
+        ('m_fuelLoad', float32),
+    ]
+
+
+class PacketCarSetupData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_carSetups', CarSetupData * 22),
+        ('m_nextFrontWingValue', float32),          # Added in F1 24/25
+    ]
+
+
+class PacketMotionExData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_suspensionPosition', float32 * 4),       # RL, RR, FL, FR
+        ('m_suspensionVelocity', float32 * 4),       # RL, RR, FL, FR
+        ('m_suspensionAcceleration', float32 * 4),   # RL, RR, FL, FR
+        ('m_wheelSpeed', float32 * 4),               # Speed of each wheel
+        ('m_wheelSlipRatio', float32 * 4),           # Slip ratio for each wheel
+        ('m_wheelSlipAngle', float32 * 4),           # Slip angle for each wheel
+        ('m_wheelLatForce', float32 * 4),            # Lateral force for each wheel
+        ('m_wheelLongForce', float32 * 4),           # Longitudinal force for each wheel
+        ('m_heightOfCOGAboveGround', float32),       # Height of centre of gravity
+        ('m_localVelocityX', float32),
+        ('m_localVelocityY', float32),
+        ('m_localVelocityZ', float32),
+        ('m_angularVelocityX', float32),
+        ('m_angularVelocityY', float32),
+        ('m_angularVelocityZ', float32),
+        ('m_angularAccelerationX', float32),
+        ('m_angularAccelerationY', float32),
+        ('m_angularAccelerationZ', float32),
+        ('m_frontWheelsAngle', float32),
+        ('m_wheelVertForce', float32 * 4),
+        ('m_frontAeroHeight', float32),
+        ('m_rearAeroHeight', float32),
+        ('m_frontRollAngle', float32),
+        ('m_rearRollAngle', float32),
+        ('m_chassisYaw', float32),
+        ('m_chassisPitch', float32),
+        ('m_wheelCamber', float32 * 4),
+        ('m_wheelCamberGain', float32 * 4),
+    ]
+
+
+# -------------------------------------------------------------------------
+# Event Packet (ID=3)
+# -------------------------------------------------------------------------
+
+class FastestLap(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+        ('m_lapTime', float32),
+    ]
+
+
+class Retirement(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+        ('m_reason', uint8),
+    ]
+
+
+class DRSDisabled(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_reason', uint8),
+    ]
+
+
+class TeamMateInPits(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class RaceWinner(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class Penalty(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_penaltyType', uint8),
+        ('m_infringementType', uint8),
+        ('m_vehicleIdx', uint8),
+        ('m_otherVehicleIdx', uint8),
+        ('m_time', uint8),
+        ('m_lapNum', uint8),
+        ('m_placesGained', uint8),
+    ]
+
+
+class SpeedTrap(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+        ('m_speed', float32),
+        ('m_isOverallFastestInSession', uint8),
+        ('m_isDriverFastestInSession', uint8),
+        ('m_fastestVehicleIdxInSession', uint8),
+        ('m_fastestSpeedInSession', float32),
+    ]
+
+
+class StartLights(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_numLights', uint8),
+    ]
+
+
+class DriveThroughPenaltyServed(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+    ]
+
+
+class StopGoPenaltyServed(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicleIdx', uint8),
+        ('m_stopTime', float32),
+    ]
+
+
+class Flashback(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_flashbackFrameIdentifier', uint32),
+        ('m_flashbackSessionTime', float32),
+    ]
+
+
+class Buttons(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_buttonStatus', uint32),
+    ]
+
+
+class Overtake(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_overtakingVehicleIdx', uint8),
+        ('m_beingOvertakenVehicleIdx', uint8),
+    ]
+
+
+class SafetyCarEvent(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_safetyCarType', uint8),
+        ('m_eventType', uint8),
+    ]
+
+
+class Collision(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_vehicle1Idx', uint8),
+        ('m_vehicle2Idx', uint8),
+    ]
+
+
+class EventDataDetails(ctypes.Union):
+    _pack_ = 1
+    _fields_ = [
+        ('FastestLap', FastestLap),
+        ('Retirement', Retirement),
+        ('DRSDisabled', DRSDisabled),
+        ('TeamMateInPits', TeamMateInPits),
+        ('RaceWinner', RaceWinner),
+        ('Penalty', Penalty),
+        ('SpeedTrap', SpeedTrap),
+        ('StartLights', StartLights),
+        ('DriveThroughPenaltyServed', DriveThroughPenaltyServed),
+        ('StopGoPenaltyServed', StopGoPenaltyServed),
+        ('Flashback', Flashback),
+        ('Buttons', Buttons),
+        ('Overtake', Overtake),
+        ('SafetyCar', SafetyCarEvent),
+        ('Collision', Collision),
+        ('m_rawBytes', uint8 * 16),
+    ]
+
+
+class PacketEventData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_eventStringCode', uint8 * 4),
+        ('m_eventDetails', EventDataDetails),
+    ]
+
+
+# -------------------------------------------------------------------------
+# Tyre Sets Packet (ID=12)
+# -------------------------------------------------------------------------
+
+class TyreSetData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_actualTyreCompound', uint8),
+        ('m_visualTyreCompound', uint8),
+        ('m_wear', uint8),
+        ('m_available', uint8),
+        ('m_recommendedSession', uint8),
+        ('m_lifeSpan', uint8),
+        ('m_usableLife', uint8),
+        ('m_lapDeltaTime', int16),
+        ('m_fitted', uint8),
+    ]
+
+
+class PacketTyreSetsData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_carIdx', uint8),
+        ('m_tyreSetData', TyreSetData * 20),
+        ('m_fittedIdx', uint8),
+    ]
+
+
+# -------------------------------------------------------------------------
+# Time Trial Packet (ID=14)
+# -------------------------------------------------------------------------
+
+class TimeTrialDataSet(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_carIdx', uint8),
+        ('m_teamId', uint8),
+        ('m_lapTimeInMS', uint32),
+        ('m_sector1TimeInMS', uint32),
+        ('m_sector2TimeInMS', uint32),
+        ('m_sector3TimeInMS', uint32),
+        ('m_tractionControl', uint8),
+        ('m_gearboxAssist', uint8),
+        ('m_antiLockBrakes', uint8),
+        ('m_equalCarPerformance', uint8),
+        ('m_customSetup', uint8),
+        ('m_valid', uint8),
+    ]
+
+
+class PacketTimeTrialData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_playerSessionBestDataSet', TimeTrialDataSet),
+        ('m_personalBestDataSet', TimeTrialDataSet),
+        ('m_rivalDataSet', TimeTrialDataSet),
+    ]
+
+
+

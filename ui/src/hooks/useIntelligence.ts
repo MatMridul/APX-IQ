@@ -27,8 +27,13 @@ import {
   saveReport,
   profileHardware,
   fetchTrackLayout,
+  fetchDelta,
+  predictBattle,
   type GenerateReportPayload,
   type SaveReportPayload,
+  type DeltaResponse,
+  type BattleRequest,
+  type BattleProjectionResponse,
 } from "@/lib/api/intelligence";
 
 // ─── Query keys (central registry — prevents typos) ──────────────────────────
@@ -62,9 +67,9 @@ export function useCompletedLaps() {
   return useQuery({
     queryKey: intelligenceKeys.laps,
     queryFn:  fetchCompletedLaps,
-    refetchInterval: 5_000,   // Poll every 5s — new laps come in during session
+    refetchInterval: (query) => (query.state.status === "error" ? false : 5_000),   // Pause polling when backend is offline
     staleTime:       4_000,
-    retry:    2,
+    retry: 1,
   });
 }
 
@@ -171,6 +176,20 @@ export function useCheckHealth() {
       queryKey: intelligenceKeys.health,
       queryFn:  fetchBackendStatus,
     });
+}
+
+/** Compute Delta & Coaching between User and Ghost */
+export function useComputeDelta() {
+  return useMutation({
+    mutationFn: (payload: GenerateReportPayload) => fetchDelta(payload),
+  });
+}
+
+/** Predict Race Battle & Position Projection */
+export function usePredictBattle() {
+  return useMutation({
+    mutationFn: (payload: BattleRequest) => predictBattle(payload),
+  });
 }
 
 /** Track 2D Ribbon Layout hook */

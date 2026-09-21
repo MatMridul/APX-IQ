@@ -85,9 +85,25 @@ class PacketDecoder:
                 return module.PacketCarStatusData.from_buffer_copy(data)
             elif packet_id == getattr(module, "PACKET_ID_PARTICIPANTS", 4):
                 return module.PacketParticipantsData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_CAR_DAMAGE", 10) and hasattr(module, "PacketCarDamageData"):
+                return module.PacketCarDamageData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_SESSION_HISTORY", 11) and hasattr(module, "PacketSessionHistoryData"):
+                return module.PacketSessionHistoryData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_CAR_SETUPS", 5) and hasattr(module, "PacketCarSetupData"):
+                return module.PacketCarSetupData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_MOTION_EX", 13) and hasattr(module, "PacketMotionExData"):
+                return module.PacketMotionExData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_EVENT", 3) and hasattr(module, "PacketEventData"):
+                return module.PacketEventData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_TYRE_SETS", 12) and hasattr(module, "PacketTyreSetsData"):
+                return module.PacketTyreSetsData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_TIME_TRIAL", 14) and hasattr(module, "PacketTimeTrialData"):
+                return module.PacketTimeTrialData.from_buffer_copy(data)
             else:
                 return header
-        except ValueError as e:
+
+
+        except Exception as e:
             failed_id = header.m_packetId if "header" in locals() else -1
             logger.error("packet_decode_failed", format=packet_format, packet_id=failed_id, error=str(e))
             return None

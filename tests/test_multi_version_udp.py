@@ -87,3 +87,71 @@ def test_decode_and_adapt_f1_20_lap_data_seconds_to_ms():
     assert lap_dict["current_lap_time_ms"] == 74520
     assert lap_dict["last_lap_time_ms"] == 75100
     assert lap_dict["lap_number"] == 14
+
+
+def test_decode_and_adapt_f1_23_session_data():
+    from ingestion import packet_structs_23
+    packet = packet_structs_23.PacketSessionData()
+    packet.m_header.m_packetFormat = 2023
+    packet.m_header.m_packetId = packet_structs_23.PACKET_ID_SESSION
+    packet.m_header.m_playerCarIndex = 0
+    packet.m_trackId = 5
+    packet.m_trackLength = 3337
+    packet.m_totalLaps = 78
+    packet.m_trackTemperature = 38
+    packet.m_airTemperature = 26
+    packet.m_weather = 0
+    packet.m_safetyCarStatus = 0
+
+    raw_bytes = bytes(packet)
+    decoded = PacketDecoder.decode(raw_bytes)
+    assert decoded is not None
+
+    adapter = get_adapter_for_format(2023)
+    session_dict = adapter.extract_session(decoded)
+
+    assert session_dict["track_id"] == 5
+    assert session_dict["track_length"] == 3337
+    assert session_dict["total_laps"] == 78
+    assert session_dict["track_temperature"] == 38
+    assert session_dict["air_temperature"] == 26
+    assert session_dict["weather"] == 0
+
+
+def test_decode_and_adapt_f1_20_participants_data():
+    packet = packet_structs_20.PacketParticipantsData()
+    packet.m_header.m_packetFormat = 2020
+    packet.m_header.m_packetId = packet_structs_20.PACKET_ID_PARTICIPANTS
+    packet.m_header.m_playerCarIndex = 0
+    packet.m_numActiveCars = 2
+
+    # Driver 1
+    p0 = packet.m_participants[0]
+    p0.m_aiControlled = 0
+    p0.m_driverId = 1
+    p0.m_teamId = 0
+    p0.m_raceNumber = 44
+    p0.m_name = b"L. HAMILTON\x00"
+
+    # Driver 2
+    p1 = packet.m_participants[1]
+    p1.m_aiControlled = 1
+    p1.m_driverId = 2
+    p1.m_teamId = 1
+    p1.m_raceNumber = 16
+    p1.m_name = b"C. LECLERC\x00"
+
+    raw_bytes = bytes(packet)
+    decoded = PacketDecoder.decode(raw_bytes)
+    assert decoded is not None
+
+    adapter = get_adapter_for_format(2020)
+    part_dict = adapter.extract_participants(decoded)
+
+    assert part_dict["num_active_cars"] == 2
+    assert len(part_dict["participants"]) == 2
+    assert part_dict["participants"][0]["name"] == "L. HAMILTON"
+    assert part_dict["participants"][0]["race_number"] == 44
+    assert part_dict["participants"][1]["name"] == "C. LECLERC"
+    assert part_dict["participants"][1]["ai_controlled"] is True
+

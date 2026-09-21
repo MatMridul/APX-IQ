@@ -15,6 +15,15 @@ import type {
   LapData,
   SessionData,
   CarStatusData,
+  MotionData,
+  ParticipantData,
+  CarDamageData,
+  SessionHistoryData,
+  CarSetupsData,
+  MotionExData,
+  EventData,
+  TyreSetsData,
+  TimeTrialData,
   HistoryPoint,
   DerivedMetrics,
 } from "@/hooks/useTelemetry";
@@ -37,46 +46,82 @@ const initialDerived: DerivedMetrics = {
 // ─── State shape ────────────────────────────────────────────────────────────
 
 interface TelemetryState {
-  telemetry:   TelemetryData | null;
-  lapData:     LapData       | null;
-  session:     SessionData   | null;
-  carStatus:   CarStatusData | null;
-  isConnected: boolean;
-  gameVersion: string | null;
+  telemetry:      TelemetryData      | null;
+  lapData:        LapData            | null;
+  session:        SessionData        | null;
+  carStatus:      CarStatusData      | null;
+  motion:         MotionData         | null;
+  participants:   ParticipantData[];
+  carDamage:      CarDamageData      | null;
+  sessionHistory: SessionHistoryData | null;
+  carSetups:      CarSetupsData      | null;
+  motionEx:       MotionExData       | null;
+  event:          EventData          | null;
+  tyreSets:       TyreSetsData       | null;
+  timeTrial:      TimeTrialData      | null;
+  isConnected:    boolean;
+  gameVersion:    string | null;
 
   history:  HistoryPoint[];
   derived:  DerivedMetrics;
 
   // Setters called by the RAF loop in useTelemetry
-  setTelemetry:   (d: TelemetryData)   => void;
-  setLapData:     (d: LapData)         => void;
-  setSession:     (d: SessionData)     => void;
-  setCarStatus:   (d: CarStatusData)   => void;
-  setIsConnected: (v: boolean)         => void;
-  setGameVersion: (v: string)          => void;
-  pushHistory:    (p: HistoryPoint)    => void;
-  setDerived:     (d: DerivedMetrics)  => void;
+  setTelemetry:      (d: TelemetryData)      => void;
+  setLapData:        (d: LapData)            => void;
+  setSession:        (d: SessionData)        => void;
+  setCarStatus:      (d: CarStatusData)      => void;
+  setMotion:         (d: MotionData)         => void;
+  setParticipants:   (d: ParticipantData[])  => void;
+  setCarDamage:      (d: CarDamageData)      => void;
+  setSessionHistory: (d: SessionHistoryData) => void;
+  setCarSetups:      (d: CarSetupsData)      => void;
+  setMotionEx:       (d: MotionExData)       => void;
+  setEvent:          (d: EventData)          => void;
+  setTyreSets:       (d: TyreSetsData)       => void;
+  setTimeTrial:      (d: TimeTrialData)      => void;
+  setIsConnected:    (v: boolean)            => void;
+  setGameVersion:    (v: string)             => void;
+  pushHistory:       (p: HistoryPoint)       => void;
+  setDerived:        (d: DerivedMetrics)     => void;
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 export const useTelemetryStore = create<TelemetryState>((set) => ({
-  telemetry:   null,
-  lapData:     null,
-  session:     null,
-  carStatus:   null,
-  isConnected: false,
-  gameVersion: null,
-  history:     [],
-  derived:     initialDerived,
+  telemetry:      null,
+  lapData:        null,
+  session:        null,
+  carStatus:      null,
+  motion:         null,
+  participants:   [],
+  carDamage:      null,
+  sessionHistory: null,
+  carSetups:      null,
+  motionEx:       null,
+  event:          null,
+  tyreSets:       null,
+  timeTrial:      null,
+  isConnected:    false,
+  gameVersion:    null,
+  history:        [],
+  derived:        initialDerived,
 
-  setTelemetry:   (telemetry)   => set({ telemetry }),
-  setLapData:     (lapData)     => set({ lapData }),
-  setSession:     (session)     => set({ session }),
-  setCarStatus:   (carStatus)   => set({ carStatus }),
-  setIsConnected: (isConnected) => set({ isConnected }),
-  setGameVersion: (gameVersion) => set({ gameVersion }),
-  setDerived:     (derived)     => set({ derived }),
+  setTelemetry:      (telemetry)      => set({ telemetry }),
+  setLapData:        (lapData)        => set({ lapData }),
+  setSession:        (session)        => set({ session }),
+  setCarStatus:      (carStatus)      => set({ carStatus }),
+  setMotion:         (motion)         => set({ motion }),
+  setParticipants:   (participants)   => set({ participants }),
+  setCarDamage:      (carDamage)      => set({ carDamage }),
+  setSessionHistory: (sessionHistory) => set({ sessionHistory }),
+  setCarSetups:      (carSetups)      => set({ carSetups }),
+  setMotionEx:       (motionEx)       => set({ motionEx }),
+  setEvent:          (event)          => set({ event }),
+  setTyreSets:       (tyreSets)       => set({ tyreSets }),
+  setTimeTrial:      (timeTrial)      => set({ timeTrial }),
+  setIsConnected:    (isConnected)    => set({ isConnected }),
+  setGameVersion:    (gameVersion)    => set({ gameVersion }),
+  setDerived:        (derived)        => set({ derived }),
 
   pushHistory: (point) =>
     set((state) => ({
@@ -85,3 +130,7 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
         : [...state.history, point],
     })),
 }));
+
+
+
+

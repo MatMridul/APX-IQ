@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Radio, Cpu, Sparkles, Gauge, Gamepad2, HelpCircle } from "lucide-react";
+import { Activity, Radio, Cpu, Sparkles, Gauge, Gamepad2, HelpCircle, Volume2, VolumeX } from "lucide-react";
 import { SourceBadge, NoSignal } from "./primitives";
 import { scheduler } from "@/lib/cockpit/scheduler";
 import { usePrefs, type MotionLevel, type Density } from "@/lib/cockpit/preferences";
@@ -41,6 +41,9 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
   const isGuideOpen = useUxStore((s) => s.isGuideModalOpen);
   const openGuide = useUxStore((s) => s.openGuideModal);
   const closeGuide = useUxStore((s) => s.closeGuideModal);
+
+  const soundEnabled = useUxStore((s) => s.soundEnabled);
+  const toggleSound = useUxStore((s) => s.toggleSound);
 
   const [flagState, setFlagState] = useState<{
     code: "none" | "yellow" | "red" | "blue" | "green";
@@ -326,6 +329,21 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
         >
           <HelpCircle size={11} />
           <span className="hidden sm:inline">GUIDE</span>
+        </button>
+
+        {/* Audio FX Synthesizer Toggle */}
+        <button
+          onClick={toggleSound}
+          className={cn(
+            "px-2 py-1 rounded-lg text-[9px] font-mono tracking-[0.14em] uppercase transition-all duration-150 active:scale-95 flex items-center gap-1 cursor-pointer",
+            soundEnabled
+              ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30"
+              : "bg-white/[0.02] hover:bg-white/[0.06] ring-1 ring-white/[0.08] text-neutral-500"
+          )}
+          title={soundEnabled ? "Tactile Audio SFX Active (Click to Mute)" : "Audio Muted (Click to Enable SFX)"}
+        >
+          {soundEnabled ? <Volume2 size={11} className="text-amber-400 animate-pulse" /> : <VolumeX size={11} />}
+          <span className="hidden sm:inline">{soundEnabled ? "SFX ON" : "SFX OFF"}</span>
         </button>
 
         {/* Motion Preference Toggle */}

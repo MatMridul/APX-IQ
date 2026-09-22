@@ -13,6 +13,9 @@
 class MotorsportAudioEngine {
   private ctx: AudioContext | null = null;
   public enabled = true;
+  private engineOsc: OscillatorNode | null = null;
+  private engineGain: GainNode | null = null;
+  private turboOsc: OscillatorNode | null = null;
 
   private initCtx() {
     if (!this.ctx && typeof window !== "undefined") {
@@ -82,6 +85,50 @@ class MotorsportAudioEngine {
     }
   }
 
+  /** Pneumatic Gear Shift Clack + Ignition Cut */
+  playGearShift(isUpshift = true) {
+    if (!this.enabled) return;
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+
+      // Pneumatic actuator pop
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sawtooth";
+      const startF = isUpshift ? 380 : 520;
+      const endF = isUpshift ? 120 : 220;
+      osc.frequency.setValueAtTime(startF, t);
+      osc.frequency.exponentialRampToValueAtTime(endF, t + 0.04);
+
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.045);
+
+      // Metal dog-ring mesh click
+      const clickOsc = this.ctx.createOscillator();
+      const clickGain = this.ctx.createGain();
+      clickOsc.type = "square";
+      clickOsc.frequency.setValueAtTime(1400, t + 0.01);
+      clickOsc.frequency.exponentialRampToValueAtTime(300, t + 0.035);
+
+      clickGain.gain.setValueAtTime(0.12, t + 0.01);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
+
+      clickOsc.connect(clickGain);
+      clickGain.connect(this.ctx.destination);
+      clickOsc.start(t + 0.01);
+      clickOsc.stop(t + 0.035);
+    } catch {
+      // Ignore
+    }
+  }
+
   /** DRS pneumatic flap open / ready chime */
   playDrsTone(active: boolean) {
     if (!this.enabled) return;
@@ -146,6 +193,32 @@ class MotorsportAudioEngine {
     }
   }
 
+  /** Race Engineer Voice Synthesizer with Radio Static */
+  speakRadio(message: string) {
+    this.playRadioBeep();
+    if (!this.enabled || typeof window === "undefined" || !("speechSynthesis" in window)) {
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.rate = 1.05;
+      utterance.pitch = 0.92;
+      utterance.volume = 0.85;
+
+      const voices = window.speechSynthesis.getVoices();
+      const engVoice = voices.find((v) => v.lang.startsWith("en") && (v.name.includes("Male") || v.name.includes("UK") || v.name.includes("Natural")));
+      if (engVoice) {
+        utterance.voice = engVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      // Fallback
+    }
+  }
+
   /** Pit limiter pulsed alarm tone */
   playPitLimiterPulse() {
     if (!this.enabled) return;
@@ -170,6 +243,76 @@ class MotorsportAudioEngine {
       osc.stop(t + 0.04);
     } catch {
       // Ignore
+    }
+  }
+
+  /** Dynamic V6 Turbo-Hybrid Engine RPM Synthesizer */
+  setEngineRpm(rpm: number, throttle = 1.0) {
+    if (!this.enabled) {
+      this.stopEngine();
+      return;
+    }
+
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+
+      if (!this.engineOsc) {
+        this.engineOsc = this.ctx.createOscillator();
+        this.engineGain = this.ctx.createGain();
+        this.turboOsc = this.ctx.createOscillator();
+
+        this.engineOsc.type = "sawtooth";
+        this.turboOsc.type = "sine";
+
+        this.engineGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+
+        this.engineOsc.connect(this.engineGain);
+        this.turboOsc.connect(this.engineGain);
+        this.engineGain.connect(this.ctx.destination);
+
+        this.engineOsc.start();
+        this.turboOsc.start();
+      }
+
+      const t = this.ctx.currentTime;
+      // Formula 1 1.6L V6 Turbo: 3 cylinder combustion cycles per revolution
+      const fundamentalHz = Math.max(60, (rpm / 60) * 3);
+      const turboWhineHz = Math.max(800, (rpm / 60) * 18);
+
+      if (this.engineOsc) {
+        this.engineOsc.frequency.setTargetAtTime(fundamentalHz, t, 0.03);
+      }
+      if (this.turboOsc) {
+        this.turboOsc.frequency.setTargetAtTime(turboWhineHz, t, 0.03);
+      }
+
+      const vol = Math.min(0.12, Math.max(0.02, 0.03 + throttle * 0.08));
+      this.engineGain?.gain.setTargetAtTime(vol, t, 0.04);
+    } catch {
+      // Ignore
+    }
+  }
+
+  /** Stop continuous engine sound */
+  stopEngine() {
+    if (this.engineGain && this.ctx) {
+      try {
+        this.engineGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.05);
+        setTimeout(() => {
+          if (this.engineOsc) {
+            try {
+              this.engineOsc.stop();
+              this.turboOsc?.stop();
+              this.engineOsc.disconnect();
+              this.turboOsc?.disconnect();
+            } catch {}
+            this.engineOsc = null;
+            this.turboOsc = null;
+            this.engineGain = null;
+          }
+        }, 80);
+      } catch {}
     }
   }
 }

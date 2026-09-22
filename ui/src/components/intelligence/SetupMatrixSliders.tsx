@@ -1,14 +1,7 @@
-/**
- * SetupMatrixSliders — Interactive Mechanical Car Setup Adjustment Matrix
- * Features gold-embossed vertical click/drag sliders and vehicle dynamics rationale for:
- * Front Wing Flap, Anti-Roll Bars (ARB), Differential %, and Brake Bias Balance %.
- */
-
-"use client";
-
 import React, { useState, useEffect } from "react";
-import { Wrench, Sparkles } from "lucide-react";
+import { Wrench, Sparkles, Sliders } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { soundFx } from "@/lib/cockpit/soundFx";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import { useLiveOrDemo } from "@/hooks/useLiveOrDemo";
 import { SourceBadge } from "../cockpit/primitives";
@@ -42,6 +35,14 @@ export const SetupMatrixSliders: React.FC<SetupMatrixSlidersProps> = ({
   const diff = userDiff ?? carSetups?.onThrottle ?? initialDiff;
   const brakeBias = userBrakeBias ?? carSetups?.brakeBias ?? initialBrakeBias;
 
+  const applyPreset = (wing: number, a: number, d: number, bb: number) => {
+    soundFx.playRotaryClick();
+    setUserWing(wing);
+    setUserArb(a);
+    setUserDiff(d);
+    setUserBrakeBias(bb);
+  };
+
   // Dynamic vehicle dynamics physics estimation
   const frontAeroPercent = (41.5 + frontWing * 0.45).toFixed(1);
   const rearAeroPercent = (100 - parseFloat(frontAeroPercent)).toFixed(1);
@@ -55,18 +56,33 @@ export const SetupMatrixSliders: React.FC<SetupMatrixSlidersProps> = ({
         className
       )}
     >
-      {/* ── TOP: Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+      {/* ── TOP: Header & Preset Pills ──────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
         <div className="flex items-center gap-2">
           <span className="w-[3px] h-3.5 rounded-sm bg-gold shadow-[0_0_8px_rgba(207,163,73,0.8)]" />
           <h3 className="text-xs font-bold text-amber-400 uppercase tracking-widest font-mono">
             CAR SETUP MATRIX
           </h3>
         </div>
-        <div className="flex items-center gap-2 font-mono text-[10px]">
-          <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold">
-            EST. DELTA: {parseFloat(estDeltaSec) <= 0 ? estDeltaSec : `+${estDeltaSec}`}s
-          </span>
+        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[9px]">
+          <button
+            onClick={() => applyPreset(8, 9, 50, 56)}
+            className="px-2 py-0.5 rounded bg-black/60 hover:bg-amber-500/20 text-neutral-300 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 transition-colors cursor-pointer font-bold"
+          >
+            MONACO MAX DOWNFORCE
+          </button>
+          <button
+            onClick={() => applyPreset(3, 10, 55, 58)}
+            className="px-2 py-0.5 rounded bg-black/60 hover:bg-amber-500/20 text-neutral-300 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 transition-colors cursor-pointer font-bold"
+          >
+            BALANCED GP
+          </button>
+          <button
+            onClick={() => applyPreset(1, 11, 70, 60)}
+            className="px-2 py-0.5 rounded bg-black/60 hover:bg-amber-500/20 text-neutral-300 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 transition-colors cursor-pointer font-bold"
+          >
+            MONZA LOW DRAG
+          </button>
           <SourceBadge source={isLive ? "LIVE" : "SIM"} />
         </div>
       </div>
@@ -85,6 +101,7 @@ export const SetupMatrixSliders: React.FC<SetupMatrixSlidersProps> = ({
           <div
             className="h-28 w-4 bg-black/90 rounded-full border border-white/15 relative flex justify-center p-0.5 cursor-pointer hover:border-amber-400/60 transition-colors shadow-inner"
             onClick={(e) => {
+              soundFx.playRotaryClick();
               const rect = e.currentTarget.getBoundingClientRect();
               const frac = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
               setUserWing(Math.round(frac * 10));
@@ -109,6 +126,7 @@ export const SetupMatrixSliders: React.FC<SetupMatrixSlidersProps> = ({
           <div
             className="h-28 w-4 bg-black/90 rounded-full border border-white/15 relative flex justify-center p-0.5 cursor-pointer hover:border-amber-400/60 transition-colors shadow-inner"
             onClick={(e) => {
+              soundFx.playRotaryClick();
               const rect = e.currentTarget.getBoundingClientRect();
               const frac = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
               setUserArb(Math.round(frac * 11));
@@ -133,6 +151,7 @@ export const SetupMatrixSliders: React.FC<SetupMatrixSlidersProps> = ({
           <div
             className="h-28 w-4 bg-black/90 rounded-full border border-white/15 relative flex justify-center p-0.5 cursor-pointer hover:border-amber-400/60 transition-colors shadow-inner"
             onClick={(e) => {
+              soundFx.playRotaryClick();
               const rect = e.currentTarget.getBoundingClientRect();
               const frac = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
               setUserDiff(Math.round(40 + frac * 60));
@@ -157,6 +176,7 @@ export const SetupMatrixSliders: React.FC<SetupMatrixSlidersProps> = ({
           <div
             className="h-28 w-4 bg-black/90 rounded-full border border-white/15 relative flex justify-center p-0.5 cursor-pointer hover:border-amber-400/60 transition-colors shadow-inner"
             onClick={(e) => {
+              soundFx.playRotaryClick();
               const rect = e.currentTarget.getBoundingClientRect();
               const frac = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
               setUserBrakeBias(Math.round(50 + frac * 20));

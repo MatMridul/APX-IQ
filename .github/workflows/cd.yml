@@ -158,7 +158,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: apx-iq
-          directory: ui/.next
+          directory: ui/out
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
         env:
           HAS_CF_SECRET: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}

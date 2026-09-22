@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Radio, Cpu, Sparkles, Gauge } from "lucide-react";
+import { Activity, Radio, Cpu, Sparkles, Gauge, Gamepad2, HelpCircle } from "lucide-react";
 import { SourceBadge, NoSignal } from "./primitives";
 import { scheduler } from "@/lib/cockpit/scheduler";
 import { usePrefs, type MotionLevel, type Density } from "@/lib/cockpit/preferences";
@@ -13,7 +13,10 @@ import { TRACK_IDS, WEATHER_TYPES } from "@/utils/constants";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./CommandPalette";
 import { PlaybackControls } from "./PlaybackControls";
+import { GameConnectModal } from "./GameConnectModal";
+import { PlatformGuideModal } from "./PlatformGuideModal";
 import { useWorkstationHotkeys } from "@/hooks/useWorkstationHotkeys";
+import { useUxStore } from "@/store/uxStore";
 
 /**
  * Luxury Command & Status Bar (Linear / Apple aesthetic):
@@ -30,6 +33,15 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
   const pathname = usePathname();
   const clockRef = useRef<HTMLSpanElement | null>(null);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  
+  const isConnectOpen = useUxStore((s) => s.isConnectModalOpen);
+  const openConnect = useUxStore((s) => s.openConnectModal);
+  const closeConnect = useUxStore((s) => s.closeConnectModal);
+
+  const isGuideOpen = useUxStore((s) => s.isGuideModalOpen);
+  const openGuide = useUxStore((s) => s.openGuideModal);
+  const closeGuide = useUxStore((s) => s.closeGuideModal);
+
   const [flagState, setFlagState] = useState<{
     code: "none" | "yellow" | "red" | "blue" | "green";
     label: string;
@@ -42,6 +54,8 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
   // Global hotkeys
   useWorkstationHotkeys({
     onToggleCommandPalette: () => setIsCommandOpen((v) => !v),
+    onToggleConnectModal: () => (isConnectOpen ? closeConnect() : openConnect()),
+    onToggleGuideModal: () => (isGuideOpen ? closeGuide() : openGuide()),
   });
 
   const session = useTelemetryStore((s) => s.session);
@@ -283,6 +297,37 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
 
       {/* ── RIGHT: System Preferences & Live Pit Wall Pill ─────────────── */}
       <div className="flex items-center gap-2">
+        {/* Connect F1 Game Radar Button */}
+        <button
+          onClick={openConnect}
+          className={cn(
+            "px-2.5 py-1 rounded-lg text-[9px] font-mono tracking-[0.14em] uppercase transition-all duration-150 active:scale-95 flex items-center gap-1.5 cursor-pointer font-bold",
+            isLive
+              ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+              : "bg-gradient-to-r from-gold/20 via-gold/10 to-gold/15 border border-gold/40 text-gold shadow-[0_0_10px_rgba(207,163,73,0.15)] hover:from-gold/30 hover:to-gold/25"
+          )}
+          title="F1 Game Telemetry Link & Setup Wizard (Hotkey: C)"
+        >
+          <Gamepad2 size={11} className={isLive ? "text-emerald-400" : "text-gold"} />
+          <span>{isLive ? "F1 LIVE" : "CONNECT F1"}</span>
+          <span
+            className={cn(
+              "w-1.5 h-1.5 rounded-full",
+              isLive ? "bg-emerald-400" : "bg-amber-400 animate-ping"
+            )}
+          />
+        </button>
+
+        {/* Platform Guide & Hotkey Manual Button */}
+        <button
+          onClick={openGuide}
+          className="px-2 py-1 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] ring-1 ring-white/[0.08] hover:ring-gold/30 text-silver/70 hover:text-gold text-[9px] font-mono tracking-[0.14em] uppercase transition-all duration-150 active:scale-95 flex items-center gap-1 cursor-pointer"
+          title="Platform Architecture & Workstation Guide (Hotkey: ?)"
+        >
+          <HelpCircle size={11} />
+          <span className="hidden sm:inline">GUIDE</span>
+        </button>
+
         {/* Motion Preference Toggle */}
         <button
           onClick={() =>
@@ -328,6 +373,20 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
       <CommandPalette
         isOpen={isCommandOpen}
         onClose={() => setIsCommandOpen(false)}
+      />
+
+      {/* F1 Game Connection Modal */}
+      <GameConnectModal
+        isOpen={isConnectOpen}
+        onClose={closeConnect}
+        onOpenGuide={openGuide}
+      />
+
+      {/* Platform Architecture & Feature Guide Modal */}
+      <PlatformGuideModal
+        isOpen={isGuideOpen}
+        onClose={closeGuide}
+        onOpenConnect={openConnect}
       />
     </div>
   );

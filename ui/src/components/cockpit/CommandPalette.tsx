@@ -16,9 +16,12 @@ import {
   ArrowRight,
   X,
   Keyboard,
+  Gamepad2,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePrefs } from "@/lib/cockpit/preferences";
+import { useUxStore } from "@/store/uxStore";
 
 export interface CommandItem {
   id: string;
@@ -244,6 +247,30 @@ export function CommandPalette({ isOpen, onClose, onSelectDduMode }: CommandPale
         icon: <Sliders size={14} className="text-amber-400" />,
         action: () => {
           setDensity(density === "comfortable" ? "compact" : "comfortable");
+          onClose();
+        },
+      },
+      {
+        id: "act-connect",
+        category: "ACTIONS",
+        title: "Connect EA Sports F1 Game (UDP 20777)",
+        subtitle: "Setup 60Hz UDP telemetry bridge for PC, PlayStation, or Xbox",
+        shortcut: "C",
+        icon: <Gamepad2 size={14} className="text-gold" />,
+        action: () => {
+          useUxStore.getState().openConnectModal();
+          onClose();
+        },
+      },
+      {
+        id: "act-guide",
+        category: "ACTIONS",
+        title: "Open Platform Guide & Architecture",
+        subtitle: "Interactive workstation manual, telemetry physics & keyboard hotkeys",
+        shortcut: "?",
+        icon: <HelpCircle size={14} className="text-gold" />,
+        action: () => {
+          useUxStore.getState().openGuideModal();
           onClose();
         },
       },

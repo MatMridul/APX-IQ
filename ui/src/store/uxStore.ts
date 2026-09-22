@@ -57,6 +57,8 @@ interface UxStoreState {
   // Modals / Drawers
   tyreModal: TyreModalState | null;
   insightModal: InsightModalState | null;
+  isConnectModalOpen: boolean;
+  isGuideModalOpen: boolean;
 
   // Actions
   togglePlay: () => void;
@@ -84,10 +86,14 @@ interface UxStoreState {
   closeTyreModal: () => void;
   openInsightModal: (data: Omit<InsightModalState, "isOpen">) => void;
   closeInsightModal: () => void;
+  openConnectModal: () => void;
+  closeConnectModal: () => void;
+  openGuideModal: () => void;
+  closeGuideModal: () => void;
 }
 
 export const useUxStore = create<UxStoreState>((set, get) => ({
-  isPlaying: true,
+  isPlaying: false,
   playbackSpeed: 1,
   manualScrubDist: null,
   activeCornerTarget: null,
@@ -106,6 +112,8 @@ export const useUxStore = create<UxStoreState>((set, get) => ({
 
   tyreModal: null,
   insightModal: null,
+  isConnectModalOpen: false,
+  isGuideModalOpen: false,
 
   togglePlay: () => {
     const next = !get().isPlaying;
@@ -224,5 +232,25 @@ export const useUxStore = create<UxStoreState>((set, get) => ({
   closeInsightModal: () => {
     soundFx.playButtonClick();
     set({ insightModal: null });
+  },
+
+  openConnectModal: () => {
+    soundFx.playButtonClick();
+    set({ isConnectModalOpen: true });
+  },
+
+  closeConnectModal: () => {
+    soundFx.playButtonClick();
+    set({ isConnectModalOpen: false });
+  },
+
+  openGuideModal: () => {
+    soundFx.playButtonClick();
+    set({ isGuideModalOpen: true });
+  },
+
+  closeGuideModal: () => {
+    soundFx.playButtonClick();
+    set({ isGuideModalOpen: false });
   },
 }));

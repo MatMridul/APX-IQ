@@ -29,7 +29,7 @@ class RafScheduler {
 
   private start() {
     this.last = performance.now();
-    this.virtualTime = this.last / 1000;
+    this.virtualTime = 0;
 
     const loop = (tMs: number) => {
       const rawDt = (tMs - this.last) / 1000;

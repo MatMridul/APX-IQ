@@ -8,6 +8,8 @@ interface HotkeyOptions {
   onToggleCommandPalette?: () => void;
   onSelectDduMode?: (mode: "RACE" | "QUALY" | "TYRES" | "CHASSIS") => void;
   onTogglePlayPause?: () => void;
+  onToggleConnectModal?: () => void;
+  onToggleGuideModal?: () => void;
 }
 
 export function useWorkstationHotkeys(options: HotkeyOptions = {}) {
@@ -51,7 +53,7 @@ export function useWorkstationHotkeys(options: HotkeyOptions = {}) {
         return;
       }
 
-      // DDU Mode Keys (1, 2, 3, 4) when not holding modifiers
+      // Single keys when not holding modifiers
       if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         if (e.key === "1") {
           options.onSelectDduMode?.("RACE");
@@ -64,6 +66,12 @@ export function useWorkstationHotkeys(options: HotkeyOptions = {}) {
         } else if (e.key === " ") {
           e.preventDefault();
           options.onTogglePlayPause?.();
+        } else if (e.key.toLowerCase() === "c") {
+          e.preventDefault();
+          options.onToggleConnectModal?.();
+        } else if (e.key === "?" || e.key.toLowerCase() === "h") {
+          e.preventDefault();
+          options.onToggleGuideModal?.();
         } else if (e.key.toLowerCase() === "m") {
           // Cycle motion
           const next = motion === "full" ? "reduced" : motion === "reduced" ? "off" : "full";

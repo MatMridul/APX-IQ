@@ -9,7 +9,9 @@ import { TrackMap } from "./TrackMap";
 import { TelemetryRibbon } from "./TelemetryRibbon";
 import { BattlePanel } from "./BattlePanel";
 import { InsightFeed } from "./InsightFeed";
+import { TelemetryStandbyOverlay } from "./TelemetryStandbyOverlay";
 import { usePrefs } from "@/lib/cockpit/preferences";
+import { useUxStore } from "@/store/uxStore";
 
 /**
  * DashboardCanvas — 16:9 broadcast pit wall, deterministic percentage
@@ -51,6 +53,9 @@ function Region({
 
 export const DashboardCanvas: React.FC = () => {
   const { density } = usePrefs();
+  const openConnect = useUxStore((s) => s.openConnectModal);
+  const openGuide = useUxStore((s) => s.openGuideModal);
+
   return (
     <div
       className={`relative w-full h-full bg-[#070709] text-silver overflow-hidden select-none border border-[#B7A06A]/45 rounded-xl density-${density}`}
@@ -101,6 +106,12 @@ export const DashboardCanvas: React.FC = () => {
       <Region top="74%" left="71%" width="28%" height="23%">
         <InsightFeed />
       </Region>
+
+      {/* ── Standby / Waiting for Telemetry Overlay ─────────────────── */}
+      <TelemetryStandbyOverlay
+        onOpenConnect={openConnect}
+        onOpenGuide={openGuide}
+      />
     </div>
   );
 };

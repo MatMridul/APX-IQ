@@ -5,9 +5,50 @@ six game generations (F1 2020–25), streams it to a real-time cockpit
 dashboard, persists every completed lap, and generates AI coaching debriefs
 that compare you against real F1 ghost laps.
 
-> **Status:** stable local-first platform. CI-gated (`main` is protected by
-> backend + UI workflows: lint, unit tests, real-Postgres integration tests,
-> typecheck, build). Security hardening pass pending.
+> **Live Edge Deployment:** [https://apx-iq.pages.dev](https://apx-iq.pages.dev)  
+> **Status:** CI-gated (`main` is protected by backend + UI workflows: lint, unit tests, real-Postgres integration tests, typecheck, build, automated Cloudflare Pages deployment).
+
+---
+
+## 🌐 Workstation Quick Start
+
+### 1. Live Web Workstation
+Open **[https://apx-iq.pages.dev](https://apx-iq.pages.dev)** in any modern browser.
+- **Cockpit HUD (`/dashboard`)**: AMOLED steering wheel MFD, 4-corner tyre thermals (surface vs carcass), MoTeC distance ribbon, battle predictor.
+- **Mission Control (`/dashboard/intelligence`)**: FastF1 reference ghost benchmarking, pedal dynamics matrix, mechanical setup tuning, AI debriefs.
+- **Observability (`/debug`)**: Socket.IO transport inspector, 60Hz UDP frame buffers, Zustand state tree.
+
+### 2. Connect Your EA Sports F1 Game (UDP 20777)
+In **EA Sports F1 (2020 through 2025)** on PC, PlayStation, or Xbox:
+1. Go to: **Options** ➔ **Settings** ➔ **Telemetry Settings**
+2. Set **UDP Telemetry** = `ON`
+3. Set **UDP IP Address** = `127.0.0.1` (or your PC's LAN IP for console)
+4. Set **UDP Port** = `20777`
+5. Set **UDP Send Rate** = `60 Hz`
+6. Set **UDP Format** = `2024 / Auto`
+
+Run the local bridge from the project root:
+```bash
+python run_ingestion.py
+```
+*Full Setup Guide: [`docs/frontend/USER_ONBOARDING_AND_TELEMETRY_GUIDE.md`](docs/frontend/USER_ONBOARDING_AND_TELEMETRY_GUIDE.md)*
+
+---
+
+## ⌨️ Workstation Hotkeys
+
+| Hotkey | Action | Scope |
+| :--- | :--- | :--- |
+| **`Space`** | Play / Pause Telemetry Stream | Cockpit HUD |
+| **`⌘K` / `Ctrl+K`** | Open Command Palette | Global |
+| **`?` / `F1`** | Open Platform Guide & Architecture | Global |
+| **`C`** | Open F1 Game Connection Wizard | Cockpit HUD |
+| **`⇧1` / `⇧2` / `⇧3`** | Switch Views (HUD / Mission Control / Debug) | Global |
+| **`1` / `2` / `3` / `4`** | Switch DDU Mode (Race / Qualy / Tyres / Chassis) | Steering Wheel |
+| **`M`** | Cycle Motion Level (Full / Reduced / Off) | Layout |
+| **`D`** | Toggle UI Density (Comfortable / Compact) | Layout |
+
+---
 
 ## Architecture
 
@@ -21,44 +62,26 @@ EA F1 Game ──UDP :20777──▶ INGESTION (:3001)
                              coach · hardware FFT · battle · FastF1 ghosts
                              LLM debriefs: Ollama → Gemini → template fallback
                                    │
-                        UI (Next.js 16) :3000
+                        UI (Next.js 16) :3000 / Cloudflare Pages Edge
                              live cockpit (Socket.IO + Zustand)
                              intelligence page (REST + React Query)
 ```
 
 Full details: [`docs/architecture/system_architecture.md`](docs/architecture/system_architecture.md) ·
 API reference: [`docs/architecture/api_map.md`](docs/architecture/api_map.md) ·
-Schema: [`docs/architecture/database_schema.md`](docs/architecture/database_schema.md).
+Schema: [`docs/architecture/database_schema.md`](docs/architecture/database_schema.md) ·
+Cloud Deployment: [`docs/architecture/CLOUD_DEPLOYMENT_GUIDE.md`](docs/architecture/CLOUD_DEPLOYMENT_GUIDE.md).
 
-## Quick Start
-
-```bash
-# 1. Infrastructure (Postgres + Redis images)
-docker compose -f infra/docker-compose.yml up -d
-
-# 2. Schema
-pip install -r requirements.txt -r requirements-dev.txt
-alembic upgrade head
-
-# 3. Three processes (separate terminals)
-python -m uvicorn api.main:app --reload --port 8000
-python run_ingestion.py
-cd ui && npm ci && npm run dev        # http://localhost:3000
-
-# 4. No game? Fake it.
-python scripts/simulate_f1_udp.py
-```
-
-Everything also runs with zero infrastructure — omit Postgres and storage
-falls back to in-memory (dev only).
-
-## Development Gates
+## Local Development & Gates
 
 ```bash
+# 1. Run local test suite
 ruff check .                       # Python lint (blocking)
 pytest -m "not integration"       # unit suite
 DATABASE_URL=... alembic upgrade head && \
 DATABASE_URL=... pytest -m integration   # real-DB round-trips
+
+# 2. UI Gates
 cd ui && npx tsc --noEmit && npm run lint && npm run build
 ```
 

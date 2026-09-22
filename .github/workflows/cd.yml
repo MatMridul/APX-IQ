@@ -154,12 +154,11 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         if: env.HAS_CF_SECRET == 'true'
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: apx-iq
-          directory: ui/out
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: ui
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           HAS_CF_SECRET: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        run: |
+          npx wrangler pages project create apx-iq --production-branch main || true
+          npx wrangler pages deploy out --project-name apx-iq --commit-dirty=true

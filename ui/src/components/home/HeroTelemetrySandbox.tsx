@@ -83,6 +83,30 @@ export function HeroTelemetrySandbox() {
     };
   }, [isThrottling, gear, isLive, soundActive]);
 
+  const handleUpshift = React.useCallback(() => {
+    if (gear < 8) {
+      soundFx.playGearShift(true);
+      setGear((g) => g + 1);
+      setRpm((r) => Math.max(5000, Math.round(r * 0.76)));
+    }
+  }, [gear]);
+
+  const handleDownshift = React.useCallback(() => {
+    if (gear > 0) {
+      soundFx.playGearShift(false);
+      setGear((g) => g - 1);
+      setRpm((r) => Math.min(12500, Math.round(r * 1.25)));
+    }
+  }, [gear]);
+
+  const handleToggleDrs = React.useCallback(() => {
+    setDrs((prev) => {
+      const next = !prev;
+      soundFx.playDrsTone(next);
+      return next;
+    });
+  }, []);
+
   // Keyboard controls listener (W/Up for throttle, E for upshift, Q for downshift, D for DRS)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -112,29 +136,7 @@ export function HeroTelemetrySandbox() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [gear, drs, rpm]);
-
-  const handleUpshift = () => {
-    if (gear < 8) {
-      soundFx.playGearShift(true);
-      setGear((g) => g + 1);
-      setRpm((r) => Math.max(5000, Math.round(r * 0.76)));
-    }
-  };
-
-  const handleDownshift = () => {
-    if (gear > 0) {
-      soundFx.playGearShift(false);
-      setGear((g) => g - 1);
-      setRpm((r) => Math.min(12500, Math.round(r * 1.25)));
-    }
-  };
-
-  const handleToggleDrs = () => {
-    const next = !drs;
-    soundFx.playDrsTone(next);
-    setDrs(next);
-  };
+  }, [handleUpshift, handleDownshift, handleToggleDrs]);
 
   // Display variables
   const displayRpm = isLive && telemetry ? telemetry.rpm : rpm;

@@ -18,15 +18,15 @@ import { soundFx } from "@/lib/cockpit/soundFx";
 /**
  * Authentic F1 Racing Steering Wheel — High-Precision Motorsport Monocoque
  *
- * Direct Tactile Motorsport Actuators:
- *  - Interactive pushbuttons: `N`, `RAD` (Radio check), `+10`/`+1`, `OT` (Overtake), `PC` (Pit confirm), `PL` (Pit Limiter), `DRK` (Drink), `BB−`/`BB+` (Brake Bias)
- *  - Machined titanium rotary switches: `STRAT` (1-12 Engine maps), `MFD` (Display mode), `HPP` (Hybrid diff)
- *  - DRS Trigger: Click to toggle DRS open/close with pneumatic audio tone
- *  - 15-LED RPM shift light array mounted in the recessed upper carbon bridge
- *  - Integrated anti-glare AMOLED digital cockpit display with 60Hz zero-render direct DOM updates
+ * Professional Aerodynamic Carbon Fiber Monocoque:
+ *  - Ergonomic Alcantara grips with molded thumb rests & tactile stitching
+ *  - 14 precision CNC-machined aerospace pushbuttons with raised safety collars
+ *  - 3 fluted titanium rotary encoders (STRAT, MFD, HPP) with laser-etched detents
+ *  - Integrated 15-LED progressive RPM shift array with carbon glare eyebrow
+ *  - Anti-glare AMOLED digital cockpit display with zero-render 60Hz DOM updates
  */
 
-/* ── SVG Wheel Button Component ────────────────────────────────────── */
+/* ── Precision SVG Pushbutton Component ────────────────────────────── */
 
 function PushButton({
   x,
@@ -36,6 +36,7 @@ function PushButton({
   textColor = "#FFFFFF",
   onClick,
   active = false,
+  sublabel,
 }: {
   x: number;
   y: number;
@@ -44,42 +45,67 @@ function PushButton({
   textColor?: string;
   onClick?: () => void;
   active?: boolean;
+  sublabel?: string;
 }) {
   return (
     <g
       onClick={onClick}
       pointerEvents="auto"
       className={cn(
-        "cursor-pointer transition-transform duration-100 hover:scale-110 active:scale-90 origin-center select-none",
+        "cursor-pointer transition-transform duration-75 hover:scale-105 active:scale-90 origin-center select-none",
         active && "animate-pulse"
       )}
     >
-      {/* CNC Aluminum Protective Bezel / Collar */}
-      <circle cx={x} cy={y} r={12.5} fill="#0B0D12" stroke={active ? "#FACC15" : "#252936"} strokeWidth="1.6" />
-      <circle cx={x} cy={y} r={10.8} fill="#141722" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
+      {/* CNC Anodized Aluminum Outer Bezel Collar */}
+      <circle cx={x} cy={y} r={12.5} fill="#090B10" stroke={active ? "#FACC15" : "#242A38"} strokeWidth="1.5" />
+      <circle cx={x} cy={y} r={11.0} fill="#141722" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
 
-      {/* Button Cap with Radial Lighting */}
-      <circle cx={x} cy={y} r={9.2} fill={color} />
-      <circle cx={x} cy={y} r={9.2} fill="url(#btn-specular)" />
+      {/* Recessed Button Cavity Depth Ring */}
+      <circle cx={x} cy={y} r={9.5} fill="#06070A" />
 
-      {/* Laser-etched Label */}
+      {/* Tactile Dome Button Cap with Specular Reflection */}
+      <circle cx={x} cy={y} r={8.8} fill={color} />
+      <circle cx={x} cy={y} r={8.8} fill="url(#btn-specular)" />
+
+      {/* Active High-Energy Glow Halo */}
+      {active && (
+        <circle cx={x} cy={y} r={14} fill="none" stroke={color} strokeWidth="1.2" opacity="0.6" className="animate-ping origin-center" style={{ transformOrigin: `${x}px ${y}px` }} />
+      )}
+
+      {/* Laser-etched Actuator Label */}
       <text
         x={x}
-        y={y + 3.2}
+        y={y + (sublabel ? 1.5 : 3.0)}
         textAnchor="middle"
-        fontSize="7.5"
+        fontSize={label.length > 3 ? "5.8" : "6.8"}
         fontFamily="var(--font-mono), monospace"
-        fontWeight="800"
+        fontWeight="900"
         fill={textColor}
-        style={{ letterSpacing: "0.02em" }}
+        style={{ letterSpacing: "0.04em" }}
       >
         {label}
       </text>
+
+      {/* Optional Miniature Sub-Label */}
+      {sublabel && (
+        <text
+          x={x}
+          y={y + 6.2}
+          textAnchor="middle"
+          fontSize="4.2"
+          fontFamily="var(--font-mono), monospace"
+          fontWeight="700"
+          fill="rgba(255,255,255,0.7)"
+          style={{ letterSpacing: "0.02em" }}
+        >
+          {sublabel}
+        </text>
+      )}
     </g>
   );
 }
 
-/* ── SVG Rotary Encoder Component ──────────────────────────────────── */
+/* ── Machined Titanium Rotary Switch Component ─────────────────────── */
 
 function RotarySwitch({
   x,
@@ -97,15 +123,33 @@ function RotarySwitch({
   onClick?: () => void;
 }) {
   const ticks = Array.from({ length: 11 }, (_, i) => i);
+  const knurls = Array.from({ length: 24 }, (_, i) => i);
+
   return (
     <g
       onClick={onClick}
       pointerEvents="auto"
       className="cursor-pointer select-none group transition-transform active:scale-95 origin-center"
     >
-      {/* Outer Knurled Ring Body */}
-      <circle cx={x} cy={y} r={18} fill="#101217" stroke="#2B303D" strokeWidth="1.5" />
-      <circle cx={x} cy={y} r={15} fill="url(#rotary-titanium)" stroke="rgba(207,163,73,0.45)" strokeWidth="1" />
+      {/* Outer Fluted Knurling Teeth */}
+      {knurls.map((i) => {
+        const rad = (i / 24) * Math.PI * 2;
+        return (
+          <line
+            key={`knurl-${i}`}
+            x1={x + Math.cos(rad) * 16.5}
+            y1={y + Math.sin(rad) * 16.5}
+            x2={x + Math.cos(rad) * 18.5}
+            y2={y + Math.sin(rad) * 18.5}
+            stroke="rgba(255,255,255,0.22)"
+            strokeWidth="0.9"
+          />
+        );
+      })}
+
+      {/* Outer Beveled Aluminum Body */}
+      <circle cx={x} cy={y} r={17} fill="#0F1218" stroke="#2B3242" strokeWidth="1.2" />
+      <circle cx={x} cy={y} r={14.5} fill="url(#rotary-titanium)" stroke="rgba(207,163,73,0.4)" strokeWidth="0.9" />
 
       {/* Calibrated Detent Ticks */}
       {ticks.map((i) => {
@@ -113,45 +157,60 @@ function RotarySwitch({
         const isMajor = i === 0 || i === 5 || i === 10;
         return (
           <line
-            key={i}
-            x1={x + Math.cos(rad) * 11.5}
-            y1={y + Math.sin(rad) * 11.5}
-            x2={x + Math.cos(rad) * 14.5}
-            y2={y + Math.sin(rad) * 14.5}
-            stroke={isMajor ? "rgba(207,163,73,0.9)" : "rgba(255,255,255,0.3)"}
+            key={`tick-${i}`}
+            x1={x + Math.cos(rad) * 10.5}
+            y1={y + Math.sin(rad) * 10.5}
+            x2={x + Math.cos(rad) * 13.5}
+            y2={y + Math.sin(rad) * 13.5}
+            stroke={isMajor ? "rgba(207,163,73,0.95)" : "rgba(255,255,255,0.3)"}
             strokeWidth={isMajor ? "1.4" : "0.8"}
           />
         );
       })}
 
-      {/* Machined Gold Pointer Dot */}
+      {/* Radial Pointer Notch Line */}
       {(() => {
         const rad = (dotAngle / 300) * Math.PI * 1.5 - Math.PI * 0.75;
         return (
-          <circle
-            cx={x + Math.cos(rad) * 7.5}
-            cy={y + Math.sin(rad) * 7.5}
-            r={3}
-            fill="#FACC15"
-            stroke="#000000"
-            strokeWidth="0.8"
-          />
+          <g>
+            <line
+              x1={x + Math.cos(rad) * 4}
+              y1={y + Math.sin(rad) * 4}
+              x2={x + Math.cos(rad) * 9.5}
+              y2={y + Math.sin(rad) * 9.5}
+              stroke="#FACC15"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+            <circle
+              cx={x + Math.cos(rad) * 9.5}
+              cy={y + Math.sin(rad) * 9.5}
+              r={2.2}
+              fill="#FACC15"
+              stroke="#000000"
+              strokeWidth="0.6"
+            />
+          </g>
         );
       })()}
 
-      {/* Center Cap */}
-      <circle cx={x} cy={y} r={4.5} fill="#090A0D" stroke="#252936" strokeWidth="1" />
+      {/* Center Titanium Hex-Socket Screw Cap */}
+      <circle cx={x} cy={y} r={4.5} fill="#080A0D" stroke="#252A38" strokeWidth="1" />
+      <polygon
+        points={`${x},${y - 2} ${x + 1.8},${y - 1} ${x + 1.8},${y + 1} ${x},${y + 2} ${x - 1.8},${y + 1} ${x - 1.8},${y - 1}`}
+        fill="#1A1E29"
+      />
 
       {/* Rotary Legend */}
       <text
         x={x}
-        y={y + 24}
+        y={y + 23}
         textAnchor="middle"
-        fontSize="6.8"
+        fontSize="6.6"
         fontFamily="var(--font-mono), monospace"
         fontWeight="800"
-        fill="rgba(207,163,73,0.9)"
-        letterSpacing="0.8"
+        fill="rgba(207,163,73,0.92)"
+        letterSpacing="0.6"
       >
         {label} {valueText !== undefined ? `· ${valueText}` : ""}
       </text>
@@ -159,13 +218,13 @@ function RotarySwitch({
   );
 }
 
-/* ── Main Wheel Component ──────────────────────────────────────────── */
+/* ── Main Steering Wheel Component ─────────────────────────────────── */
 
 export function CentralTelemetry() {
   const [gear, setGear] = useState(1);
   const [drs, setDrs] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
-  
+
   // UX Store Bindings
   const dduMode = useUxStore((s) => s.mfdMode);
   const setDduMode = useUxStore((s) => s.setMfdMode);
@@ -174,6 +233,7 @@ export function CentralTelemetry() {
   const cycleStrat = useUxStore((s) => s.cycleStrat);
   const hppMode = useUxStore((s) => s.hppMode);
   const cycleHpp = useUxStore((s) => s.cycleHpp);
+  const brakeBiasPct = useUxStore((s) => s.brakeBiasPct);
   const adjustBrakeBias = useUxStore((s) => s.adjustBrakeBias);
   const toggleDrs = useUxStore((s) => s.toggleDrsOverride);
   const toggleOvertake = useUxStore((s) => s.toggleOvertake);
@@ -195,6 +255,7 @@ export function CentralTelemetry() {
   const socBarRef = useRef<HTMLDivElement | null>(null);
   const socTxtRef = useRef<HTMLSpanElement | null>(null);
   const deltaTxtRef = useRef<HTMLSpanElement | null>(null);
+  const bbTxtRef = useRef<HTMLSpanElement | null>(null);
   const qualyS1Ref = useRef<HTMLSpanElement | null>(null);
   const qualyS2Ref = useRef<HTMLSpanElement | null>(null);
   const qualyS3Ref = useRef<HTMLSpanElement | null>(null);
@@ -259,6 +320,10 @@ export function CentralTelemetry() {
         deltaTxtRef.current.style.color = d <= 0 ? "#22C55E" : "#EF4444";
       }
 
+      if (bbTxtRef.current) {
+        bbTxtRef.current.textContent = `${brakeBiasPct.toFixed(1)}%`;
+      }
+
       if (qualyS1Ref.current && qualyS2Ref.current && qualyS3Ref.current) {
         const lap = state.lapData;
         if (isLive && lap) {
@@ -299,7 +364,7 @@ export function CentralTelemetry() {
     });
 
     return unsub;
-  }, []);
+  }, [brakeBiasPct]);
 
   // Compute rotary visual dot angles
   const stratAngle = ((stratMode - 1) / 11) * 300;
@@ -319,231 +384,317 @@ export function CentralTelemetry() {
         ══════════════════════════════════════════════════════════════════ */}
         <svg
           viewBox="0 0 520 348"
-          className="absolute inset-0 w-full h-full drop-shadow-[0_18px_36px_rgba(0,0,0,0.92)] z-20 pointer-events-auto"
+          className="absolute inset-0 w-full h-full drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)] z-20 pointer-events-auto"
           aria-label="F1 Racing Steering Wheel"
         >
           <defs>
             {/* Matte Twill Carbon Fiber Monocoque Gradient */}
             <linearGradient id="carbon-monocoque" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#22252F" />
-              <stop offset="25%" stopColor="#171922" />
-              <stop offset="60%" stopColor="#0E1015" />
+              <stop offset="0%" stopColor="#252834" />
+              <stop offset="25%" stopColor="#181B24" />
+              <stop offset="60%" stopColor="#0F1116" />
               <stop offset="100%" stopColor="#08090C" />
             </linearGradient>
 
             {/* Sculpted Alcantara Grip Gradient (Left) */}
             <linearGradient id="grip-alcantara-l" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#0A0B0E" />
-              <stop offset="45%" stopColor="#1B1E26" />
-              <stop offset="85%" stopColor="#12141B" />
-              <stop offset="100%" stopColor="#0B0C10" />
+              <stop offset="0%" stopColor="#08090C" />
+              <stop offset="35%" stopColor="#1E212B" />
+              <stop offset="85%" stopColor="#12151D" />
+              <stop offset="100%" stopColor="#0A0B0E" />
             </linearGradient>
 
             {/* Sculpted Alcantara Grip Gradient (Right) */}
             <linearGradient id="grip-alcantara-r" x1="1" y1="0" x2="0" y2="0">
-              <stop offset="0%" stopColor="#0A0B0E" />
-              <stop offset="45%" stopColor="#1B1E26" />
-              <stop offset="85%" stopColor="#12141B" />
-              <stop offset="100%" stopColor="#0B0C10" />
+              <stop offset="0%" stopColor="#08090C" />
+              <stop offset="35%" stopColor="#1E212B" />
+              <stop offset="85%" stopColor="#12151D" />
+              <stop offset="100%" stopColor="#0A0B0E" />
             </linearGradient>
 
             {/* Knurled Titanium Rotary Shader */}
             <radialGradient id="rotary-titanium" cx="35%" cy="30%" r="65%">
-              <stop offset="0%" stopColor="#303544" />
-              <stop offset="55%" stopColor="#171922" />
-              <stop offset="100%" stopColor="#0A0B0E" />
+              <stop offset="0%" stopColor="#363C4E" />
+              <stop offset="55%" stopColor="#181C25" />
+              <stop offset="100%" stopColor="#0A0C10" />
             </radialGradient>
 
             {/* Button Tactile Specular Glint */}
-            <radialGradient id="btn-specular" cx="35%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
-              <stop offset="55%" stopColor="#ffffff" stopOpacity="0.06" />
+            <radialGradient id="btn-specular" cx="35%" cy="28%" r="68%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45" />
+              <stop offset="50%" stopColor="#ffffff" stopOpacity="0.08" />
               <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
             </radialGradient>
 
             {/* LCD Screen Housing Inner Depth Shadow */}
             <filter id="lcd-housing-shadow" x="-10%" y="-10%" width="120%" height="120%">
-              <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#000000" floodOpacity="0.9" />
+              <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#000000" floodOpacity="0.95" />
             </filter>
           </defs>
 
           {/* ── ERGONOMIC SCULPTED ALCANTARA GRIPS ───────────────────────── */}
-          {/* Left Grip */}
+          {/* Left Grip: Molded Thumb Pocket & Palm Contour */}
           <path
-            d="M 96 74 C 60 66 28 84 18 130 C 6 186 8 250 24 288 C 38 318 74 322 92 300 L 96 74 Z"
+            d="M 96 68 C 64 58 24 78 16 124 C 6 182 8 252 24 290 C 38 322 76 324 92 302 L 96 68 Z"
             fill="url(#grip-alcantara-l)"
-            stroke="rgba(207,163,73,0.35)"
+            stroke="rgba(207,163,73,0.38)"
             strokeWidth="1.2"
           />
-          {/* Right Grip */}
+          {/* Right Grip: Molded Thumb Pocket & Palm Contour */}
           <path
-            d="M 424 74 C 460 66 492 84 502 130 C 514 186 512 250 496 288 C 482 318 446 322 428 300 L 424 74 Z"
+            d="M 424 68 C 456 58 496 78 504 124 C 514 182 512 252 496 290 C 482 322 444 324 428 302 L 424 68 Z"
             fill="url(#grip-alcantara-r)"
-            stroke="rgba(207,163,73,0.35)"
+            stroke="rgba(207,163,73,0.38)"
             strokeWidth="1.2"
           />
 
-          {/* Grip Tactile Contour Ridges */}
-          {[96, 122, 148, 174, 200, 226, 252, 276].map((gy) => (
+          {/* Ergonomic Alcantara Grip Finger Ribs & Stitches */}
+          {[92, 118, 144, 170, 196, 222, 248, 274].map((gy) => (
             <g key={gy}>
-              <line x1={30} y1={gy} x2={88} y2={gy + 6} stroke="rgba(255,255,255,0.06)" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1={432} y1={gy + 6} x2={490} y2={gy} stroke="rgba(255,255,255,0.06)" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1={28} y1={gy} x2={86} y2={gy + 6} stroke="rgba(255,255,255,0.08)" strokeWidth="2.4" strokeLinecap="round" />
+              <line x1={434} y1={gy + 6} x2={492} y2={gy} stroke="rgba(255,255,255,0.08)" strokeWidth="2.4" strokeLinecap="round" />
             </g>
           ))}
 
           {/* ── CARBON FIBER CHASSIS MONOCOQUE ───────────────────────────── */}
+          {/* Main Monocoque Body with Glare Visor Brow */}
           <path
-            d="M 96 58 C 160 38 360 38 424 58 L 428 248 C 400 300 360 326 330 326 L 190 326 C 160 326 120 300 92 248 Z"
+            d="M 96 52 C 160 36 360 36 424 52 L 430 252 C 402 304 362 330 332 330 L 188 330 C 158 330 118 304 90 252 Z"
             fill="url(#carbon-monocoque)"
-            stroke="rgba(207,163,73,0.45)"
+            stroke="rgba(207,163,73,0.5)"
             strokeWidth="1.4"
           />
-          {/* Subtle Twill Weave Anisotropic Texture */}
+
+          {/* Anti-Glare Visor Eyebrow Hood Above Shift Lights */}
           <path
-            d="M 96 58 C 160 38 360 38 424 58 L 428 248 C 400 300 360 326 330 326 L 190 326 C 160 326 120 300 92 248 Z"
-            fill="none"
-            stroke="rgba(255,255,255,0.03)"
-            strokeWidth="8"
-            strokeDasharray="2 6"
+            d="M 126 50 C 190 38 330 38 394 50 L 398 56 C 330 46 190 46 122 56 Z"
+            fill="#090B10"
+            stroke="rgba(207,163,73,0.3)"
+            strokeWidth="0.8"
+          />
+
+          {/* Shift Light Recessed Channel Pocket */}
+          <rect
+            x="136"
+            y="56"
+            width="248"
+            height="22"
+            rx="4"
+            fill="#050608"
+            stroke="rgba(255,255,255,0.12)"
+            strokeWidth="1"
           />
 
           {/* ── LCD SCREEN MACHINED BEZEL HOUSING ────────────────────────── */}
           <rect
-            x="142"
-            y="86"
-            width="236"
-            height="152"
-            rx="8"
-            fill="#030407"
-            stroke="rgba(207,163,73,0.45)"
+            x="136"
+            y="78"
+            width="248"
+            height="154"
+            rx="7"
+            fill="#030406"
+            stroke="rgba(207,163,73,0.55)"
             strokeWidth="1.4"
             filter="url(#lcd-housing-shadow)"
           />
 
+          {/* 4 Corner Precision Hex Torx Fasteners */}
+          {[
+            [142, 84],
+            [378, 84],
+            [142, 226],
+            [378, 226],
+          ].map(([fx, fy], idx) => (
+            <g key={idx}>
+              <circle cx={fx} cy={fy} r={2.2} fill="#141822" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
+              <circle cx={fx} cy={fy} r={0.9} fill="#090B10" />
+            </g>
+          ))}
+
           {/* ── AUTHENTIC PIT WALL REMINDER TAPE STICKER ─────────────────── */}
           <rect
-            x="180"
-            y="244"
-            width="160"
-            height="14"
+            x="175"
+            y="238"
+            width="170"
+            height="13"
             rx="2"
-            fill="rgba(230,228,220,0.92)"
+            fill="rgba(235,232,224,0.94)"
             stroke="rgba(0,0,0,0.4)"
             strokeWidth="0.5"
           />
           <text
             x="260"
-            y="254"
+            y="247.5"
             textAnchor="middle"
-            fontSize="6.8"
+            fontSize="6.5"
             fontFamily="var(--font-mono), monospace"
-            fontWeight="800"
+            fontWeight="900"
             fill="#111827"
             letterSpacing="0.8"
           >
-            STRAT {stratMode} = PIT · FLAP → MFD
+            STRAT {stratMode} = RACE · BB {brakeBiasPct.toFixed(1)}% · FLAP → MFD
           </text>
 
-          {/* ── TACTILE PUSHBUTTONS (LEFT & RIGHT) ────────────────────────── */}
-          {/* Left: N, RAD, +10, +1 */}
+          {/* ── TACTILE PUSHBUTTONS — LEFT CONTROL WING ───────────────────── */}
+          {/* DRS Trigger Button (Upper Horn) */}
           <PushButton
-            x={120}
-            y={112}
+            x={108}
+            y={80}
+            label="DRS"
+            sublabel="AERO"
+            color={drs ? "#10B981" : "#0F382A"}
+            textColor={drs ? "#000000" : "#34D399"}
+            active={drs}
+            onClick={() => {
+              toggleDrs();
+            }}
+          />
+
+          {/* RAD (Radio Check) Button */}
+          <PushButton
+            x={108}
+            y={116}
+            label="RAD"
+            color="#475569"
+            textColor="#FFFFFF"
+            onClick={() => triggerRadio()}
+          />
+
+          {/* Guarded Neutral (N) Button */}
+          <PushButton
+            x={108}
+            y={152}
             label="N"
             color="#EAB308"
-            textColor="#000"
+            textColor="#000000"
             onClick={() => {
               soundFx.playButtonClick();
               setGear(0);
             }}
           />
+
+          {/* Brake Bias Fast Toggles (BB- / BB+) */}
           <PushButton
-            x={120}
-            y={144}
-            label="RAD"
-            color="#475569"
-            textColor="#FFF"
-            onClick={() => triggerRadio()}
+            x={96}
+            y={190}
+            label="BB−"
+            color="#DC2626"
+            textColor="#FFFFFF"
+            onClick={() => adjustBrakeBias(-0.5)}
           />
           <PushButton
-            x={120}
-            y={176}
+            x={122}
+            y={190}
+            label="BB+"
+            color="#16A34A"
+            textColor="#FFFFFF"
+            onClick={() => adjustBrakeBias(0.5)}
+          />
+
+          {/* Fine Tuning Detents (+10 / +1) */}
+          <PushButton
+            x={96}
+            y={226}
             label="+10"
-            color="#181A20"
+            color="#1A1E28"
             textColor="#E2E8F0"
             onClick={() => adjustBrakeBias(1.0)}
           />
           <PushButton
-            x={120}
-            y={206}
+            x={122}
+            y={226}
             label="+1"
-            color="#181A20"
+            color="#1A1E28"
             textColor="#E2E8F0"
             onClick={() => adjustBrakeBias(0.1)}
           />
 
-          {/* Right: OT, PC, PL, DRK */}
+          {/* ── TACTILE PUSHBUTTONS — RIGHT CONTROL WING ──────────────────── */}
+          {/* OT (Overtake Boost) Button (Upper Horn) */}
           <PushButton
-            x={400}
-            y={112}
+            x={412}
+            y={80}
             label="OT"
-            color="#EA580C"
-            textColor="#FFF"
+            sublabel="PUSH"
+            color={overtakeActive ? "#F97316" : "#4A200B"}
+            textColor={overtakeActive ? "#000000" : "#FB923C"}
             active={overtakeActive}
             onClick={() => toggleOvertake()}
           />
+
+          {/* PC (Pit Confirm) Button */}
           <PushButton
-            x={400}
-            y={144}
+            x={412}
+            y={116}
             label="PC"
             color="#CBD5E1"
             textColor="#0F172A"
             onClick={() => {
-              triggerRadio("PIT CONFIRMED: Pit crew standing by for box this lap.");
+              triggerRadio("PIT CONFIRMED: Standing by for box this lap.");
             }}
           />
+
+          {/* PL (Pit Limiter) Button */}
           <PushButton
-            x={400}
-            y={176}
+            x={412}
+            y={152}
             label="PL"
             color="#DC2626"
-            textColor="#FFF"
+            textColor="#FFFFFF"
             active={pitLimiterActive}
             onClick={() => togglePitLimiter()}
           />
+
+          {/* DRK (Hydration Drink) Button */}
           <PushButton
-            x={400}
-            y={206}
+            x={398}
+            y={190}
             label="DRK"
             color="#2563EB"
-            textColor="#FFF"
+            textColor="#FFFFFF"
             onClick={() => {
               triggerRadio("DRINK PUMP: 50ml isotonic hydration delivered.");
             }}
           />
 
-          {/* Brake Bias Fast Triggers Under Screen */}
+          {/* MARK (Telemetry Marker) Button */}
           <PushButton
-            x={196}
-            y={272}
-            label="BB−"
-            color="#DC2626"
-            textColor="#FFF"
-            onClick={() => adjustBrakeBias(-0.5)}
-          />
-          <PushButton
-            x={324}
-            y={272}
-            label="BB+"
-            color="#16A34A"
-            textColor="#FFF"
-            onClick={() => adjustBrakeBias(0.5)}
+            x={424}
+            y={190}
+            label="MARK"
+            color="#0891B2"
+            textColor="#FFFFFF"
+            onClick={() => {
+              triggerRadio("TELEMETRY MARKER: Event tagged for debrief.");
+            }}
           />
 
-          {/* ── MACHINED ROTARY SWITCHES (STRAT · MFD · HPP) ─────────────── */}
+          {/* WET (Wet Engine Map) Button */}
+          <PushButton
+            x={398}
+            y={226}
+            label="WET"
+            color="#3730A3"
+            textColor="#A5B4FC"
+            onClick={() => {
+              triggerRadio("WET MAP: Intermediate throttle ramp configured.");
+            }}
+          />
+
+          {/* ENG (Engine Map Cycle) Button */}
+          <PushButton
+            x={424}
+            y={226}
+            label="ENG"
+            color="#B45309"
+            textColor="#FEF3C7"
+            onClick={() => cycleStrat()}
+          />
+
+          {/* ── MACHINED TITANIUM ROTARIES (STRAT · MFD · HPP) ────────────── */}
           <RotarySwitch
-            x={144}
-            y={272}
+            x={150}
+            y={282}
             label="STRAT"
             dotAngle={stratAngle}
             valueText={stratMode}
@@ -551,73 +702,56 @@ export function CentralTelemetry() {
           />
           <RotarySwitch
             x={260}
-            y={274}
+            y={284}
             label="MFD"
             dotAngle={mfdAngle}
             valueText={dduMode}
             onClick={() => cycleMfdMode()}
           />
           <RotarySwitch
-            x={376}
-            y={272}
+            x={370}
+            y={282}
             label="HPP"
             dotAngle={hppAngle}
             valueText={hppMode}
             onClick={() => cycleHpp()}
           />
 
-          {/* Quick-Release Center Boss */}
-          <circle cx={260} cy={312} r={7.5} fill="#0C0E13" stroke="rgba(207,163,73,0.35)" strokeWidth="1" />
-          <circle cx={260} cy={312} r={3.5} fill="none" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
+          {/* Center Quick-Release Boss */}
+          <circle cx={260} cy={326} r={7.5} fill="#0B0D12" stroke="rgba(207,163,73,0.4)" strokeWidth="1" />
+          <circle cx={260} cy={326} r={3.5} fill="none" stroke="rgba(207,163,73,0.3)" strokeWidth="0.8" />
         </svg>
 
         {/* ══════════════════════════════════════════════════════════════════
-            2. 15-LED RPM SHIFT LIGHT ARRAY (Recessed Above Display)
+            2. 15-LED RPM SHIFT LIGHT ARRAY (Recessed in Visor Channel)
         ══════════════════════════════════════════════════════════════════ */}
         <div
           className="absolute z-30 pointer-events-none"
           style={{
-            left: "21%",
-            top: "17.4%",
-            width: "58%",
-            height: "6.8%",
+            left: "26.5%",
+            top: "16.4%",
+            width: "47.0%",
+            height: "6.2%",
           }}
         >
           <ShiftLights fill />
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            3. ERGONOMIC DRS BUTTON (Upper-Left Face Mount)
-        ══════════════════════════════════════════════════════════════════ */}
-        <div
-          onClick={() => toggleDrs()}
-          className={cn(
-            "absolute z-30 font-mono text-[9px] tracking-[0.12em] font-bold border rounded px-1.5 py-0.5 transition-all duration-150 cursor-pointer select-none",
-            drs
-              ? "text-signal-go border-signal-go/60 bg-signal-go/20 shadow-[0_0_12px_rgba(34,197,94,0.6)] animate-pulse"
-              : "text-silver/70 border-white/20 bg-black/60 hover:border-gold/50"
-          )}
-          style={{ left: "16%", top: "27.5%" }}
-          title="Click to toggle DRS (Drag Reduction System)"
-        >
-          {drs ? era.aero.chipLabels.active : era.aero.chipLabels.ready}
-        </div>
-
-        {/* ══════════════════════════════════════════════════════════════════
-            4. INTEGRATED HIGH-CONTRAST AMOLED COCKPIT DISPLAY
+            3. INTEGRATED HIGH-CONTRAST AMOLED COCKPIT DISPLAY
         ══════════════════════════════════════════════════════════════════ */}
         <div
           className="absolute z-30 rounded-md overflow-hidden select-none pointer-events-auto"
           style={{
-            left: "27.7%",
-            top: "25.8%",
-            width: "44.6%",
-            height: "44.2%",
+            left: "26.5%",
+            top: "22.7%",
+            width: "47.0%",
+            height: "43.7%",
             background: "linear-gradient(180deg, #0C0E13 0%, #060709 100%)",
-            border: isBooting ? "1px solid rgba(207,163,73,0.7)" : "1px solid rgba(120,140,180,0.22)",
+            border: isBooting ? "1px solid rgba(207,163,73,0.75)" : "1px solid rgba(120,140,180,0.25)",
             boxShadow: isBooting
-              ? "inset 0 0 28px rgba(207,163,73,0.55), 0 0 24px rgba(207,163,73,0.6)"
-              : "inset 0 0 18px rgba(207,163,73,0.08), 0 0 14px rgba(0,0,0,0.8)",
+              ? "inset 0 0 28px rgba(207,163,73,0.6), 0 0 24px rgba(207,163,73,0.65)"
+              : "inset 0 0 18px rgba(207,163,73,0.08), 0 0 14px rgba(0,0,0,0.85)",
             transition: "border-color 400ms, box-shadow 400ms",
           }}
         >
@@ -653,7 +787,7 @@ export function CentralTelemetry() {
                 </div>
 
                 <div className="flex flex-col items-center my-auto">
-                  <div className="text-[32px] font-black font-display tracking-widest text-white/90 drop-shadow-[0_0_12px_rgba(207,163,73,0.7)] animate-pulse leading-none">
+                  <div className="text-[34px] font-black font-display tracking-widest text-white/90 drop-shadow-[0_0_12px_rgba(207,163,73,0.7)] animate-pulse leading-none">
                     888
                   </div>
                   <div className="text-[7px] tracking-widest text-silver/70 uppercase mt-1">
@@ -671,8 +805,8 @@ export function CentralTelemetry() {
           </AnimatePresence>
 
           <div className="relative h-full flex flex-col px-2.5 py-1.5 justify-between">
-            {/* ── TOP HEADER: Lap | Mode Indicator | Position ─────────────── */}
-            <div className="flex items-center justify-between font-mono text-[9.5px] tabular-nums text-silver/80">
+            {/* ── TOP HEADER: Lap | Mode Indicator | Position | Brake Bias ─── */}
+            <div className="flex items-center justify-between font-mono text-[9px] tabular-nums text-silver/80">
               <span>
                 LAP <span ref={lapRef} className="text-white font-bold">1/56</span>
               </span>
@@ -680,15 +814,22 @@ export function CentralTelemetry() {
               {/* Mode indicator (Clickable or key 1-4 toggleable) */}
               <button
                 onClick={() => cycleMfdMode()}
-                className="text-[8.5px] tracking-[0.14em] text-gold border border-gold/50 rounded px-1.5 py-px hover:bg-gold/15 transition-colors cursor-pointer font-bold"
+                className="text-[8px] tracking-[0.14em] text-gold border border-gold/50 rounded px-1.5 py-px hover:bg-gold/15 transition-colors cursor-pointer font-bold"
                 title="Click or press 1-4 to cycle display mode"
               >
-                {dduMode}
+                {dduMode} · PUSH
               </button>
 
-              <span>
-                POS <span ref={posRef} className="text-white font-bold">2/20</span>
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-neutral-400">BB</span>
+                <span ref={bbTxtRef} className="text-amber-400 font-bold">
+                  {brakeBiasPct.toFixed(1)}%
+                </span>
+                <span className="text-white/20">|</span>
+                <span>
+                  POS <span ref={posRef} className="text-white font-bold">2/20</span>
+                </span>
+              </div>
             </div>
 
             {/* ── MIDDLE CLUSTER: SPEED | CENTRAL GEAR | LIVE DELTA ───────── */}
@@ -696,20 +837,27 @@ export function CentralTelemetry() {
               <div className="flex-1 grid grid-cols-[1fr_auto_1fr] items-center gap-1 min-h-0 py-0.5">
                 {/* Speed column */}
                 <div className="text-left flex flex-col justify-center">
-                  <div className="font-mono text-[8px] tracking-[0.14em] text-silver/50">SPD</div>
+                  <div className="font-mono text-[7.5px] tracking-[0.14em] text-silver/50">SPEED</div>
                   <div className="flex items-baseline gap-1">
                     <span
                       ref={speedRef}
-                      className="font-display text-[42px] leading-none text-white font-black tabular-nums tracking-tighter"
+                      className="font-display text-[44px] leading-none text-white font-black tabular-nums tracking-tighter"
                     >
                       0
                     </span>
-                    <span className="font-mono text-[9px] text-silver/50 font-bold">KMH</span>
+                    <span className="font-mono text-[8.5px] text-silver/50 font-bold">KMH</span>
+                  </div>
+                  <div className="font-mono text-[7px] text-emerald-400 font-bold">
+                    TRAP: 326 KMH
                   </div>
                 </div>
 
-                {/* Massive Central Gear with Smooth Elevation Glow */}
-                <div className="relative w-[64px] h-[64px] flex items-center justify-center">
+                {/* Massive Central Gear with High-Contrast Ghost Segment */}
+                <div className="relative w-[68px] h-[68px] flex items-center justify-center">
+                  {/* Subtle 7-segment unlit backplate for authentic digital dash realism */}
+                  <span className="absolute font-display text-[68px] leading-none font-black text-white/[0.04]">
+                    8
+                  </span>
                   <AnimatePresence mode="popLayout" initial={false}>
                     <motion.span
                       key={gear}
@@ -717,7 +865,7 @@ export function CentralTelemetry() {
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.88, opacity: 0 }}
                       transition={{ duration: dur.ui, ease: [0.4, 0, 0.2, 1] }}
-                      className="absolute font-display text-[64px] leading-none font-black text-white"
+                      className="absolute font-display text-[68px] leading-none font-black text-white"
                       style={{ textShadow: "0 0 20px rgba(207,163,73,0.45)" }}
                     >
                       {gear === 0 ? "N" : gear === -1 ? "R" : gear}
@@ -727,11 +875,10 @@ export function CentralTelemetry() {
 
                 {/* Delta Column */}
                 <div className="text-right flex flex-col items-end justify-center">
-                  <div className="font-mono text-[8px] tracking-[0.14em] text-silver/50">DELTA</div>
-                  <div className="w-[84px] my-0.5">
-                    <DeltaBar compact />
+                  <div className="font-mono text-[7px] tracking-[0.14em] text-silver/50 mb-0.5">DELTA // BEST</div>
+                  <div className="w-[88px]">
+                    <DeltaBar compact showSectors />
                   </div>
-                  <div className="font-mono text-[8px] text-silver/40">vs BEST</div>
                 </div>
               </div>
             )}
@@ -828,10 +975,10 @@ export function CentralTelemetry() {
             <div className="grid grid-cols-2 gap-2 pb-0.5 pt-0.5 border-t border-white/10">
               <div>
                 <div className="flex justify-between items-baseline">
-                  <span className="font-mono text-[8px] tracking-[0.12em] text-silver/50">
-                    {era.energy.systemName}
+                  <span className="font-mono text-[7.5px] tracking-[0.12em] text-silver/50">
+                    {era.energy.systemName} · 2.4MJ
                   </span>
-                  <span ref={socTxtRef} className="font-mono text-[9px] text-signal-energy tabular-nums">
+                  <span ref={socTxtRef} className="font-mono text-[9px] text-signal-energy tabular-nums font-bold">
                     0%
                   </span>
                 </div>
@@ -846,10 +993,10 @@ export function CentralTelemetry() {
 
               <div>
                 <div className="flex justify-between items-baseline">
-                  <span className="font-mono text-[8px] tracking-[0.12em] text-silver/50">
-                    {era.fuelLabel}
+                  <span className="font-mono text-[7.5px] tracking-[0.12em] text-silver/50">
+                    {era.fuelLabel} · +0.06 kg/l
                   </span>
-                  <span ref={fuelTxtRef} className="font-mono text-[9px] text-gold tabular-nums">
+                  <span ref={fuelTxtRef} className="font-mono text-[9px] text-gold tabular-nums font-bold">
                     0kg
                   </span>
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { StatusBar } from "./StatusBar";
+import { PitWallTelemetryRibbon } from "./PitWallTelemetryRibbon";
 import { RaceCarTelemetry } from "./RaceCarTelemetry";
 import { CentralTelemetry } from "./CentralTelemetry";
 import { BottomInstruments } from "./BottomInstruments";
@@ -58,46 +58,46 @@ export const DashboardCanvas: React.FC = () => {
 
   return (
     <div
-      className={`relative w-full h-full bg-[#070709] text-silver overflow-hidden select-none border border-[#B7A06A]/45 rounded-xl density-${density}`}
+      className={`relative w-full h-full bg-carbon-twill text-silver overflow-hidden select-none border border-white/[0.15] rounded-xl density-${density}`}
       style={{
         boxShadow:
           "inset 0 0 35px rgba(0,0,0,0.95), 0 0 45px rgba(0,0,0,0.9)",
       }}
     >
       {/* Background circuit / carbon texture + engineered field grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#111115] via-[#08080A] to-[#040405] opacity-90" />
+      <div className="absolute inset-0 bg-radial from-amber-500/[0.03] via-transparent to-black/80 opacity-90 pointer-events-none" />
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.09]"
+        className="absolute inset-0 pointer-events-none opacity-[0.08]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(207,163,73,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(207,163,73,0.6) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
+            "linear-gradient(rgba(212,175,55,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.5) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
         }}
       />
 
-      {/* ── Status bar (docked full-width) ─────────────────────────── */}
-      <Region top="0.6%" left="0.4%" width="99.2%" height="6.2%" z={20}>
-        <StatusBar demoTime />
+      {/* ── Pit Wall Telemetry & FIA Race Control Ribbon (docked full-width) ── */}
+      <Region top="0.6%" left="0.4%" width="99.2%" height="6.8%" z={20}>
+        <PitWallTelemetryRibbon />
       </Region>
 
       {/* ── LEFT column ────────────────────────────────────────────── */}
-      <Region top="9%" left="1%" width="27%" height="53%">
+      <Region top="9%" left="1%" width="27.2%" height="53%">
         <RaceCarTelemetry />
       </Region>
-      <Region top="64%" left="1%" width="27%" height="33%">
+      <Region top="64%" left="1%" width="27.2%" height="33%">
         <BottomInstruments />
       </Region>
 
-      {/* ── CENTER column ──────────────────────────────────────────── */}
-      <Region top="9%" left="30%" width="39%" height="43%" z={30}>
+      {/* ── CENTER column (Optimized for Wider Widescreen F1 Steering Wheel) ── */}
+      <Region top="8.8%" left="29.2%" width="41.6%" height="44.2%" z={30}>
         <CentralTelemetry />
       </Region>
-      <Region top="54%" left="30%" width="39%" height="43%">
+      <Region top="54.2%" left="29.2%" width="41.6%" height="43.8%">
         <TelemetryRibbon />
       </Region>
 
       {/* ── RIGHT column ───────────────────────────────────────────── */}
-      <Region top="9%" left="71%" width="28%" height="39%">
+      <Region top="9%" left="71.8%" width="27.2%" height="39%">
         <TrackMap />
       </Region>
       <Region top="50%" left="71%" width="28%" height="22%">

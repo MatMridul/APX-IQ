@@ -16,20 +16,17 @@ import { useUxStore, DduMode } from "@/store/uxStore";
 import { soundFx } from "@/lib/cockpit/soundFx";
 
 /**
- * Museum-Grade FIA Formula 1 Steering Wheel Monocoque & DDU Cockpit HUD
+ * Widescreen FIA Formula 1 Steering Wheel Monocoque & High-Resolution DDU HUD
  *
- * Professional Motorsport Engineering:
- *  - 3D Chamfered twill carbon-fiber shift paddles (- Downshift / + Upshift)
- *  - Ergonomic sculpted Alcantara handgrips with palm swells & tactile stitching
+ * Professional Motorsport Ergonomics (620×350 16:9 Aspect Ratio):
+ *  - 25% wider monocoque geometry eliminating peripheral cockpit dead space
+ *  - Dual vertical knurled thumbwheel encoders (DIFF IN / DIFF MID)
+ *  - 3D chamfered twill carbon-fiber shift paddles (- Downshift / + Upshift)
+ *  - Ergonomic sculpted Alcantara handgrips with thumb indentations & tactile ribbing
  *  - 14 precision CNC-machined aerospace pushbuttons with raised safety collars
  *  - 3 fluted titanium rotary encoders (STRAT, MFD, HPP) with engraved radial laser legends
- *  - Recessed visor brow with 15-LED progressive RPM shift array (5 Green, 5 Red, 5 Blue)
- *  - Multi-page anti-glare AMOLED digital cockpit display with zero-render 60Hz DOM updates:
- *      • RACE: Speed, Gear, Delta-to-best, 4-corner tyre temps, ERS SoC, fuel consumption
- *      • QUALY: Qualifying hotlap delta, micro sector matrix (S1/S2/S3), target lap
- *      • TYRES: Pirelli compound status, wear degradation, carcass/surface temps, pit window
- *      • CHASSIS: MGU-K/MGU-H diagnostics, water/oil thermals, carbon brake rotor temps
- *  - Pit limiter speed restrictor overlay & DRS aerodynamic halo deployment
+ *  - High-resolution 310px anti-glare AMOLED digital cockpit display with zero-render 60Hz DOM updates
+ *  - 15-LED progressive RPM shift array with generous bank separation & specular lenses
  */
 
 /* ── Precision SVG Pushbutton Component ────────────────────────────── */
@@ -124,6 +121,77 @@ function PushButton({
   );
 }
 
+/* ── Vertical Knurled Thumbwheel Component (F1 Differential Encoder) ─ */
+
+function ThumbWheel({
+  x,
+  y,
+  label,
+  value,
+  onClick,
+}: {
+  x: number;
+  y: number;
+  label: string;
+  value: string | number;
+  onClick?: () => void;
+}) {
+  const ribs = [0, 4, 8, 12, 16, 20, 24, 28, 32];
+  return (
+    <g
+      onClick={() => {
+        soundFx.playRotaryClick();
+        onClick?.();
+      }}
+      className="cursor-pointer select-none group transition-transform active:scale-95 origin-center"
+      pointerEvents="auto"
+    >
+      {/* Outer Housing Slot */}
+      <rect x={x - 4} y={y - 18} width={8} height={36} rx={3} fill="#080A0E" stroke="#252A38" strokeWidth="1" />
+      {/* Cylinder Body */}
+      <rect x={x - 3} y={y - 16} width={6} height={32} rx={2} fill="url(#thumbwheel-gradient)" />
+      {/* Knurled Grip Ridges */}
+      {ribs.map((ry) => (
+        <line
+          key={`rib-${ry}`}
+          x1={x - 3}
+          y1={y - 16 + ry}
+          x2={x + 3}
+          y2={y - 16 + ry}
+          stroke="rgba(255,255,255,0.3)"
+          strokeWidth="0.8"
+        />
+      ))}
+      {/* Center Position Indicator Dot */}
+      <circle cx={x} cy={y} r={1.5} fill="#FACC15" />
+      {/* Label */}
+      <text
+        x={x}
+        y={y + 25}
+        textAnchor="middle"
+        fontSize="5"
+        fontFamily="var(--font-mono), monospace"
+        fontWeight="800"
+        fill="rgba(207,163,73,0.9)"
+        letterSpacing="0.4"
+      >
+        {label}
+      </text>
+      <text
+        x={x}
+        y={y + 31}
+        textAnchor="middle"
+        fontSize="4.8"
+        fontFamily="var(--font-mono), monospace"
+        fontWeight="900"
+        fill="#FFFFFF"
+      >
+        {value}
+      </text>
+    </g>
+  );
+}
+
 /* ── Machined Titanium Rotary Switch Component ─────────────────────── */
 
 function RotarySwitch({
@@ -199,7 +267,7 @@ function RotarySwitch({
                 fontWeight={isSelected ? "900" : "600"}
                 fill={isSelected ? "#FACC15" : "rgba(255,255,255,0.45)"}
               >
-                {options.length <= 8 ? options[i] : (i % 2 === 0 ? options[i] : "")}
+                {options.length <= 8 ? options[i] : i % 2 === 0 ? options[i] : ""}
               </text>
             )}
           </g>
@@ -261,6 +329,8 @@ function RotarySwitch({
 export function CentralTelemetry() {
   const [gear, setGear] = useState(1);
   const [drs, setDrs] = useState(false);
+  const [diffEntry, setDiffEntry] = useState(58);
+  const [diffMid, setDiffMid] = useState(52);
   const [isBooting, setIsBooting] = useState(true);
 
   // UX Store Bindings
@@ -286,7 +356,6 @@ export function CentralTelemetry() {
 
   // Continuous Ref Pointers (60 Hz Zero-Render Direct DOM Writes)
   const speedRef = useRef<HTMLSpanElement | null>(null);
-  const throttleBarRef = useRef<HTMLDivElement | null>(null);
   const posRef = useRef<HTMLSpanElement | null>(null);
   const lapRef = useRef<HTMLSpanElement | null>(null);
   const fuelBarRef = useRef<HTMLDivElement | null>(null);
@@ -332,10 +401,6 @@ export function CentralTelemetry() {
           speedRef.current.textContent = s;
           lastSpeedTxt = s;
         }
-      }
-
-      if (throttleBarRef.current) {
-        throttleBarRef.current.style.width = `${Math.round(f.throttle * 100)}%`;
       }
 
       const totalCars = isLive && state.participants.length > 0 ? state.participants.length : 20;
@@ -407,18 +472,18 @@ export function CentralTelemetry() {
   const hppAngle = ((hppMode - 1) / 7) * 300;
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-1 select-none">
+    <div className="w-full h-full flex items-center justify-center p-0.5 select-none">
       <div
         className="relative flex items-center justify-center"
         data-testid="wheel-cluster"
-        style={{ aspectRatio: "520/348", height: "100%", maxWidth: "100%" }}
+        style={{ aspectRatio: "620/350", width: "100%", height: "100%", maxWidth: "100%" }}
       >
         {/* ══════════════════════════════════════════════════════════════════
-            1. AUTHENTIC F1 STEERING WHEEL MONOCOQUE (SVG CHASSIS)
+            1. AUTHENTIC WIDESCREEN F1 STEERING WHEEL MONOCOQUE (SVG CHASSIS)
         ══════════════════════════════════════════════════════════════════ */}
         <svg
-          viewBox="0 0 520 348"
-          className="absolute inset-0 w-full h-full drop-shadow-[0_20px_40px_rgba(0,0,0,0.95)] z-20 pointer-events-auto"
+          viewBox="0 0 620 350"
+          className="absolute inset-0 w-full h-full drop-shadow-[0_22px_45px_rgba(0,0,0,0.95)] z-20 pointer-events-auto"
           aria-label="F1 Racing Steering Wheel"
         >
           <defs>
@@ -435,6 +500,13 @@ export function CentralTelemetry() {
               <stop offset="0%" stopColor="#2A2F3D" />
               <stop offset="40%" stopColor="#141822" />
               <stop offset="100%" stopColor="#080A0E" />
+            </linearGradient>
+
+            {/* Thumbwheel Metallic Gradient */}
+            <linearGradient id="thumbwheel-gradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#1E2330" />
+              <stop offset="50%" stopColor="#4B5568" />
+              <stop offset="100%" stopColor="#0D1117" />
             </linearGradient>
 
             {/* Sculpted Alcantara Grip Gradient (Left) */}
@@ -483,26 +555,22 @@ export function CentralTelemetry() {
             className="cursor-pointer group select-none"
             pointerEvents="auto"
           >
-            {/* Paddle Carbon Fiber Backing */}
             <path
-              d="M 42 72 C 14 96 8 152 14 196 C 16 210 28 218 42 212 L 68 200 L 72 82 Z"
+              d="M 44 72 C 14 96 8 152 14 196 C 16 210 28 218 42 212 L 70 200 L 74 82 Z"
               fill="url(#paddle-carbon)"
               stroke="rgba(207,163,73,0.5)"
               strokeWidth="1.4"
               className="group-hover:brightness-125 transition-all"
             />
-            {/* Paddle Bevel / Chamfer Highlight */}
             <path
-              d="M 38 78 C 18 100 14 150 18 190 C 20 200 28 206 38 202 L 56 194"
+              d="M 40 78 C 18 100 14 150 18 190 C 20 200 28 206 38 202 L 58 194"
               fill="none"
               stroke="rgba(255,255,255,0.28)"
               strokeWidth="1.2"
             />
-            {/* Paddle Tactile Finger Ribs */}
             <line x1={18} y1={130} x2={34} y2={130} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
             <line x1={18} y1={145} x2={34} y2={145} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
             <line x1={18} y1={160} x2={34} y2={160} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            {/* Downshift Minus '-' Symbol */}
             <text
               x={25}
               y={108}
@@ -526,28 +594,24 @@ export function CentralTelemetry() {
             className="cursor-pointer group select-none"
             pointerEvents="auto"
           >
-            {/* Paddle Carbon Fiber Backing */}
             <path
-              d="M 478 72 C 506 96 512 152 506 196 C 504 210 492 218 478 212 L 452 200 L 448 82 Z"
+              d="M 576 72 C 606 96 612 152 606 196 C 604 210 592 218 578 212 L 550 200 L 546 82 Z"
               fill="url(#paddle-carbon)"
               stroke="rgba(207,163,73,0.5)"
               strokeWidth="1.4"
               className="group-hover:brightness-125 transition-all"
             />
-            {/* Paddle Bevel / Chamfer Highlight */}
             <path
-              d="M 482 78 C 502 100 506 150 502 190 C 500 200 492 206 482 202 L 464 194"
+              d="M 580 78 C 602 100 606 150 602 190 C 600 200 592 206 582 202 L 562 194"
               fill="none"
               stroke="rgba(255,255,255,0.28)"
               strokeWidth="1.2"
             />
-            {/* Paddle Tactile Finger Ribs */}
-            <line x1={486} y1={130} x2={502} y2={130} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={486} y1={145} x2={502} y2={145} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={486} y1={160} x2={502} y2={160} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            {/* Upshift Plus '+' Symbol */}
+            <line x1={586} y1={130} x2={602} y2={130} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={586} y1={145} x2={602} y2={145} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={586} y1={160} x2={602} y2={160} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
             <text
-              x={495}
+              x={595}
               y={108}
               textAnchor="middle"
               fontSize="14"
@@ -563,14 +627,14 @@ export function CentralTelemetry() {
           {/* ── ERGONOMIC SCULPTED ALCANTARA GRIPS ───────────────────────── */}
           {/* Left Grip: Molded Thumb Pocket & Ergonomic Waist */}
           <path
-            d="M 96 68 C 72 56 42 70 34 104 C 28 132 38 166 40 192 C 42 224 30 262 36 288 C 44 318 76 322 92 302 L 96 68 Z"
+            d="M 104 68 C 76 56 46 70 38 104 C 32 132 44 166 46 192 C 48 224 34 262 42 288 C 50 318 84 322 100 302 L 104 68 Z"
             fill="url(#grip-alcantara-l)"
             stroke="rgba(207,163,73,0.42)"
             strokeWidth="1.3"
           />
           {/* Right Grip: Molded Thumb Pocket & Ergonomic Waist */}
           <path
-            d="M 424 68 C 448 56 478 70 486 104 C 492 132 482 166 480 192 C 478 224 490 262 484 288 C 476 318 444 322 428 302 L 424 68 Z"
+            d="M 516 68 C 544 56 574 70 582 104 C 588 132 576 166 574 192 C 572 224 586 262 578 288 C 570 318 536 322 520 302 L 516 68 Z"
             fill="url(#grip-alcantara-r)"
             stroke="rgba(207,163,73,0.42)"
             strokeWidth="1.3"
@@ -579,15 +643,15 @@ export function CentralTelemetry() {
           {/* Ergonomic Alcantara Grip Finger Ribs & Stitches */}
           {[96, 122, 148, 174, 200, 226, 252, 276].map((gy) => (
             <g key={gy}>
-              <line x1={42} y1={gy} x2={88} y2={gy + 5} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
-              <line x1={432} y1={gy + 5} x2={478} y2={gy} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
+              <line x1={46} y1={gy} x2={96} y2={gy + 5} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
+              <line x1={524} y1={gy + 5} x2={574} y2={gy} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
             </g>
           ))}
 
           {/* ── CARBON FIBER CHASSIS MONOCOQUE ───────────────────────────── */}
           {/* Main Monocoque Body with Glare Visor Brow */}
           <path
-            d="M 96 52 C 160 36 360 36 424 52 L 430 252 C 402 304 362 330 332 330 L 188 330 C 158 330 118 304 90 252 Z"
+            d="M 104 52 C 180 34 440 34 516 52 L 524 252 C 488 306 438 332 410 332 L 210 332 C 182 332 132 306 96 252 Z"
             fill="url(#carbon-monocoque)"
             stroke="rgba(207,163,73,0.5)"
             strokeWidth="1.4"
@@ -595,17 +659,17 @@ export function CentralTelemetry() {
 
           {/* Anti-Glare Visor Eyebrow Hood Above Shift Lights */}
           <path
-            d="M 126 50 C 190 38 330 38 394 50 L 398 56 C 330 46 190 46 122 56 Z"
+            d="M 142 50 C 220 37 400 37 478 50 L 482 56 C 400 45 220 45 138 56 Z"
             fill="#090B10"
             stroke="rgba(207,163,73,0.3)"
             strokeWidth="0.8"
           />
 
-          {/* Shift Light Recessed Channel Pocket */}
+          {/* Shift Light Recessed Channel Pocket (290px Wide) */}
           <rect
-            x="136"
-            y="56"
-            width="248"
+            x="165"
+            y="54"
+            width="290"
             height="22"
             rx="4"
             fill="#050608"
@@ -613,12 +677,12 @@ export function CentralTelemetry() {
             strokeWidth="1"
           />
 
-          {/* ── LCD SCREEN MACHINED BEZEL HOUSING ────────────────────────── */}
+          {/* ── LCD SCREEN MACHINED BEZEL HOUSING (290x156) ─────────────── */}
           <rect
-            x="136"
+            x="165"
             y="78"
-            width="248"
-            height="154"
+            width="290"
+            height="156"
             rx="7"
             fill="#030406"
             stroke="rgba(207,163,73,0.55)"
@@ -628,10 +692,10 @@ export function CentralTelemetry() {
 
           {/* 4 Corner Precision Hex Torx Fasteners */}
           {[
-            [142, 84],
-            [378, 84],
-            [142, 226],
-            [378, 226],
+            [172, 85],
+            [448, 85],
+            [172, 227],
+            [448, 227],
           ].map(([fx, fy], idx) => (
             <g key={idx}>
               <circle cx={fx} cy={fy} r={2.2} fill="#141822" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
@@ -641,9 +705,9 @@ export function CentralTelemetry() {
 
           {/* ── AUTHENTIC PIT WALL REMINDER TAPE STICKER ─────────────────── */}
           <rect
-            x="175"
-            y="238"
-            width="170"
+            x="210"
+            y="240"
+            width="200"
             height="13"
             rx="2"
             fill="rgba(235,232,224,0.94)"
@@ -651,8 +715,8 @@ export function CentralTelemetry() {
             strokeWidth="0.5"
           />
           <text
-            x="260"
-            y="247.5"
+            x="310"
+            y="249.5"
             textAnchor="middle"
             fontSize="6.5"
             fontFamily="var(--font-mono), monospace"
@@ -666,7 +730,7 @@ export function CentralTelemetry() {
           {/* ── TACTILE PUSHBUTTONS — LEFT CONTROL WING ───────────────────── */}
           {/* DRS Trigger Button (Upper Horn) */}
           <PushButton
-            x={108}
+            x={124}
             y={80}
             label="DRS"
             sublabel="AERO"
@@ -680,8 +744,8 @@ export function CentralTelemetry() {
 
           {/* RAD (Radio Check) Button */}
           <PushButton
-            x={108}
-            y={116}
+            x={104}
+            y={118}
             label="RAD"
             color="#475569"
             textColor="#FFFFFF"
@@ -690,8 +754,8 @@ export function CentralTelemetry() {
 
           {/* Guarded Neutral (N) Button */}
           <PushButton
-            x={108}
-            y={152}
+            x={132}
+            y={118}
             label="N"
             color="#EAB308"
             textColor="#000000"
@@ -700,18 +764,29 @@ export function CentralTelemetry() {
             }}
           />
 
+          {/* Vertical Differential Entry Thumbwheel */}
+          <ThumbWheel
+            x={148}
+            y={186}
+            label="DIFF IN"
+            value={`${diffEntry}%`}
+            onClick={() => {
+              setDiffEntry((prev) => (prev >= 68 ? 50 : prev + 2));
+            }}
+          />
+
           {/* Brake Bias Fast Toggles (BB- / BB+) */}
           <PushButton
-            x={96}
-            y={190}
+            x={94}
+            y={166}
             label="BB−"
             color="#DC2626"
             textColor="#FFFFFF"
             onClick={() => adjustBrakeBias(-0.5)}
           />
           <PushButton
-            x={122}
-            y={190}
+            x={120}
+            y={166}
             label="BB+"
             color="#16A34A"
             textColor="#FFFFFF"
@@ -720,16 +795,16 @@ export function CentralTelemetry() {
 
           {/* Fine Tuning Detents (+10 / +1) */}
           <PushButton
-            x={96}
-            y={226}
+            x={94}
+            y={212}
             label="+10"
             color="#1A1E28"
             textColor="#E2E8F0"
             onClick={() => adjustBrakeBias(1.0)}
           />
           <PushButton
-            x={122}
-            y={226}
+            x={120}
+            y={212}
             label="+1"
             color="#1A1E28"
             textColor="#E2E8F0"
@@ -739,7 +814,7 @@ export function CentralTelemetry() {
           {/* ── TACTILE PUSHBUTTONS — RIGHT CONTROL WING ──────────────────── */}
           {/* OT (Overtake Boost) Button (Upper Horn) */}
           <PushButton
-            x={412}
+            x={496}
             y={80}
             label="OT"
             sublabel="PUSH"
@@ -751,8 +826,8 @@ export function CentralTelemetry() {
 
           {/* PC (Pit Confirm) Button */}
           <PushButton
-            x={412}
-            y={116}
+            x={488}
+            y={118}
             label="PC"
             color="#CBD5E1"
             textColor="#0F172A"
@@ -763,8 +838,8 @@ export function CentralTelemetry() {
 
           {/* PL (Pit Limiter) Button */}
           <PushButton
-            x={412}
-            y={152}
+            x={516}
+            y={118}
             label="PL"
             color="#DC2626"
             textColor="#FFFFFF"
@@ -772,10 +847,21 @@ export function CentralTelemetry() {
             onClick={() => togglePitLimiter()}
           />
 
+          {/* Vertical Differential Mid-Corner Thumbwheel */}
+          <ThumbWheel
+            x={472}
+            y={186}
+            label="DIFF MID"
+            value={`${diffMid}%`}
+            onClick={() => {
+              setDiffMid((prev) => (prev >= 60 ? 46 : prev + 2));
+            }}
+          />
+
           {/* DRK (Hydration Drink) Button */}
           <PushButton
-            x={398}
-            y={190}
+            x={500}
+            y={166}
             label="DRK"
             color="#2563EB"
             textColor="#FFFFFF"
@@ -784,8 +870,8 @@ export function CentralTelemetry() {
 
           {/* MARK (Telemetry Bookmark) Button */}
           <PushButton
-            x={424}
-            y={190}
+            x={526}
+            y={166}
             label="MARK"
             color="#0D9488"
             textColor="#FFFFFF"
@@ -794,8 +880,8 @@ export function CentralTelemetry() {
 
           {/* WET (Rain Weather Map) Button */}
           <PushButton
-            x={398}
-            y={226}
+            x={500}
+            y={212}
             label="WET"
             color="#4F46E5"
             textColor="#FFFFFF"
@@ -804,8 +890,8 @@ export function CentralTelemetry() {
 
           {/* ENG (Engine Map) Button */}
           <PushButton
-            x={424}
-            y={226}
+            x={526}
+            y={212}
             label="ENG"
             color="#D97706"
             textColor="#FFFFFF"
@@ -814,8 +900,8 @@ export function CentralTelemetry() {
 
           {/* ── LOWER DECK TITANIUM ROTARIES (STRAT, MFD, HPP) ─────────────── */}
           <RotarySwitch
-            x={150}
-            y={282}
+            x={190}
+            y={286}
             label="STRAT"
             dotAngle={stratAngle}
             valueText={stratMode}
@@ -823,8 +909,8 @@ export function CentralTelemetry() {
             onClick={() => cycleStrat()}
           />
           <RotarySwitch
-            x={260}
-            y={284}
+            x={310}
+            y={286}
             label="MFD"
             dotAngle={mfdAngle}
             valueText={dduMode}
@@ -832,8 +918,8 @@ export function CentralTelemetry() {
             onClick={() => cycleMfdMode()}
           />
           <RotarySwitch
-            x={370}
-            y={282}
+            x={430}
+            y={286}
             label="HPP"
             dotAngle={hppAngle}
             valueText={hppMode}
@@ -842,15 +928,15 @@ export function CentralTelemetry() {
           />
 
           {/* Center Quick-Release Boss with PCD Bolt Pattern */}
-          <circle cx={260} cy={326} r={8.0} fill="#0B0D12" stroke="rgba(207,163,73,0.5)" strokeWidth="1.2" />
-          <circle cx={260} cy={326} r={4.0} fill="#141822" stroke="rgba(207,163,73,0.3)" strokeWidth="0.8" />
+          <circle cx={310} cy={330} r={8.0} fill="#0B0D12" stroke="rgba(207,163,73,0.5)" strokeWidth="1.2" />
+          <circle cx={310} cy={330} r={4.0} fill="#141822" stroke="rgba(207,163,73,0.3)" strokeWidth="0.8" />
           {[0, 60, 120, 180, 240, 300].map((deg) => {
             const rad = (deg * Math.PI) / 180;
             return (
               <circle
                 key={`boss-bolt-${deg}`}
-                cx={260 + Math.cos(rad) * 6.2}
-                cy={326 + Math.sin(rad) * 6.2}
+                cx={310 + Math.cos(rad) * 6.2}
+                cy={330 + Math.sin(rad) * 6.2}
                 r={0.7}
                 fill="#FACC15"
               />
@@ -864,25 +950,25 @@ export function CentralTelemetry() {
         <div
           className="absolute z-30 pointer-events-none"
           style={{
-            left: "26.5%",
-            top: "16.4%",
-            width: "47.0%",
-            height: "6.2%",
+            left: "26.6%",
+            top: "15.4%",
+            width: "46.8%",
+            height: "6.3%",
           }}
         >
           <ShiftLights fill />
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            3. INTEGRATED HIGH-CONTRAST AMOLED COCKPIT DISPLAY
+            3. WIDESCREEN HIGH-CONTRAST AMOLED COCKPIT DISPLAY (290x156)
         ══════════════════════════════════════════════════════════════════ */}
         <div
           className="absolute z-30 rounded-md overflow-hidden select-none pointer-events-auto"
           style={{
-            left: "26.5%",
-            top: "22.7%",
-            width: "47.0%",
-            height: "43.7%",
+            left: "26.6%",
+            top: "22.3%",
+            width: "46.8%",
+            height: "44.6%",
             background: "linear-gradient(180deg, #0C0E13 0%, #060709 100%)",
             border: isBooting ? "1px solid rgba(207,163,73,0.75)" : "1px solid rgba(120,140,180,0.25)",
             boxShadow: isBooting
@@ -956,9 +1042,9 @@ export function CentralTelemetry() {
           </AnimatePresence>
 
           {/* ════════════════════════════════════════════════════════════════
-              ACTIVE AMOLED DISPLAY CONTENTS
+              ACTIVE AMOLED DISPLAY CONTENTS (Expanded Real Estate)
           ════════════════════════════════════════════════════════════════ */}
-          <div className="relative w-full h-full flex flex-col justify-between p-1.5 font-sans z-10">
+          <div className="relative w-full h-full flex flex-col justify-between p-2 font-sans z-10">
             {/* ── TOP STATUS BANNER ─────────────────────────────────────── */}
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-0.5 font-mono text-[8px]">
               {/* Lap indicator */}
@@ -970,7 +1056,7 @@ export function CentralTelemetry() {
               </div>
 
               {/* Mode capsule */}
-              <div className="flex items-center gap-1.5 px-1.5 py-0.2 rounded bg-black/60 border border-gold/30 text-gold text-[7px] tracking-widest font-black uppercase">
+              <div className="flex items-center gap-1.5 px-2 py-0.2 rounded bg-black/60 border border-gold/30 text-gold text-[7px] tracking-widest font-black uppercase">
                 <span>{dduMode}</span>
                 <span className="text-silver/40">·</span>
                 <span className="text-emerald-400">PUSH</span>
@@ -990,20 +1076,20 @@ export function CentralTelemetry() {
 
             {/* ── MODE 1: RACE COCKPIT TELEMETRY ────────────────────────── */}
             {dduMode === "RACE" && (
-              <div className="flex-1 flex flex-col justify-between py-0.5 min-h-0">
+              <div className="flex-1 flex flex-col justify-between py-1 min-h-0">
                 {/* Speed | Central Gear | Delta */}
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   {/* Speed column */}
                   <div className="text-left flex flex-col justify-center">
-                    <div className="font-mono text-[7px] tracking-[0.14em] text-silver/50">SPEED</div>
+                    <div className="font-mono text-[7.5px] tracking-[0.14em] text-silver/50">SPEED</div>
                     <div className="flex items-baseline gap-1">
                       <span
                         ref={speedRef}
-                        className="font-display text-[44px] leading-none text-white font-black tabular-nums tracking-tighter"
+                        className="font-display text-[46px] leading-none text-white font-black tabular-nums tracking-tighter"
                       >
                         0
                       </span>
-                      <span className="font-mono text-[8px] text-silver/50 font-bold">KMH</span>
+                      <span className="font-mono text-[8.5px] text-silver/50 font-bold">KMH</span>
                     </div>
                     <div className="font-mono text-[7px] text-emerald-400 font-bold">
                       TRAP: 326 KMH
@@ -1011,9 +1097,9 @@ export function CentralTelemetry() {
                   </div>
 
                   {/* Massive Central Gear with High-Contrast Ghost Segment */}
-                  <div className="relative w-[68px] h-[68px] flex items-center justify-center">
+                  <div className="relative w-[72px] h-[72px] flex items-center justify-center">
                     {/* Subtle 7-segment unlit backplate for authentic digital dash realism */}
-                    <span className="absolute font-display text-[68px] leading-none font-black text-white/[0.04]">
+                    <span className="absolute font-display text-[72px] leading-none font-black text-white/[0.04]">
                       8
                     </span>
                     <AnimatePresence mode="popLayout" initial={false}>
@@ -1023,7 +1109,7 @@ export function CentralTelemetry() {
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.88, opacity: 0 }}
                         transition={{ duration: dur.ui, ease: [0.4, 0, 0.2, 1] }}
-                        className="absolute font-display text-[68px] leading-none font-black text-white"
+                        className="absolute font-display text-[72px] leading-none font-black text-white"
                         style={{ textShadow: "0 0 20px rgba(207,163,73,0.45)" }}
                       >
                         {gear === 0 ? "N" : gear === -1 ? "R" : gear}
@@ -1033,28 +1119,31 @@ export function CentralTelemetry() {
 
                   {/* Delta Column */}
                   <div className="text-right flex flex-col items-end justify-center">
-                    <div className="font-mono text-[7px] tracking-[0.14em] text-silver/50 mb-0.5">DELTA // BEST</div>
-                    <div className="w-[88px]">
+                    <div className="font-mono text-[7.5px] tracking-[0.14em] text-silver/50 mb-0.5">DELTA // BEST</div>
+                    <div className="w-[100px]">
                       <DeltaBar compact showSectors />
                     </div>
                   </div>
                 </div>
 
                 {/* Micro Tyre Status Matrix (4-Corner Real-Time Thermals) */}
-                <div className="flex items-center justify-between px-1 py-0.5 rounded bg-black/40 border border-white/[0.06] font-mono text-[6.5px]">
-                  <div className="flex items-center gap-1">
-                    <span className="text-silver/40">F:</span>
-                    <span className="px-1 rounded bg-emerald-950/60 text-emerald-400 font-bold">FL 102°C</span>
-                    <span className="px-1 rounded bg-emerald-950/60 text-emerald-400 font-bold">FR 104°C</span>
+                <div className="flex items-center justify-between px-2 py-0.5 rounded bg-black/40 border border-white/[0.06] font-mono text-[7px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-silver/40 font-bold">F:</span>
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 font-bold">FL 102°C</span>
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 font-bold">FR 104°C</span>
                   </div>
                   <div className="text-silver/30">|</div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-silver/40">R:</span>
-                    <span className="px-1 rounded bg-emerald-950/60 text-emerald-400 font-bold">RL 99°C</span>
-                    <span className="px-1 rounded bg-emerald-950/60 text-emerald-400 font-bold">RR 101°C</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-silver/40 font-bold">R:</span>
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 font-bold">RL 99°C</span>
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 font-bold">RR 101°C</span>
                   </div>
                   <div className="text-silver/30">|</div>
-                  <div className="text-amber-400 font-bold">DIFF 58%</div>
+                  <div className="flex items-center gap-1 text-amber-400 font-bold">
+                    <span>DIFF:</span>
+                    <span>{diffEntry}% IN / {diffMid}% MID</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1063,13 +1152,13 @@ export function CentralTelemetry() {
             {dduMode === "QUALY" && (
               <div className="flex-1 flex flex-col justify-around py-0.5 font-mono text-[8px]">
                 <div className="flex items-center justify-between text-neutral-400">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                    <span className="uppercase text-purple-400 font-black tracking-wider">
+                    <span className="uppercase text-purple-400 font-black tracking-wider text-[8.5px]">
                       HOTLAP QUALY // PURPLE PACE
                     </span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <span className="text-silver/50">TGT:</span>
                     <span className="text-gold font-bold">1:11.890</span>
                     <span ref={qualyDeltaRef} className="font-bold text-emerald-400 ml-1">
@@ -1078,37 +1167,37 @@ export function CentralTelemetry() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-1 text-center">
+                <div className="grid grid-cols-3 gap-1.5 text-center">
                   <div className="p-1 rounded bg-black/60 border border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.15)]">
                     <div className="flex items-center justify-between px-0.5">
-                      <span className="text-[7px] text-purple-400 font-bold">S1</span>
-                      <span className="text-[6.5px] text-purple-300 font-bold">-0.042</span>
+                      <span className="text-[7.5px] text-purple-400 font-bold">S1</span>
+                      <span className="text-[7px] text-purple-300 font-bold">-0.042</span>
                     </div>
-                    <span ref={qualyS1Ref} className="font-bold text-[9px] text-white tabular-nums block mt-0.5">
+                    <span ref={qualyS1Ref} className="font-bold text-[10px] text-white tabular-nums block mt-0.5">
                       18.274s
                     </span>
                   </div>
                   <div className="p-1 rounded bg-black/60 border border-emerald-500/50 shadow-[0_0_8px_rgba(34,197,94,0.15)]">
                     <div className="flex items-center justify-between px-0.5">
-                      <span className="text-[7px] text-emerald-400 font-bold">S2</span>
-                      <span className="text-[6.5px] text-emerald-300 font-bold">-0.021</span>
+                      <span className="text-[7.5px] text-emerald-400 font-bold">S2</span>
+                      <span className="text-[7px] text-emerald-300 font-bold">-0.021</span>
                     </div>
-                    <span ref={qualyS2Ref} className="font-bold text-[9px] text-white tabular-nums block mt-0.5">
+                    <span ref={qualyS2Ref} className="font-bold text-[10px] text-white tabular-nums block mt-0.5">
                       32.398s
                     </span>
                   </div>
                   <div className="p-1 rounded bg-black/60 border border-yellow-500/50 shadow-[0_0_8px_rgba(234,179,8,0.15)]">
                     <div className="flex items-center justify-between px-0.5">
-                      <span className="text-[7px] text-yellow-400 font-bold">S3</span>
-                      <span className="text-[6.5px] text-yellow-300 font-bold">+0.018</span>
+                      <span className="text-[7.5px] text-yellow-400 font-bold">S3</span>
+                      <span className="text-[7px] text-yellow-300 font-bold">+0.018</span>
                     </div>
-                    <span ref={qualyS3Ref} className="font-bold text-[9px] text-white tabular-nums block mt-0.5">
+                    <span ref={qualyS3Ref} className="font-bold text-[10px] text-white tabular-nums block mt-0.5">
                       21.190s
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between px-1 text-[7px] text-silver/60">
+                <div className="flex items-center justify-between px-1 text-[7.5px] text-silver/60">
                   <span>MIN APEX: T3 142 KM/H (+4)</span>
                   <span className="text-emerald-400 font-bold">THEORETICAL: 1:11.862</span>
                 </div>
@@ -1120,13 +1209,13 @@ export function CentralTelemetry() {
               <div className="flex-1 flex flex-col justify-between py-0.5 font-mono text-[7.5px]">
                 <div className="flex items-center justify-between pb-0.5 border-b border-white/[0.06]">
                   <div className="flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.2 rounded bg-red-600 text-white font-black text-[6.5px]">C4 SOFT</span>
+                    <span className="px-1.5 py-0.2 rounded bg-red-600 text-white font-black text-[7px]">C4 SOFT</span>
                     <span className="text-silver/60">AGE: 12 LAPS</span>
                   </div>
                   <span className="text-amber-400 font-bold">PIT WINDOW: LAP 18-21</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1 my-auto">
+                <div className="grid grid-cols-2 gap-1.5 my-auto">
                   {[
                     { corner: "FL", wear: 12, surf: 102, carc: 98, psi: 23.4 },
                     { corner: "FR", wear: 14, surf: 104, carc: 100, psi: 23.6 },
@@ -1146,7 +1235,7 @@ export function CentralTelemetry() {
                   ))}
                 </div>
 
-                <div className="text-center text-[6.5px] text-emerald-400 font-bold">
+                <div className="text-center text-[7px] text-emerald-400 font-bold">
                   THERMAL STABILITY: OPTIMAL // GRIP COEFFICIENT 1.02
                 </div>
               </div>
@@ -1160,7 +1249,7 @@ export function CentralTelemetry() {
                   <span className="text-silver/50">MGU-K: 120 kW (MAX)</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1 my-auto">
+                <div className="grid grid-cols-2 gap-1.5 my-auto">
                   <div className="p-1 rounded bg-black/60 border border-white/10 flex flex-col justify-between">
                     <div className="text-silver/50 text-[6.5px] font-bold">COOLING THERMALS</div>
                     <div className="flex justify-between items-center mt-1">
@@ -1178,44 +1267,44 @@ export function CentralTelemetry() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[6.5px] text-silver/60">
+                <div className="flex items-center justify-between text-[7px] text-silver/60">
                   <span>MGU-H HARVEST: ACTIVE</span>
-                  <span>DIFF ENTRY: 65%</span>
-                  <span>DIFF EXIT: 52%</span>
+                  <span>DIFF ENTRY: {diffEntry}%</span>
+                  <span>DIFF EXIT: {diffMid}%</span>
                 </div>
               </div>
             )}
 
             {/* ── BOTTOM STATUS BAR (ERS & FUEL TELEMETRY) ──────────────── */}
-            <div className="border-t border-white/[0.08] pt-0.5 flex items-center justify-between font-mono text-[7px] text-silver/60">
+            <div className="border-t border-white/[0.08] pt-1 flex items-center justify-between font-mono text-[7.5px] text-silver/60">
               {/* ERS Storage Bar */}
-              <div className="flex items-center gap-1 w-[46%]">
+              <div className="flex items-center gap-1.5 w-[46%]">
                 <span className="tracking-wider">ERS</span>
-                <span className="text-[6.5px] text-silver/40">2.4MJ</span>
-                <div className="flex-1 h-1.5 rounded-full bg-black/60 border border-white/10 overflow-hidden relative">
+                <span className="text-[7px] text-silver/40">2.4MJ</span>
+                <div className="flex-1 h-2 rounded-full bg-black/60 border border-white/10 overflow-hidden relative">
                   <div
                     ref={socBarRef}
                     className="h-full rounded-full bg-gradient-to-r from-silver/70 to-white transition-all duration-75"
                     style={{ width: "60%" }}
                   />
                 </div>
-                <span ref={socTxtRef} className="font-bold text-white tabular-nums text-[7px]">
+                <span ref={socTxtRef} className="font-bold text-white tabular-nums text-[7.5px]">
                   60%
                 </span>
               </div>
 
               {/* Fuel Reserve & Burn Rate */}
-              <div className="flex items-center gap-1 w-[48%] justify-end">
+              <div className="flex items-center gap-1.5 w-[48%] justify-end">
                 <span className="tracking-wider">FUEL</span>
-                <span className="text-[6.5px] text-emerald-400 font-bold">+0.06 kg/l</span>
-                <div className="w-14 h-1.5 rounded-full bg-black/60 border border-white/10 overflow-hidden relative">
+                <span className="text-[7px] text-emerald-400 font-bold">+0.06 kg/l</span>
+                <div className="w-20 h-2 rounded-full bg-black/60 border border-white/10 overflow-hidden relative">
                   <div
                     ref={fuelBarRef}
                     className="h-full rounded-full bg-gold transition-all duration-100"
                     style={{ width: "98%" }}
                   />
                 </div>
-                <span ref={fuelTxtRef} className="font-bold text-gold tabular-nums text-[7px]">
+                <span ref={fuelTxtRef} className="font-bold text-gold tabular-nums text-[7.5px]">
                   108.0kg
                 </span>
               </div>

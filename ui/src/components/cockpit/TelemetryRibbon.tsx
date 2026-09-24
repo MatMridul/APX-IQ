@@ -38,6 +38,8 @@ const APEX_LIST: CornerApex[] = [
 export function TelemetryRibbon() {
   const hoverX = useRef<number | null>(null);
   const hoverY = useRef<number | null>(null);
+  const smoothX = useRef<number | null>(null);
+  const smoothY = useRef<number | null>(null);
   const { source } = useLiveOrDemo();
 
   // Crosshair state must not survive route changes (stuck-cursor bug)
@@ -357,14 +359,33 @@ export function TelemetryRibbon() {
     ctx.textAlign = "center";
     ctx.fillText(liveTag, ltX + ltW / 2, ltY + 11);
 
-    // ── Crosshair & Floating Tactical HUD Tooltip on Hover ──────────
+    // ── Crosshair & Floating Tactical HUD Tooltip on Hover (Task 2.5) ──
     if (hoverX.current !== null) {
-      const hx = Math.max(padL, Math.min(w - padR, hoverX.current));
+      const rawTargetX = Math.max(padL, Math.min(w - padR, hoverX.current));
+      const rawTargetY = hoverY.current ?? 60;
+
+      // Spring-damped smooth interpolation
+      if (smoothX.current === null) {
+        smoothX.current = rawTargetX;
+      } else {
+        smoothX.current += (rawTargetX - smoothX.current) * 0.28;
+      }
+
+      if (smoothY.current === null) {
+        smoothY.current = rawTargetY;
+      } else {
+        smoothY.current += (rawTargetY - smoothY.current) * 0.28;
+      }
+
+      const hx = smoothX.current;
+      const hy = smoothY.current;
       const dist = ((hx - padL) / plotW) * TRACK_LEN;
       cockpitCursor.dist = Math.max(0, Math.min(TRACK_LEN, dist));
 
-      // Draw cursor vertical crosshair
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      // Draw cursor vertical crosshair with subtle gold bloom
+      ctx.shadowColor = "rgba(250, 204, 21, 0.4)";
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -372,6 +393,7 @@ export function TelemetryRibbon() {
       ctx.lineTo(hx, h - padB);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
 
       // Interpolate hovered values from profile
       const profIdx = Math.min(
@@ -388,7 +410,7 @@ export function TelemetryRibbon() {
       const boxW = 120;
       const boxH = 68;
       const boxX = hx > w - padR - boxW - 10 ? hx - boxW - 10 : hx + 10;
-      const boxY = Math.max(padT, Math.min(h - padB - boxH, (hoverY.current ?? 60) - boxH / 2));
+      const boxY = Math.max(padT, Math.min(h - padB - boxH, hy - boxH / 2));
 
       ctx.fillStyle = "rgba(10, 15, 24, 0.94)";
       ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
@@ -432,8 +454,12 @@ export function TelemetryRibbon() {
       ctx.textAlign = "right";
       ctx.fillStyle = "#EF4444";
       ctx.fillText(`${hBrk}%`, boxX + boxW - 8, boxY + 58);
-    } else if (cockpitCursor.dist !== null) {
-      cockpitCursor.dist = null;
+    } else {
+      smoothX.current = null;
+      smoothY.current = null;
+      if (cockpitCursor.dist !== null) {
+        cockpitCursor.dist = null;
+      }
     }
 
     // Lane labels in left margin

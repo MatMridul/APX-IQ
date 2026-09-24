@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { getActiveFrame, useLiveOrDemo } from "@/hooks/useLiveOrDemo";
 import { usePredictBattle } from "@/hooks/useIntelligence";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import { MicroLabel, SourceBadge, SimBadge, NoSignal } from "./primitives";
 import { PanelHeader } from "./PanelHeader";
+import { TimeTrialRivalTracker } from "./TimeTrialRivalTracker";
 
 /**
  * Battle panel — Broadcast & Esports F1 TV Battle HUD (MoTeC & F1 TV grammar):
@@ -15,6 +17,105 @@ import { PanelHeader } from "./PanelHeader";
  */
 
 type Ovt = "WAIT" | "READY" | "GO";
+
+function TacticalRadarScope({ aheadS, behindS, ovt }: { aheadS: number; behindS: number; ovt: Ovt }) {
+  const radius = 28;
+  const cx = 35;
+  const cy = 35;
+
+  const normAhead = Math.max(0.12, Math.min(1, aheadS / 2.8));
+  const aheadY = cy - normAhead * radius;
+
+  const normBehind = Math.max(0.12, Math.min(1, behindS / 2.8));
+  const behindY = cy + normBehind * radius;
+
+  const isDrs = aheadS < 1.0;
+
+  return (
+    <div className="relative w-[70px] h-[70px] shrink-0 flex items-center justify-center">
+      <svg viewBox="0 0 70 70" className="w-full h-full select-none">
+        <defs>
+          <radialGradient id="radar-sweep-cone" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#22C55E" stopOpacity="0.4" />
+            <stop offset="60%" stopColor="#22C55E" stopOpacity="0.08" />
+            <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Scope Background */}
+        <circle cx={cx} cy={cy} r={radius} fill="#06090F" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+
+        {/* Outer 2.5s Range Ring */}
+        <circle cx={cx} cy={cy} r={radius * 0.9} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" />
+
+        {/* 1.0s DRS Threshold Ring */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={radius * (1.0 / 2.8)}
+          fill="none"
+          stroke={isDrs ? "rgba(234,179,8,0.7)" : "rgba(255,255,255,0.15)"}
+          strokeWidth="0.9"
+          strokeDasharray="2 2"
+        />
+
+        {/* Inner 0.5s Range Ring */}
+        <circle cx={cx} cy={cy} r={radius * (0.5 / 2.8)} fill="none" stroke="rgba(34,197,94,0.2)" strokeWidth="0.7" />
+
+        {/* Crosshair Axes */}
+        <line x1={cx - radius} y1={cy} x2={cx + radius} y2={cy} stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" />
+        <line x1={cx} y1={cy - radius} x2={cx} y2={cy + radius} stroke="rgba(255,255,255,0.08)" strokeWidth="0.8" />
+
+        {/* Rotating Phosphor Sweep Line */}
+        <g className="origin-[35px_35px] animate-spin" style={{ animationDuration: "3.5s" }}>
+          <line x1={cx} y1={cy} x2={cx} y2={cy - radius} stroke="#22C55E" strokeWidth="1.2" strokeOpacity="0.85" />
+          <path
+            d={`M ${cx} ${cy} L ${cx} ${cy - radius} A ${radius} ${radius} 0 0 1 ${cx + radius * 0.7} ${cy - radius * 0.7} Z`}
+            fill="url(#radar-sweep-cone)"
+          />
+        </g>
+
+        {/* Own Car Blip (Center) */}
+        <circle cx={cx} cy={cy} r={2.5} fill="#06B6D4" stroke="#FFFFFF" strokeWidth="0.8" />
+
+        {/* Ahead Rival Blip (Task 2.4) */}
+        <g>
+          {isDrs && (
+            <circle
+              cx={cx}
+              cy={aheadY}
+              r={5}
+              fill="none"
+              stroke="#EF4444"
+              strokeWidth="1"
+              className="animate-ping origin-center"
+              style={{ transformOrigin: `${cx}px ${aheadY}px` }}
+            />
+          )}
+          <circle
+            cx={cx}
+            cy={aheadY}
+            r={3}
+            fill="#EF4444"
+            stroke="#FFFFFF"
+            strokeWidth="0.8"
+            className={isDrs ? "animate-pulse" : ""}
+          />
+        </g>
+
+        {/* Behind Chaser Blip */}
+        <circle cx={cx} cy={behindY} r={2.4} fill="#F59E0B" stroke="#000000" strokeWidth="0.6" />
+      </svg>
+
+      {/* DRS range beacon indicator */}
+      {isDrs && (
+        <span className="absolute top-0.5 right-0.5 text-[6px] font-mono font-black text-amber-400 bg-amber-950/80 px-1 py-px rounded border border-amber-500/40">
+          DRS
+        </span>
+      )}
+    </div>
+  );
+}
 
 function SectorChips({
   s1Ms,
@@ -101,6 +202,15 @@ export function BattlePanel() {
     predictedFinish: 2,
     action: "",
   });
+
+  const isTimeTrialSession = session?.sessionType === 13;
+  const [panelMode, setPanelMode] = useState<"BATTLE" | "RIVAL">("BATTLE");
+
+  useEffect(() => {
+    if (isTimeTrialSession) {
+      setPanelMode("RIVAL");
+    }
+  }, [isTimeTrialSession]);
 
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const predictBattle = usePredictBattle();
@@ -191,19 +301,63 @@ export function BattlePanel() {
   return (
     <div className="apx-panel h-full w-full flex flex-col p-2.5 gap-2 relative bg-neutral-950/80 border border-white/[0.08] rounded-md backdrop-blur-sm">
       <PanelHeader
-        label="Battle · Radar"
+        label={
+          <div className="relative flex items-center p-0.5 rounded-lg bg-black/60 border border-white/10">
+            <button
+              onClick={() => setPanelMode("BATTLE")}
+              className={`relative z-10 px-2 py-0.5 rounded text-[8.5px] font-bold tracking-wider transition-colors cursor-pointer ${
+                panelMode === "BATTLE" ? "text-red-400" : "text-neutral-400 hover:text-white"
+              }`}
+            >
+              {panelMode === "BATTLE" && (
+                <motion.div
+                  layoutId="activeBattleTab"
+                  className="absolute inset-0 bg-red-500/20 border border-red-500/40 rounded shadow-[0_0_8px_rgba(239,68,68,0.25)]"
+                  transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                />
+              )}
+              <span className="relative z-10">BATTLE · RADAR</span>
+            </button>
+            <button
+              onClick={() => setPanelMode("RIVAL")}
+              className={`relative z-10 px-2 py-0.5 rounded text-[8.5px] font-bold tracking-wider transition-colors cursor-pointer ${
+                panelMode === "RIVAL" ? "text-gold" : "text-neutral-400 hover:text-white"
+              }`}
+            >
+              {panelMode === "RIVAL" && (
+                <motion.div
+                  layoutId="activeBattleTab"
+                  className="absolute inset-0 bg-gold/20 border border-gold/40 rounded shadow-[0_0_8px_rgba(207,163,73,0.25)]"
+                  transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                />
+              )}
+              <span className="relative z-10">RIVAL · SPLIT</span>
+            </button>
+          </div>
+        }
         right={
           <div className="flex items-center gap-2">
-            <span className="text-[9px] font-mono uppercase text-amber-400/90 tracking-wider">
-              EST P{snap.predictedFinish || curPos}
-            </span>
+            {panelMode === "BATTLE" && (
+              <span className="text-[9px] font-mono uppercase text-amber-400/90 tracking-wider">
+                EST P{snap.predictedFinish || curPos}
+              </span>
+            )}
+            {panelMode === "RIVAL" && (
+              <span className="text-[8.5px] font-mono uppercase text-purple-400 tracking-wider font-bold">
+                PKT 14 TT
+              </span>
+            )}
             <SourceBadge source={source} />
           </div>
         }
       />
 
-      {/* Driver Ahead */}
-      <div className="rounded border border-red-500/20 bg-gradient-to-r from-red-950/20 to-black/40 p-2">
+      {panelMode === "RIVAL" ? (
+        <TimeTrialRivalTracker />
+      ) : (
+        <>
+          {/* Driver Ahead */}
+          <div className="rounded border border-red-500/20 bg-gradient-to-r from-red-950/20 to-black/40 p-2">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-4 bg-red-600 rounded-sm" />
@@ -242,9 +396,9 @@ export function BattlePanel() {
       </div>
 
 
-      {/* Central Tactical Overtake State */}
+      {/* Central Tactical Overtake State & Proximity Radar (Task 2.4) */}
       <div
-        className={`rounded border px-3 py-2 flex items-center justify-between transition-colors ${
+        className={`rounded border px-2.5 py-2 flex items-center justify-between gap-3 transition-colors ${
           snap.ovt === "GO"
             ? "border-emerald-500/60 bg-emerald-950/40 text-emerald-300 shadow-[0_0_12px_rgba(34,197,94,0.2)]"
             : snap.ovt === "READY"
@@ -252,11 +406,18 @@ export function BattlePanel() {
               : "border-white/[0.08] bg-black/40 text-neutral-400"
         }`}
       >
-        <div className="flex flex-col">
-          <span className="font-mono text-[8px] uppercase tracking-widest text-neutral-400 font-semibold">
-            TACTICAL RADAR
-          </span>
-          <span className="font-mono text-[10px] font-medium text-neutral-300">
+        <TacticalRadarScope aheadS={snap.ahead} behindS={snap.behind} ovt={snap.ovt} />
+
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[8px] uppercase tracking-widest text-neutral-400 font-semibold">
+              TACTICAL RADAR · {snap.ahead < 1.0 ? "DRS ACTIVE" : "TOW HUNT"}
+            </span>
+            <span className="font-mono text-[8px] text-neutral-500 tabular-nums">
+              RNG: {snap.ahead.toFixed(2)}s
+            </span>
+          </div>
+          <span className="font-mono text-[10px] font-medium text-neutral-300 truncate mt-0.5">
             {snap.ovt === "GO"
               ? "OVERTAKE WINDOW OPEN · PUSH"
               : snap.ovt === "READY"
@@ -264,7 +425,8 @@ export function BattlePanel() {
                 : "BUILDING BATTERY DELTA"}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 shrink-0">
           <span
             className={`font-mono text-base font-black tracking-widest px-2 py-0.5 rounded ${
               snap.ovt === "GO"
@@ -324,6 +486,8 @@ export function BattlePanel() {
           STINT {sessionHistory?.numTyreStints && sessionHistory.numTyreStints > 0 ? sessionHistory.numTyreStints : 1} · LAP {stintLap}/{totalLaps}
         </span>
       </div>
+        </>
+      )}
     </div>
   );
 }

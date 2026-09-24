@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Terminal, Zap, AlertTriangle, CheckCircle2, Volume2, Copy, Check, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { soundFx } from "@/lib/cockpit/soundFx";
@@ -32,12 +32,30 @@ export const AiEngineerBriefingBox: React.FC<AiEngineerBriefingBoxProps> = ({
   const [activeChannel, setActiveChannel] = useState<"DEBRIEF" | "RADIO">("DEBRIEF");
   const [isPlayingRadio, setIsPlayingRadio] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [streamedLength, setStreamedLength] = useState(0);
+
+  // Typewriter teletype character streaming (Task 3.3)
+  useEffect(() => {
+    setStreamedLength(0);
+    const interval = setInterval(() => {
+      setStreamedLength((prev) => {
+        if (prev >= summary.length) {
+          clearInterval(interval);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 20);
+    return () => clearInterval(interval);
+  }, [summary]);
 
   const handlePlayRadio = (customText?: string) => {
-    soundFx.playButtonClick();
+    soundFx.playRadioBeep();
     setIsPlayingRadio(true);
     const radioText = customText ?? "Delta is steady at plus zero point one eight. Trail deeper into Turn one and pick up throttle ten meters earlier out of Casino. Full battery deployment authorized.";
-    soundFx.speakRadio(radioText);
+    setTimeout(() => {
+      soundFx.speakRadio(radioText);
+    }, 120);
     setTimeout(() => {
       setIsPlayingRadio(false);
     }, 6000);
@@ -252,15 +270,24 @@ export const AiEngineerBriefingBox: React.FC<AiEngineerBriefingBoxProps> = ({
         </div>
       )}
 
-      {/* ── SUMMARY FOOTER WITH TERMINAL PROMPT ─────────────────────────── */}
-      <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-lg flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-emerald-400">
+      {/* ── SUMMARY FOOTER WITH TERMINAL PROMPT (Task 3.3) ────────────────── */}
+      <div
+        onClick={() => setStreamedLength(summary.length)}
+        className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-lg flex items-center justify-between gap-2 cursor-pointer hover:bg-emerald-950/30 transition-colors"
+        title="Click to instantly complete typewriter stream"
+      >
+        <div className="flex items-center gap-2 text-emerald-400 flex-1 min-w-0">
           <Zap size={14} className="shrink-0 animate-pulse" />
-          <span className="text-[10.5px] font-mono text-emerald-300 font-medium">
-            {summary}
+          <span className="text-[10.5px] font-mono text-emerald-300 font-medium tracking-tight">
+            {summary.slice(0, streamedLength)}
+            {streamedLength < summary.length && (
+              <span className="inline-block w-1.5 h-3 bg-emerald-400 animate-pulse ml-0.5 align-middle" />
+            )}
           </span>
         </div>
-        <span className="font-mono text-emerald-400 text-xs animate-pulse hidden sm:inline font-black">_</span>
+        <span className="font-mono text-emerald-400 text-xs animate-pulse hidden sm:inline font-black">
+          {streamedLength >= summary.length ? "TELETYPE // READY" : "TELETYPE // REC..."}
+        </span>
       </div>
     </div>
   );

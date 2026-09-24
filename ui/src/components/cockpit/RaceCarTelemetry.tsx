@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Flame } from "lucide-react";
+import { Flame, Cpu } from "lucide-react";
 import { SourceBadge } from "./primitives";
 import { useLiveOrDemo, getActiveFrame } from "@/hooks/useLiveOrDemo";
 import { cockpitCursor, lapProfile, TRACK_LEN } from "@/lib/cockpit/demo";
@@ -134,14 +134,18 @@ export function RaceCarTelemetry() {
           barRefs.current[i]!.style.boxShadow = `0 0 8px ${sc}`;
         }
 
-        // Wheel brake-energy incandescence glow
+        // Wheel brake-energy incandescent thermal glow (Task 2.3)
         const glow = glowRefs.current[i];
         if (glow) {
+          const isExtreme = brk > 550 || brake > 0.45;
           const glowIntensity = isLive && brk > 0 
-            ? Math.min(1, Math.max(0.15, (brk - 300) / 600)) 
-            : (0.15 + brake * 0.85);
+            ? Math.min(1, Math.max(0.12, (brk - 300) / 580)) 
+            : Math.min(1, 0.12 + brake * 0.88);
           glow.style.opacity = String(glowIntensity);
-          glow.style.transform = `scale(${1 + (isLive ? glowIntensity * 0.15 : brake * 0.15)})`;
+          const scale = isExtreme
+            ? 1 + (isLive ? glowIntensity * 0.28 : brake * 0.28)
+            : 1 + (isLive ? glowIntensity * 0.12 : brake * 0.12);
+          glow.style.transform = `scale(${scale})`;
         }
       });
 
@@ -177,7 +181,22 @@ export function RaceCarTelemetry() {
 
   return (
     <div className="apx-panel w-full h-full relative flex flex-col p-2.5 bg-gradient-to-b from-[#111116] via-[#0A0A0E] to-[#070709] border border-gold/30 shadow-[0_0_25px_rgba(0,0,0,0.85)]">
-      <PanelHeader label="Car · Thermals & Chassis" right={<SourceBadge source={source} />} />
+      <PanelHeader
+        label="Car · Thermals & Chassis"
+        right={
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => useUxStore.getState().openPuModal()}
+              className="px-2 py-0.5 rounded bg-gold/15 hover:bg-gold/30 text-gold border border-gold/40 text-[9px] font-mono font-bold tracking-wider transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+              title="Open FIA Power Unit & Engine Diagnostics (Packet 10)"
+            >
+              <Cpu size={11} />
+              <span>PU HEALTH</span>
+            </button>
+            <SourceBadge source={source} />
+          </div>
+        }
+      />
 
       <div className="flex-1 relative min-h-0 flex items-center justify-center">
         {/* Directional broadcast cues */}
@@ -318,10 +337,21 @@ export function RaceCarTelemetry() {
               <stop offset="100%" stopColor="#111215" />
             </linearGradient>
             <radialGradient id="brake-glow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#FF3B30" stopOpacity="0.95" />
-              <stop offset="50%" stopColor="#FF9500" stopOpacity="0.6" />
-              <stop offset="100%" stopColor="#FF3B30" stopOpacity="0" />
+              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+              <stop offset="22%" stopColor="#FFF275" stopOpacity="0.95" />
+              <stop offset="48%" stopColor="#FF6B00" stopOpacity="0.85" />
+              <stop offset="78%" stopColor="#DC2626" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#7F1D1D" stopOpacity="0" />
             </radialGradient>
+            <filter id="brake-incandescent-bloom" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur1" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur2" />
+              <feMerge>
+                <feMergeNode in="blur2" />
+                <feMergeNode in="blur1" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
             <radialGradient id="body-highlight" cx="50%" cy="22%" r="80%">
               <stop offset="0%" stopColor="#8A93A5" stopOpacity="0.35" />
               <stop offset="55%" stopColor="#8A93A5" stopOpacity="0.08" />
@@ -420,10 +450,11 @@ export function RaceCarTelemetry() {
                     cy={cy as number}
                     r={h / 2.2}
                     fill="url(#brake-glow)"
+                    filter="url(#brake-incandescent-bloom)"
                     style={{
                       opacity: 0.15,
                       transformOrigin: `${cx}px ${cy}px`,
-                      transition: "opacity 300ms, transform 300ms",
+                      transition: "opacity 180ms ease-out, transform 180ms ease-out",
                     }}
                   />
 

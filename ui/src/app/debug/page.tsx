@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -24,6 +24,7 @@ import {
 import { StatusBar } from "@/components/cockpit/StatusBar";
 import { MicroLabel, NoSignal, SourceBadge } from "@/components/cockpit/primitives";
 import { PanelHeader } from "@/components/cockpit/PanelHeader";
+import { FluidPageShell, FluidSection, FluidSurface } from "@/components/layout/FluidPageShell";
 import { useSocket } from "@/hooks/useSocket";
 import { useTelemetryStore } from "@/store/telemetryStore";
 import { useLiveOrDemo } from "@/hooks/useLiveOrDemo";
@@ -64,9 +65,34 @@ export default function DebugPage() {
   const [fps, setFps] = useState(60.0);
   const [mounted, setMounted] = useState(false);
 
+  // UDP datagram ingestion heartbeat spark (Task 4.1)
+  const [udpSpark, setUdpSpark] = useState(false);
+
+  // Zustand Store State Variable Diff Flash (Task 4.2)
+  const [diffFlash, setDiffFlash] = useState(false);
+  const [lastDiffKey, setLastDiffKey] = useState<string>("telemetry.speed");
+  const prevSpeedRef = useRef<number | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setUdpSpark(true);
+    const timer = setTimeout(() => setUdpSpark(false), 260);
+    return () => clearTimeout(timer);
+  }, [packetCount]);
+
+  useEffect(() => {
+    const curSpd = telemetry ? Math.round(telemetry.speed) : 294;
+    if (prevSpeedRef.current !== null && prevSpeedRef.current !== curSpd) {
+      setDiffFlash(true);
+      setLastDiffKey(`telemetry.speed (${curSpd} km/h)`);
+      const timer = setTimeout(() => setDiffFlash(false), 240);
+      return () => clearTimeout(timer);
+    }
+    prevSpeedRef.current = curSpd;
+  }, [telemetry]);
 
   // Measure Socket.IO connection status & ping
   useEffect(() => {
@@ -279,15 +305,10 @@ export default function DebugPage() {
       : "DRY";
 
   return (
-    <div className="min-h-screen bg-black text-neutral-200 font-sans flex flex-col items-center select-none">
-      {/* ── TOP UNIFIED STATUS BAR ──────────────────────────────────────── */}
-      <div className="w-full h-11 shrink-0">
-        <StatusBar demoTime={true} />
-      </div>
-
-      <div className="p-4 md:p-6 flex flex-col gap-5 max-w-[1600px] w-full self-center flex-1">
+    <FluidPageShell activeBreadcrumb="SYSTEM OBSERVABILITY" wideContainer>
+      <div className="flex flex-col gap-6 w-full">
         {/* ── SUBHEADER & ACTION TOOLBAR ─────────────────────────────────── */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
+        <FluidSurface variant="glass" className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-gold/10 ring-1 ring-gold/30 flex items-center justify-center text-gold shadow-[0_0_12px_rgba(207,163,73,0.15)]">
               <Terminal size={18} />
@@ -348,7 +369,7 @@ export default function DebugPage() {
               <span>EXPORT BUNDLE</span>
             </button>
           </div>
-        </div>
+        </FluidSurface>
 
         {/* ── METRIC PANELS GRID ─────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -434,20 +455,40 @@ export default function DebugPage() {
               }
             />
 
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-black/50 border border-white/[0.06]">
+            <div
+              className={cn(
+                "flex items-center justify-between p-2.5 rounded-lg bg-black/50 border transition-all duration-200",
+                udpSpark
+                  ? "border-emerald-500/60 shadow-[0_0_16px_rgba(52,211,153,0.3)] bg-emerald-950/20"
+                  : "border-white/[0.06]"
+              )}
+            >
               <div className="flex items-center gap-2">
-                <Radio size={14} className={isConnected ? "text-emerald-400 animate-pulse" : "text-amber-400"} />
-                <span className="font-mono text-xs font-bold text-white">PORT UDP:20777</span>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span
+                    className={cn(
+                      "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 transition-opacity",
+                      udpSpark ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                </span>
+                <span className="font-mono text-xs font-bold text-white tracking-wide">
+                  PORT UDP:20777
+                </span>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                60 HZ BUFFER
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">
+                60 HZ BUFFER · 1ms
               </span>
             </div>
 
             <div className="space-y-2 text-xs font-mono">
               <div className="flex justify-between items-center py-1 border-b border-white/[0.04]">
                 <span className="text-neutral-400 text-[11px]">TOTAL INGESTED PACKETS:</span>
-                <span className="text-amber-400 font-bold text-[11px] tabular-nums">
+                <span className={cn(
+                  "font-bold text-[11px] tabular-nums transition-colors duration-200",
+                  udpSpark ? "text-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" : "text-amber-400"
+                )}>
                   {packetCount.toLocaleString()} pkts
                 </span>
               </div>
@@ -702,18 +743,32 @@ export default function DebugPage() {
             </div>
           </div>
 
-          {/* Syntax-Highlighted Monospace Code Box */}
+          {/* Syntax-Highlighted Monospace Code Box (Task 4.2) */}
           <div className="relative rounded-lg border border-white/10 bg-black/90 overflow-hidden">
             <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-900/60 border-b border-white/[0.06] text-[10px] font-mono text-neutral-400">
-              <span>MUTABLE MEMORY SNAPSHOT</span>
+              <div className="flex items-center gap-2">
+                <span>MUTABLE MEMORY SNAPSHOT</span>
+                {diffFlash && (
+                  <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold animate-pulse">
+                    DIFF: {lastDiffKey}
+                  </span>
+                )}
+              </div>
               <span>{new Blob([jsonString]).size} BYTES</span>
             </div>
-            <pre className="p-4 text-xs font-mono text-neutral-300 overflow-auto max-h-[420px] leading-relaxed select-text scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <pre
+              className={cn(
+                "p-4 text-xs font-mono text-neutral-300 overflow-auto max-h-[420px] leading-relaxed select-text scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent transition-all duration-200",
+                diffFlash
+                  ? "bg-amber-950/20 shadow-[inset_0_0_24px_rgba(245,158,11,0.18)]"
+                  : "bg-black/90"
+              )}
+            >
               <code>{jsonString}</code>
             </pre>
           </div>
         </div>
       </div>
-    </div>
+    </FluidPageShell>
   );
 }

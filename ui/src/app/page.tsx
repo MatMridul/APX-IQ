@@ -1,79 +1,125 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Activity, Sparkles, Terminal, Gauge, Radio, Cpu, ArrowRight, ShieldCheck, Gamepad2, HelpCircle, Volume2, VolumeX } from "lucide-react";
-import { TRACK_IDS } from "@/utils/constants";
-import { useTelemetryStore } from "@/store/telemetryStore";
-import { SourceBadge } from "@/components/cockpit/primitives";
-import { useLiveOrDemo } from "@/hooks/useLiveOrDemo";
-import { useUxStore } from "@/store/uxStore";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Sparkles,
+  Radio,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  Zap,
+  Layers,
+  Activity,
+  Gamepad2,
+  Gauge,
+  Cpu,
+  HelpCircle,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { soundFx } from "@/lib/cockpit/soundFx";
 import { cn } from "@/lib/utils";
+import { useUxStore } from "@/store/uxStore";
+import { useTelemetryStore } from "@/store/telemetryStore";
+import { useLiveOrDemo } from "@/hooks/useLiveOrDemo";
+import { TRACK_IDS } from "@/utils/constants";
 
-import { HeroTelemetrySandbox } from "@/components/home/HeroTelemetrySandbox";
-import { EngineeringTicker } from "@/components/home/EngineeringTicker";
+import { KineticBackground } from "@/components/home/KineticBackground";
+import { CarDigitalTwin3D } from "@/components/telemetry/CarDigitalTwin3D";
+import { VoicePitWallRadio } from "@/components/intelligence/VoicePitWallRadio";
+import { CanvasTelemetryStream } from "@/components/telemetry/CanvasTelemetryStream";
+import { MonacoLapTour } from "@/components/home/MonacoLapTour";
+import { UserJourneyHub } from "@/components/home/UserJourneyHub";
 import { ArchitectureFlow } from "@/components/home/ArchitectureFlow";
 import { TechnicalDeepDiveDrawer } from "@/components/home/TechnicalDeepDiveDrawer";
 import { GameConnectModal } from "@/components/cockpit/GameConnectModal";
 import { PlatformGuideModal } from "@/components/cockpit/PlatformGuideModal";
 
 /**
- * Digital Pit Wall — Motorsport Intelligence & Telemetry Workstation Portal
- * Serves as the high-impact portfolio entry point into APX IQ:
- *   1. Cockpit HUD (/dashboard) — 60Hz real-time telemetry & chassis diagnostics
- *   2. Mission Control (/dashboard/intelligence) — FastF1 ghost delta benchmarking & strategy debrief
- *   3. System Observability (/debug) — Raw Socket.IO transport & packet decode inspector
+ * 4 Core Engineering Pillars — Compact, High-Density Cards
  */
-
-const WORKSTATIONS = [
+const CAPABILITIES = [
   {
     id: "01",
-    role: "LIVE COCKPIT HUD",
-    subrole: "DRIVER & TRACKSIDE TELEMETRY",
+    num: "01",
+    tag: "ZERO-LATENCY INGESTION",
+    title: "60Hz Hardware UDP Binary Engine",
+    badge: "F1 2020 – 2025 PROTOCOL",
+    desc: "Direct asynchronous socket listener decoding binary ctypes LittleEndianStructure packets over port 20777. Zero frame allocation, sub-millisecond loopback latency, and zero game FPS drop.",
+    features: [
+      "Native ctypes binary struct unpacking",
+      "Motion, Lap Data, Car Status & Damage",
+      "Automatic protocol era auto-detection",
+      "Zero game modding or external DLLs required",
+    ],
+    accent: "gold",
     href: "/dashboard",
-    icon: Activity,
-    badge: "60Hz REAL-TIME",
-    description:
-      "High-frequency cockpit HUD with AMOLED steering wheel MFD, 4-corner chassis thermals, MoTeC distance ribbon, GPS radar, and live overtake battle tracking.",
-    capabilities: ["Steering Wheel MFD", "4-Corner Tyre Thermals", "Lap Domain Ribbon", "Tactical Battle Radar"],
-    cta: "ENTER COCKPIT HUD",
-    accent: "border-amber-500/30 hover:border-amber-500/60",
-    badgeColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+    cta: "LAUNCH COCKPIT HUD",
   },
   {
     id: "02",
-    role: "MISSION CONTROL",
-    subrole: "STRATEGY & PERFORMANCE ENGINE",
+    num: "02",
+    tag: "SPATIAL DELTA ENGINE",
+    title: "Official FIA FastF1 Ghost Benchmarking",
+    badge: "FASTF1 API V2",
+    desc: "Aligns driver telemetry spatially against official FIA Grand Prix qualifying and race traces using 1,000-point cubic spline interpolation to calculate instant micro-sector deltas.",
+    features: [
+      "Max Verstappen & Lewis Hamilton reference traces",
+      "Brake release & throttle application discrepancies",
+      "Mini-sector purple/green delta tracking",
+      "Synchronized corner apex telemetry",
+    ],
+    accent: "purple",
     href: "/dashboard/intelligence",
-    icon: Sparkles,
-    badge: "FASTF1 FIA V2",
-    description:
-      "Post-session strategy suite with official FastF1 reference ghost benchmarking, multi-channel speed/pedal delta curves, mechanical setup sliders, and AI debrief.",
-    capabilities: ["FastF1 Ghost Benchmarking", "Speed & Throttle Deltas", "Mechanical Setup Matrix", "AI Race Engineer Debrief"],
     cta: "OPEN MISSION CONTROL",
-    accent: "border-emerald-500/30 hover:border-emerald-500/60",
-    badgeColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
   },
   {
     id: "03",
-    role: "SYSTEM OBSERVABILITY",
-    subrole: "TELEMETRY TRANSPORT INSPECTOR",
-    href: "/debug",
-    icon: Terminal,
-    badge: "SOCKET.IO & UDP",
-    description:
-      "Low-level diagnostic console for real-time socket transport health, 60Hz UDP frame buffers, packet decode status, and full Zustand store state inspection.",
-    capabilities: ["Socket.IO Diagnostics", "Packet Ingestion Rate", "Frame Buffer Inspection", "Store State Tree"],
-    cta: "INSPECT SYSTEM",
-    accent: "border-cyan-500/30 hover:border-cyan-500/60",
-    badgeColor: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+    num: "03",
+    tag: "PHYSICS & MECHANICAL TUNING",
+    title: "Vehicle Dynamics & 3D Setup Copilot",
+    badge: "DETERMINISTIC PHYSICS",
+    desc: "Evaluates aerodynamic downforce balance, anti-roll bar roll-stiffness ratios, and camber compliance with real-time simulated lap time gain predictions.",
+    features: [
+      "Interactive front wing & differential sliders",
+      "Thermal tyre degradation modeling",
+      "Instant corner exit traction gain feedback",
+      "Camber and toe alignment compliance",
+    ],
+    accent: "cyan",
+    href: "/dashboard/intelligence",
+    cta: "TUNE SETUP MATRIX",
   },
-] as const;
+  {
+    id: "04",
+    num: "04",
+    tag: "AI INTELLIGENCE & STRATEGY",
+    title: "Pit-Wall Debrief & Race Strategy Forecaster",
+    badge: "GEMINI 2.0 + RATG",
+    desc: "Telemetry-grounded post-session coaching generated by Google Gemini and deterministic fallback heuristics. Includes real-time undercut/overcut triggers and tyre crossover curves.",
+    features: [
+      "Corner-by-corner tactical debrief notes",
+      "Undercut & overcut pit window triggers",
+      "100% offline fallback rule safety",
+      "Zero telemetry data used to train public models",
+    ],
+    accent: "gold",
+    href: "/dashboard/intelligence",
+    cta: "VIEW AI DEBRIEFS",
+  },
+];
 
 export default function Home() {
+  const [activeStage, setActiveStage] = useState<"3D_TWIN" | "WAVEFORMS" | "MONACO_TOUR" | "VOICE_RADIO">("3D_TWIN");
+  const [scrollNorm, setScrollNorm] = useState(0);
+
   const session = useTelemetryStore((s) => s.session);
-  const lapData = useTelemetryStore((s) => s.lapData);
+  const liveTelemetry = useTelemetryStore((s) => s.telemetry);
+  const liveMotion = useTelemetryStore((s) => s.motion);
+  const liveMotionEx = useTelemetryStore((s) => s.motionEx);
+  const liveCarDamage = useTelemetryStore((s) => s.carDamage);
   const { source, isConnected } = useLiveOrDemo();
 
   const isConnectOpen = useUxStore((s) => s.isConnectModalOpen);
@@ -89,18 +135,35 @@ export default function Home() {
 
   const isLive = isConnected && source === "LIVE";
 
+  // Track scroll progress smoothly for the background particle engine
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalScroll > 0) {
+        setScrollNorm(Math.min(1, Math.max(0, window.scrollY / totalScroll)));
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <main className="min-h-screen bg-black text-neutral-200 font-sans p-4 md:p-6 lg:p-8 select-none flex flex-col items-center">
-      <div className="max-w-[1480px] w-full self-center flex flex-col gap-8 flex-1 justify-between">
-        
-        {/* ── TOP HEADER ─────────────────────────────────────────────────── */}
-        <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-neutral-950/90 border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.8)] backdrop-blur-md w-full">
+    <div className="min-h-screen bg-[#06080d] text-white selection:bg-amber-400 selection:text-black overflow-x-hidden relative font-sans">
+      
+      {/* ── 1. KINETIC SCROLL-REACTIVE WARP BACKGROUND ─────────────────── */}
+      <KineticBackground scrollProgress={scrollNorm} />
+
+      {/* ── 2. STICKY COMPACT MOTORSPORT NAVIGATION DOCK ──────────────── */}
+      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-[#06080d]/85 border-b border-white/[0.08]">
+        <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          
+          {/* Logo & Platform Label */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2 group">
               <span className="font-black italic text-lg tracking-tighter text-amber-400 group-hover:drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] transition-all">
                 APX<span className="text-white">·IQ</span>
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-signal-go shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
             </Link>
             <div className="h-4 w-px bg-white/10 hidden sm:inline" />
             <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest hidden sm:inline font-semibold">
@@ -108,219 +171,438 @@ export default function Home() {
             </span>
           </div>
 
-          {/* Center Metadata Capsule */}
-          <div className="hidden lg:flex items-center gap-3 font-mono text-xs">
-            <div className="flex items-center gap-1.5 bg-black/50 px-2.5 py-1 rounded-lg border border-white/[0.06]">
-              <span className="text-neutral-400 uppercase text-[9px]">INGESTION:</span>
+          {/* Ingestion & Track Live Badges */}
+          <div className="hidden md:flex items-center gap-2 font-mono text-xs">
+            <div className="flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-lg border border-white/[0.08]">
+              <span className="text-neutral-500 uppercase text-[9px] font-bold">INGESTION:</span>
               <span className={cn("font-bold text-[10px]", isLive ? "text-emerald-400" : "text-amber-400")}>
                 {isLive ? "UDP 60Hz ACTIVE" : "PORT 20777 STANDBY"}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 bg-black/50 px-2.5 py-1 rounded-lg border border-white/[0.06]">
-              <span className="text-neutral-400 uppercase text-[9px]">TRACK:</span>
+            <div className="flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-lg border border-white/[0.08]">
+              <span className="text-neutral-500 uppercase text-[9px] font-bold">CIRCUIT:</span>
               <span className="text-amber-400 font-bold text-[10px]">
                 {session?.trackId !== undefined ? TRACK_IDS[session.trackId] ?? "MONACO GP" : "MONACO GP"}
               </span>
             </div>
           </div>
 
-          {/* Right Navigation, Radar, Guide & Audio */}
+          {/* Quick Actions & Navigation Links */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Connect F1 Game Modal Trigger */}
             <button
               onClick={openConnect}
               className={cn(
-                "px-2.5 py-1.5 rounded-lg text-[9px] font-mono tracking-wider uppercase font-bold transition-all flex items-center gap-1.5 cursor-pointer",
+                "px-3 py-1.5 rounded-lg text-[10px] font-mono tracking-wider uppercase font-bold transition-all flex items-center gap-1.5 cursor-pointer",
                 isLive
                   ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
-                  : "bg-gradient-to-r from-amber-500/20 to-amber-500/10 border border-amber-500/40 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.15)] hover:from-amber-500/30"
+                  : "bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.15)]"
               )}
-              title="Pair F1 Game Telemetry (Hotkey: C)"
             >
-              <Gamepad2 size={12} />
-              <span>{isLive ? "F1 LIVE" : "PAIR F1 GAME"}</span>
+              <Gamepad2 size={13} />
+              <span className="hidden sm:inline">PAIR F1</span>
             </button>
 
-            {/* Platform Guide Modal Trigger */}
-            <button
-              onClick={openGuide}
-              className="px-2.5 py-1.5 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] hover:border-amber-500/40 text-neutral-300 hover:text-white text-[9px] font-mono tracking-wider uppercase transition-all flex items-center gap-1 cursor-pointer"
-              title="Open Platform Guide (Hotkey: ?)"
-            >
-              <HelpCircle size={12} />
-              <span className="hidden sm:inline">GUIDE</span>
-            </button>
-
-            {/* Audio Toggle */}
-            <button
-              onClick={toggleSound}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-[9px] font-mono tracking-wider uppercase transition-all flex items-center gap-1 cursor-pointer",
-                soundEnabled
-                  ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                  : "bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.08] text-neutral-500"
-              )}
-              title={soundEnabled ? "Tactile Audio SFX Active (Click to Mute)" : "Audio Muted (Click to Enable SFX)"}
-            >
-              {soundEnabled ? <Volume2 size={12} className="text-amber-400 animate-pulse" /> : <VolumeX size={12} />}
-              <span className="hidden sm:inline">{soundEnabled ? "SFX ON" : "SFX OFF"}</span>
-            </button>
-
-            {/* Workstation Quick Switcher Pill */}
-            <div className="hidden xl:flex p-1 rounded-xl bg-black/60 border border-white/10 items-center gap-1 shadow-inner">
-              <Link
-                href="/dashboard"
-                className="px-2.5 py-1 rounded-[8px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold text-neutral-400 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5"
-              >
-                <Gauge size={11} className="text-neutral-400" />
-                <span>Cockpit HUD</span>
-              </Link>
-              <Link
-                href="/dashboard/intelligence"
-                className="px-2.5 py-1 rounded-[8px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold text-neutral-400 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5"
-              >
-                <Sparkles size={11} className="text-neutral-400" />
-                <span>Mission Control</span>
-              </Link>
-            </div>
-
-            <SourceBadge source={source} />
-          </div>
-        </header>
-
-        {/* ── HERO HEADER & MISSION STATEMENT ─────────────────────────────── */}
-        <div className="text-center max-w-4xl self-center flex flex-col items-center pt-2">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold tracking-widest mb-4 shadow-[0_0_16px_rgba(245,158,11,0.15)]">
-            <Cpu size={13} className="animate-pulse" />
-            <span>60Hz REAL-TIME MOTORSPORT INTELLIGENCE PLATFORM · F1 2020-2025</span>
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white uppercase font-display leading-none">
-            DIGITAL <span className="text-gold">PIT WALL</span>
-          </h1>
-
-          <p className="mt-4 text-xs sm:text-sm md:text-base text-neutral-300 leading-relaxed font-sans max-w-2xl">
-            High-frequency Formula 1 telemetry ingestion, FastF1 official FIA reference ghost benchmarking,
-            and predictive race engineering intelligence for EA Sports F1 2020 through 2025.
-          </p>
-
-          {/* Primary Quick Actions */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-6 font-mono text-xs font-bold">
             <Link
               href="/dashboard"
-              className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-black shadow-[0_0_24px_rgba(245,158,11,0.4)] transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
+              className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-amber-400 hover:text-black border border-white/10 hover:border-amber-400 text-neutral-200 text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
             >
-              <Gauge size={15} />
-              <span>ENTER COCKPIT HUD</span>
+              <Gauge size={13} />
+              <span>COCKPIT HUD</span>
             </Link>
 
             <Link
               href="/dashboard/intelligence"
-              className="px-5 py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-white/15 hover:border-emerald-400/50 text-white shadow-[0_4px_16px_rgba(0,0,0,0.6)] transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
+              className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-purple-500 hover:text-white border border-white/10 hover:border-purple-400 text-neutral-200 text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
             >
-              <Sparkles size={15} className="text-emerald-400" />
-              <span>OPEN MISSION CONTROL</span>
+              <Sparkles size={13} className="text-amber-400" />
+              <span className="hidden sm:inline">MISSION CONTROL</span>
+            </Link>
+
+            <button
+              onClick={() => {
+                soundFx.playButtonClick();
+                toggleSound();
+              }}
+              className="p-2 rounded-lg bg-black/50 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-all cursor-pointer"
+              title={soundEnabled ? "Mute SFX" : "Enable SFX"}
+            >
+              {soundEnabled ? <Volume2 size={14} className="text-amber-400" /> : <VolumeX size={14} />}
+            </button>
+
+            <button
+              onClick={openGuide}
+              className="p-2 rounded-lg bg-black/50 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-all cursor-pointer"
+              title="Platform Guide"
+            >
+              <HelpCircle size={14} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── 3. CENTERED, TIGHTLY FRAMED CONTENT VIEWPORT ───────────────── */}
+      <main className="relative z-10 max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20 flex flex-col gap-16 md:gap-24">
+        
+        {/* ── HERO SECTION: KINETIC TYPOGRAPHY & DIRECT ACTIONS ─────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="text-center max-w-4xl mx-auto flex flex-col items-center pt-4 sm:pt-8"
+        >
+          {/* Animated Status Pill */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold tracking-widest mb-6 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
+            <Radio size={13} className="animate-pulse" />
+            <span>60Hz HARDWARE UDP MOTORSPORT TELEMETRY · EA SPORTS F1 2020 – 2025</span>
+          </div>
+
+          {/* Master Hero Title */}
+          <h1 className="relative text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-white uppercase font-display leading-[1.05] drop-shadow-[0_10px_35px_rgba(0,0,0,0.9)] overflow-hidden">
+            REAL-TIME MOTORSPORT <br />
+            <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 filter drop-shadow-[0_0_30px_rgba(245,158,11,0.4)]">
+              TELEMETRY &amp; STRATEGY OS
+              <span className="absolute inset-0 pointer-events-none animate-specular-sheen mix-blend-overlay opacity-80" />
+            </span>
+          </h1>
+
+          <p className="mt-5 text-sm sm:text-base text-neutral-300 leading-relaxed font-sans max-w-2xl mx-auto">
+            Engineered for sim-racers, esports champions, and race engineers. Ingest 60Hz UDP telemetry with sub-millisecond latency, benchmark driving inputs against official FIA FastF1 reference laps, and interact with the 3D spatial digital twin.
+          </p>
+
+          {/* Primary Action Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-8 font-mono text-xs font-bold">
+            <Link
+              href="/dashboard"
+              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-[0_0_25px_rgba(245,158,11,0.35)] active:scale-95"
+            >
+              <Gauge size={16} />
+              <span>LAUNCH COCKPIT HUD</span>
+              <ArrowRight size={14} />
+            </Link>
+
+            <Link
+              href="/dashboard/intelligence"
+              className="px-6 py-3.5 rounded-xl bg-[#141720]/90 hover:bg-[#1c202a] border border-white/15 hover:border-amber-400/40 text-neutral-200 hover:text-white uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm active:scale-95"
+            >
+              <Sparkles size={16} className="text-amber-400" />
+              <span>MISSION CONTROL</span>
             </Link>
 
             <button
               onClick={openConnect}
-              className="px-4 py-3 rounded-xl bg-black/60 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-3.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-400 uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer active:scale-95"
             >
-              <Gamepad2 size={15} className="text-amber-400" />
+              <Gamepad2 size={16} />
               <span>PAIR F1 GAME</span>
             </button>
           </div>
-        </div>
+        </motion.section>
 
-        {/* ── 1. INTERACTIVE TELEMETRY & COCKPIT SANDBOX ──────────────────── */}
-        <HeroTelemetrySandbox />
+        {/* ── 4. COMPACT INTERACTIVE STAGE & VIEWPORT ─────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full flex flex-col gap-6"
+        >
+          {/* Centered, Liquid Sliding Pill Dock */}
+          <div className="relative flex flex-wrap items-center justify-center gap-1 p-1.5 bg-[#0e1117]/95 rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.8)] backdrop-blur-xl font-mono text-xs font-bold max-w-xl mx-auto">
+            {[
+              { id: "3D_TWIN", label: "3D TWIN", icon: Layers },
+              { id: "WAVEFORMS", label: "WAVEFORMS", icon: Activity },
+              { id: "MONACO_TOUR", label: "MONACO TOUR", icon: Zap },
+              { id: "VOICE_RADIO", label: "AI RADIO", icon: Radio },
+            ].map((tab) => {
+              const TabIcon = tab.icon;
+              const isSelected = activeStage === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    soundFx.playButtonClick();
+                    setActiveStage(tab.id as any);
+                  }}
+                  className="relative px-3.5 py-2 rounded-xl transition-colors cursor-pointer flex items-center gap-2 font-mono text-xs font-bold"
+                >
+                  {isSelected && (
+                    <motion.div
+                      layoutId="activeStageHighlight"
+                      className="absolute inset-0 bg-amber-500 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.5)] z-0"
+                      transition={{ type: "spring", stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <span className={cn("relative z-10 flex items-center gap-2 transition-colors", isSelected ? "text-black font-black" : "text-neutral-400 hover:text-white")}>
+                    <TabIcon size={14} />
+                    <span>{tab.label}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-        {/* ── 2. HIGH-CONTRAST ENGINEERING METRICS TICKER ─────────────────── */}
-        <EngineeringTicker />
+          {/* Framed Interactive Stage Screen */}
+          <div className="w-full rounded-2xl bg-[#0b0e14]/90 border border-white/10 shadow-[0_16px_48px_rgba(0,0,0,0.85)] p-4 sm:p-6 backdrop-blur-md overflow-hidden">
+            <AnimatePresence mode="wait">
+              {activeStage === "3D_TWIN" && (
+                <motion.div
+                  key="3d_twin"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <CarDigitalTwin3D
+                    speed={liveTelemetry?.speed ?? 268}
+                    throttle={liveTelemetry?.throttle ?? 92}
+                    brake={liveTelemetry?.brake ?? 0}
+                    steerAngle={liveTelemetry?.steer != null ? liveTelemetry.steer * 24 : -4.5}
+                    rpm={liveTelemetry?.rpm ?? 11400}
+                    gear={liveTelemetry?.gear ?? 7}
+                    tyreTemps={liveTelemetry?.tyreTemps ? {
+                      fl: liveTelemetry.tyreTemps[0],
+                      fr: liveTelemetry.tyreTemps[1],
+                      rl: liveTelemetry.tyreTemps[2],
+                      rr: liveTelemetry.tyreTemps[3],
+                    } : { fl: 104, fr: 108, rl: 99, rr: 102 }}
+                    gForceLat={liveMotion?.gForceLat ?? -2.4}
+                    gForceLon={liveMotion?.gForceLon ?? 0.9}
+                    wheelVertForce={liveMotionEx?.wheelVertForce}
+                    frontAeroHeight={liveMotionEx?.frontAeroHeight ?? 24.5}
+                    rearAeroHeight={liveMotionEx?.rearAeroHeight ?? 58.2}
+                    chassisPitch={liveMotionEx?.chassisPitch}
+                    chassisRoll={liveMotionEx?.frontRollAngle}
+                    aeroDamage={liveCarDamage ? {
+                      frontLeftWing: liveCarDamage.frontLeftWingDamage,
+                      frontRightWing: liveCarDamage.frontRightWingDamage,
+                      rearWing: liveCarDamage.rearWingDamage,
+                      floor: liveCarDamage.floorDamage,
+                      diffuser: liveCarDamage.diffuserDamage,
+                      sidepod: liveCarDamage.sidepodDamage,
+                    } : undefined}
+                    className="min-h-[500px]"
+                  />
+                </motion.div>
+              )}
 
-        {/* ── 3. INTERACTIVE 5-STAGE ARCHITECTURE PIPELINE ────────────────── */}
-        <ArchitectureFlow />
+              {activeStage === "WAVEFORMS" && (
+                <motion.div
+                  key="waveforms"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <CanvasTelemetryStream />
+                </motion.div>
+              )}
 
-        {/* ── 4. 3 OPERATIONAL WORKSTATION PORTALS ────────────────────────── */}
-        <div className="grid w-full grid-cols-1 md:grid-cols-3 gap-5">
-          {WORKSTATIONS.map((w) => {
-            const Icon = w.icon;
-            return (
-              <Link
-                key={w.id}
-                href={w.href}
-                className={`rounded-2xl bg-neutral-950/80 border p-6 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-[0_4px_24px_rgba(0,0,0,0.7)] backdrop-blur-sm group ${w.accent}`}
+              {activeStage === "MONACO_TOUR" && (
+                <motion.div
+                  key="monaco_tour"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <MonacoLapTour />
+                </motion.div>
+              )}
+
+              {activeStage === "VOICE_RADIO" && (
+                <motion.div
+                  key="voice_radio"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="max-w-3xl mx-auto"
+                >
+                  <VoicePitWallRadio
+                    lapTimeDelta="+0.142"
+                    currentTrack="Monaco Grand Prix"
+                    currentSector="Sector 2 (Casino Square)"
+                    driverName="Max Verstappen"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.section>
+
+        {/* ── 5. USER PERSONAS & TRACKSIDE WORKFLOWS ────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full"
+        >
+          <div className="flex flex-col gap-2 mb-6">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-amber-400 rounded-full" />
+              <span className="font-mono text-xs uppercase tracking-widest text-amber-400 font-bold">
+                USER WORKFLOWS
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black italic tracking-tight uppercase text-white">
+              Engineered for Every Trackside Persona
+            </h2>
+            <p className="text-xs sm:text-sm font-mono text-neutral-400">
+              Dedicated specialized workflows for drivers, telemetry engineers, aerodynamicists, and race strategists.
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-[#0b0e14]/80 border border-white/10 p-6 backdrop-blur-md">
+            <UserJourneyHub />
+          </div>
+        </motion.section>
+
+        {/* ── 6. 4 CORE MOTORSPORT CAPABILITIES (BALANCED GRID) ─────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full flex flex-col gap-6"
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-purple-400 rounded-full" />
+              <span className="font-mono text-xs uppercase tracking-widest text-purple-400 font-bold">
+                ENGINEERING PILLARS
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black italic tracking-tight uppercase text-white">
+              Architectural Specifications &amp; Capabilities
+            </h2>
+            <p className="text-xs sm:text-sm font-mono text-neutral-400">
+              Zero-latency ingestion, official FastF1 delta telemetry, deterministic physics, and AI pit wall coaching.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {CAPABILITIES.map((c) => (
+              <div
+                key={c.id}
+                className="rounded-2xl bg-[#0b0e14]/90 border border-white/10 hover:border-amber-400/50 p-6 flex flex-col justify-between gap-5 transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.7)] group"
               >
-                <div>
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 mb-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 rounded-lg bg-white/[0.04]">
-                        <Icon size={17} className="text-amber-400" />
-                      </div>
-                      <span className="font-mono text-xs font-bold text-white tracking-wider">
-                        {w.role}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between font-mono text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-amber-400 text-base">#{c.num}</span>
+                      <span className="text-neutral-400 uppercase tracking-widest text-[10px] font-bold">
+                        {c.tag}
                       </span>
                     </div>
-                    <span className={`font-mono text-[8.5px] font-bold px-2 py-0.5 rounded border ${w.badgeColor}`}>
-                      {w.badge}
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-white/[0.06] border border-white/10 text-neutral-300">
+                      {c.badge}
                     </span>
                   </div>
 
-                  {/* Subtitle */}
-                  <span className="font-mono text-[9.5px] text-neutral-400 uppercase tracking-wider block mb-2 font-semibold">
-                    {w.subrole}
-                  </span>
+                  <h3 className="font-mono text-lg font-black text-white group-hover:text-amber-400 transition-colors">
+                    {c.title}
+                  </h3>
 
-                  {/* Description */}
-                  <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans mb-4">
-                    {w.description}
+                  <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans">
+                    {c.desc}
                   </p>
 
-                  {/* Capability Chips */}
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    {w.capabilities.map((cap, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-1.5 text-[9.5px] font-mono text-neutral-300 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/[0.04]"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                        <span className="truncate">{cap}</span>
+                  {/* Bullet Highlights */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                    {c.features.slice(0, 4).map((f, fIdx) => (
+                      <div key={fIdx} className="flex items-center gap-2 font-mono text-[11px] text-neutral-300">
+                        <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+                        <span className="truncate">{f}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Card CTA */}
-                <div className="pt-3.5 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono font-bold text-amber-400 group-hover:text-amber-300 transition-colors">
-                  <span>{w.cta}</span>
-                  <ArrowRight size={15} className="transform group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                <Link
+                  href={c.href}
+                  className="mt-2 w-full py-2.5 px-4 rounded-xl bg-white/[0.05] hover:bg-amber-400 hover:text-black border border-white/15 hover:border-amber-400 font-mono text-xs font-black tracking-wider uppercase transition-all flex items-center justify-between shadow-sm group/btn"
+                >
+                  <span>{c.cta}</span>
+                  <ArrowRight size={14} className="transform group-hover/btn:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </motion.section>
 
-        {/* ── 5. TECHNICAL INTERVIEW ARCHITECTURAL DEEP-DIVE ──────────────── */}
-        <TechnicalDeepDiveDrawer />
+        {/* ── 7. ZERO-ALLOCATION TELEMETRY PIPELINE ─────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full flex flex-col gap-6"
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-amber-400 rounded-full" />
+              <span className="font-mono text-xs uppercase tracking-widest text-amber-400 font-bold">
+                DATA PIPELINE
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black italic tracking-tight uppercase text-white">
+              Zero-Allocation Telemetry Pipeline
+            </h2>
+            <p className="text-xs sm:text-sm font-mono text-neutral-400">
+              From binary UDP game frames to sub-millisecond WebSocket delivery and 120 FPS GPU rendering.
+            </p>
+          </div>
 
-        {/* ── OPERATIONAL HONESTY & PROVENANCE BANNER ─────────────────────── */}
-        <div className="w-full rounded-2xl bg-black/60 border border-white/[0.08] p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono text-neutral-400 shadow-inner">
+          <div className="rounded-2xl bg-[#0b0e14]/80 border border-white/10 p-6 backdrop-blur-md">
+            <ArchitectureFlow />
+          </div>
+        </motion.section>
+
+        {/* ── 8. TECHNICAL ARCHITECTURAL BLUEPRINT DRAWER ───────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full"
+        >
+          <TechnicalDeepDiveDrawer />
+        </motion.section>
+
+        {/* ── 9. OPERATIONAL HONESTY BANNER ─────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="w-full rounded-2xl bg-[#0b0e14]/80 border border-white/10 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono text-neutral-400 shadow-inner backdrop-blur-md"
+        >
           <div className="flex items-center gap-2.5">
             <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
-            <span>APX IQ PLATFORM · OPERATIONAL HONESTY CONTRACT ENFORCED · SIM PROVENANCE PRESERVED</span>
+            <span>APX IQ · OPERATIONAL HONESTY CONTRACT ENFORCED · LOCAL FIRST · ZERO AD TRACKERS</span>
           </div>
           <span className="text-neutral-400 uppercase text-[9px]">
-            FIA FASTF1 API ENGINE & LOCAL UDP BRIDGE CONNECTED · SCALE-TO-ZERO
+            FASTF1 OPEN DATA ENGINE &amp; LOCAL UDP BRIDGE · $0 IDLE CLOUD COST
           </span>
-        </div>
+        </motion.div>
 
-        {/* ── FOOTER ─────────────────────────────────────────────────────── */}
-        <footer className="w-full py-4 text-center border-t border-white/[0.08] text-[10px] font-mono text-neutral-400 tracking-widest uppercase">
-          APX IQ · REAL-TIME MOTORSPORT INTELLIGENCE PLATFORM · STABLE V1.0.0
+        {/* ── 10. ENTERPRISE FOOTER ─────────────────────────────────────── */}
+        <footer className="w-full py-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/[0.08] text-[10px] font-mono text-neutral-400 tracking-wider">
+          <span>APX IQ · REAL-TIME MOTORSPORT INTELLIGENCE PLATFORM · STABLE V1.0.0</span>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="text-neutral-400 hover:text-amber-400 transition-colors uppercase underline underline-offset-4">
+              Privacy &amp; Data Policy
+            </Link>
+            <span className="text-neutral-600">·</span>
+            <a href="https://github.com/MatMridul/APX-IQ" target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-white transition-colors uppercase">
+              GitHub Source
+            </a>
+          </div>
         </footer>
 
-      </div>
+      </main>
 
       {/* Global Modals */}
       <GameConnectModal
@@ -334,6 +616,6 @@ export default function Home() {
         onClose={closeGuide}
         onOpenConnect={openConnect}
       />
-    </main>
+    </div>
   );
 }

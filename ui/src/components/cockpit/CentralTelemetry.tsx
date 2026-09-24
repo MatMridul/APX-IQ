@@ -48,6 +48,7 @@ function PushButton({
   return (
     <g
       onClick={onClick}
+      pointerEvents="auto"
       className={cn(
         "cursor-pointer transition-transform duration-100 hover:scale-110 active:scale-90 origin-center select-none",
         active && "animate-pulse"
@@ -97,7 +98,11 @@ function RotarySwitch({
 }) {
   const ticks = Array.from({ length: 11 }, (_, i) => i);
   return (
-    <g onClick={onClick} className="cursor-pointer select-none group transition-transform active:scale-95 origin-center">
+    <g
+      onClick={onClick}
+      pointerEvents="auto"
+      className="cursor-pointer select-none group transition-transform active:scale-95 origin-center"
+    >
       {/* Outer Knurled Ring Body */}
       <circle cx={x} cy={y} r={18} fill="#101217" stroke="#2B303D" strokeWidth="1.5" />
       <circle cx={x} cy={y} r={15} fill="url(#rotary-titanium)" stroke="rgba(207,163,73,0.45)" strokeWidth="1" />
@@ -140,13 +145,13 @@ function RotarySwitch({
       {/* Rotary Legend */}
       <text
         x={x}
-        y={y + 28}
+        y={y + 24}
         textAnchor="middle"
-        fontSize="7.5"
+        fontSize="6.8"
         fontFamily="var(--font-mono), monospace"
         fontWeight="800"
-        fill="rgba(207,163,73,0.85)"
-        letterSpacing="1.2"
+        fill="rgba(207,163,73,0.9)"
+        letterSpacing="0.8"
       >
         {label} {valueText !== undefined ? `· ${valueText}` : ""}
       </text>
@@ -159,6 +164,7 @@ function RotarySwitch({
 export function CentralTelemetry() {
   const [gear, setGear] = useState(1);
   const [drs, setDrs] = useState(false);
+  const [isBooting, setIsBooting] = useState(true);
   
   // UX Store Bindings
   const dduMode = useUxStore((s) => s.mfdMode);
@@ -189,6 +195,19 @@ export function CentralTelemetry() {
   const socBarRef = useRef<HTMLDivElement | null>(null);
   const socTxtRef = useRef<HTMLSpanElement | null>(null);
   const deltaTxtRef = useRef<HTMLSpanElement | null>(null);
+  const qualyS1Ref = useRef<HTMLSpanElement | null>(null);
+  const qualyS2Ref = useRef<HTMLSpanElement | null>(null);
+  const qualyS3Ref = useRef<HTMLSpanElement | null>(null);
+  const qualyDeltaRef = useRef<HTMLSpanElement | null>(null);
+  const edgeBloomRef = useRef<HTMLDivElement | null>(null);
+
+  // Diagnostic Ignition Self-Test Boot Sequence (Task 2.1)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsBooting(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Global hotkeys (1, 2, 3, 4) for DDU mode switching
   useWorkstationHotkeys({
@@ -239,6 +258,44 @@ export function CentralTelemetry() {
         deltaTxtRef.current.textContent = `${sign}${val}`;
         deltaTxtRef.current.style.color = d <= 0 ? "#22C55E" : "#EF4444";
       }
+
+      if (qualyS1Ref.current && qualyS2Ref.current && qualyS3Ref.current) {
+        const lap = state.lapData;
+        if (isLive && lap) {
+          if (lap.sector1) qualyS1Ref.current.textContent = `${(lap.sector1 / 1000).toFixed(3)}s`;
+          if (lap.sector2) qualyS2Ref.current.textContent = `${(lap.sector2 / 1000).toFixed(3)}s`;
+          if (lap.currentLapTime && lap.sector1 && lap.sector2) {
+            const s3 = Math.max(0, lap.currentLapTime - lap.sector1 - lap.sector2);
+            qualyS3Ref.current.textContent = `${(s3 / 1000).toFixed(3)}s`;
+          }
+        }
+      }
+
+      if (qualyDeltaRef.current) {
+        const d = f.deltaMs / 1000;
+        const sign = d <= 0 ? "−" : "+";
+        qualyDeltaRef.current.textContent = `${sign}${Math.abs(d).toFixed(3)}s`;
+        qualyDeltaRef.current.style.color = d <= 0 ? "#22C55E" : "#EF4444";
+      }
+
+      // RPM Limiter Strobe & Cockpit Edge Bloom (Task 2.2)
+      if (edgeBloomRef.current) {
+        const isLimiter = (f.rpmPct >= 0.94) || (isLive && (state.telemetry?.revLightsPercent ?? 0) >= 94);
+        if (isLimiter) {
+          const pulse = Math.floor(t * 30) % 2 === 0;
+          edgeBloomRef.current.style.opacity = pulse ? "1" : "0.2";
+          edgeBloomRef.current.style.boxShadow = pulse
+            ? "inset 0 0 24px rgba(239,68,68,0.85), 0 0 16px rgba(239,68,68,0.7)"
+            : "inset 0 0 8px rgba(239,68,68,0.2)";
+        } else if (f.speed > 300) {
+          const wave = (Math.sin(t * 10) + 1) * 0.5;
+          edgeBloomRef.current.style.opacity = String(0.15 + wave * 0.25);
+          edgeBloomRef.current.style.boxShadow = "inset 0 0 18px rgba(234,179,8,0.45)";
+        } else {
+          edgeBloomRef.current.style.opacity = "0";
+          edgeBloomRef.current.style.boxShadow = "none";
+        }
+      }
     });
 
     return unsub;
@@ -255,14 +312,14 @@ export function CentralTelemetry() {
       <div
         className="relative flex items-center justify-center"
         data-testid="wheel-cluster"
-        style={{ aspectRatio: "520/340", height: "100%", maxWidth: "100%" }}
+        style={{ aspectRatio: "520/348", height: "100%", maxWidth: "100%" }}
       >
         {/* ══════════════════════════════════════════════════════════════════
             1. AUTHENTIC F1 STEERING WHEEL MONOCOQUE (SVG CHASSIS)
         ══════════════════════════════════════════════════════════════════ */}
         <svg
-          viewBox="0 0 520 340"
-          className="absolute inset-0 w-full h-full drop-shadow-[0_18px_36px_rgba(0,0,0,0.92)]"
+          viewBox="0 0 520 348"
+          className="absolute inset-0 w-full h-full drop-shadow-[0_18px_36px_rgba(0,0,0,0.92)] z-20 pointer-events-auto"
           aria-label="F1 Racing Steering Wheel"
         >
           <defs>
@@ -336,14 +393,14 @@ export function CentralTelemetry() {
 
           {/* ── CARBON FIBER CHASSIS MONOCOQUE ───────────────────────────── */}
           <path
-            d="M 96 60 C 160 40 360 40 424 60 L 428 250 C 400 296 360 310 330 310 L 190 310 C 160 310 120 296 92 250 Z"
+            d="M 96 58 C 160 38 360 38 424 58 L 428 248 C 400 300 360 326 330 326 L 190 326 C 160 326 120 300 92 248 Z"
             fill="url(#carbon-monocoque)"
             stroke="rgba(207,163,73,0.45)"
             strokeWidth="1.4"
           />
           {/* Subtle Twill Weave Anisotropic Texture */}
           <path
-            d="M 96 60 C 160 40 360 40 424 60 L 428 250 C 400 296 360 310 330 310 L 190 310 C 160 310 120 296 92 250 Z"
+            d="M 96 58 C 160 38 360 38 424 58 L 428 248 C 400 300 360 326 330 326 L 190 326 C 160 326 120 300 92 248 Z"
             fill="none"
             stroke="rgba(255,255,255,0.03)"
             strokeWidth="8"
@@ -391,7 +448,7 @@ export function CentralTelemetry() {
           {/* Left: N, RAD, +10, +1 */}
           <PushButton
             x={120}
-            y={114}
+            y={112}
             label="N"
             color="#EAB308"
             textColor="#000"
@@ -402,7 +459,7 @@ export function CentralTelemetry() {
           />
           <PushButton
             x={120}
-            y={148}
+            y={144}
             label="RAD"
             color="#475569"
             textColor="#FFF"
@@ -410,7 +467,7 @@ export function CentralTelemetry() {
           />
           <PushButton
             x={120}
-            y={182}
+            y={176}
             label="+10"
             color="#181A20"
             textColor="#E2E8F0"
@@ -418,7 +475,7 @@ export function CentralTelemetry() {
           />
           <PushButton
             x={120}
-            y={212}
+            y={206}
             label="+1"
             color="#181A20"
             textColor="#E2E8F0"
@@ -428,7 +485,7 @@ export function CentralTelemetry() {
           {/* Right: OT, PC, PL, DRK */}
           <PushButton
             x={400}
-            y={114}
+            y={112}
             label="OT"
             color="#EA580C"
             textColor="#FFF"
@@ -437,18 +494,17 @@ export function CentralTelemetry() {
           />
           <PushButton
             x={400}
-            y={148}
+            y={144}
             label="PC"
             color="#CBD5E1"
             textColor="#0F172A"
             onClick={() => {
-              soundFx.playButtonClick();
-              alert("PIT CONFIRMED: Pit crew standing by for box this lap.");
+              triggerRadio("PIT CONFIRMED: Pit crew standing by for box this lap.");
             }}
           />
           <PushButton
             x={400}
-            y={182}
+            y={176}
             label="PL"
             color="#DC2626"
             textColor="#FFF"
@@ -457,28 +513,27 @@ export function CentralTelemetry() {
           />
           <PushButton
             x={400}
-            y={212}
+            y={206}
             label="DRK"
             color="#2563EB"
             textColor="#FFF"
             onClick={() => {
-              soundFx.playButtonClick();
-              alert("DRINK PUMP: 50ml isotonic hydration delivered.");
+              triggerRadio("DRINK PUMP: 50ml isotonic hydration delivered.");
             }}
           />
 
           {/* Brake Bias Fast Triggers Under Screen */}
           <PushButton
-            x={194}
-            y={278}
+            x={196}
+            y={272}
             label="BB−"
             color="#DC2626"
             textColor="#FFF"
             onClick={() => adjustBrakeBias(-0.5)}
           />
           <PushButton
-            x={326}
-            y={278}
+            x={324}
+            y={272}
             label="BB+"
             color="#16A34A"
             textColor="#FFF"
@@ -487,8 +542,8 @@ export function CentralTelemetry() {
 
           {/* ── MACHINED ROTARY SWITCHES (STRAT · MFD · HPP) ─────────────── */}
           <RotarySwitch
-            x={146}
-            y={278}
+            x={144}
+            y={272}
             label="STRAT"
             dotAngle={stratAngle}
             valueText={stratMode}
@@ -496,15 +551,15 @@ export function CentralTelemetry() {
           />
           <RotarySwitch
             x={260}
-            y={282}
+            y={274}
             label="MFD"
             dotAngle={mfdAngle}
             valueText={dduMode}
             onClick={() => cycleMfdMode()}
           />
           <RotarySwitch
-            x={374}
-            y={278}
+            x={376}
+            y={272}
             label="HPP"
             dotAngle={hppAngle}
             valueText={hppMode}
@@ -512,15 +567,15 @@ export function CentralTelemetry() {
           />
 
           {/* Quick-Release Center Boss */}
-          <circle cx={260} cy={322} r={9} fill="#0C0E13" stroke="rgba(207,163,73,0.35)" strokeWidth="1" />
-          <circle cx={260} cy={322} r={4} fill="none" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
+          <circle cx={260} cy={312} r={7.5} fill="#0C0E13" stroke="rgba(207,163,73,0.35)" strokeWidth="1" />
+          <circle cx={260} cy={312} r={3.5} fill="none" stroke="rgba(207,163,73,0.35)" strokeWidth="0.8" />
         </svg>
 
         {/* ══════════════════════════════════════════════════════════════════
             2. 15-LED RPM SHIFT LIGHT ARRAY (Recessed Above Display)
         ══════════════════════════════════════════════════════════════════ */}
         <div
-          className="absolute z-20"
+          className="absolute z-30 pointer-events-none"
           style={{
             left: "21%",
             top: "17.4%",
@@ -552,15 +607,18 @@ export function CentralTelemetry() {
             4. INTEGRATED HIGH-CONTRAST AMOLED COCKPIT DISPLAY
         ══════════════════════════════════════════════════════════════════ */}
         <div
-          className="absolute z-10 rounded-md overflow-hidden select-none"
+          className="absolute z-30 rounded-md overflow-hidden select-none pointer-events-auto"
           style={{
             left: "27.7%",
             top: "25.8%",
             width: "44.6%",
             height: "44.2%",
             background: "linear-gradient(180deg, #0C0E13 0%, #060709 100%)",
-            border: "1px solid rgba(120,140,180,0.22)",
-            boxShadow: "inset 0 0 18px rgba(207,163,73,0.08), 0 0 14px rgba(0,0,0,0.8)",
+            border: isBooting ? "1px solid rgba(207,163,73,0.7)" : "1px solid rgba(120,140,180,0.22)",
+            boxShadow: isBooting
+              ? "inset 0 0 28px rgba(207,163,73,0.55), 0 0 24px rgba(207,163,73,0.6)"
+              : "inset 0 0 18px rgba(207,163,73,0.08), 0 0 14px rgba(0,0,0,0.8)",
+            transition: "border-color 400ms, box-shadow 400ms",
           }}
         >
           {/* Micro scanline raster hint */}
@@ -571,6 +629,46 @@ export function CentralTelemetry() {
                 "repeating-linear-gradient(0deg, rgba(200,204,212,0.55) 0 1px, transparent 1px 3px)",
             }}
           />
+
+          {/* RPM Limiter Peripheral Strobe & Cockpit Edge Bloom (Task 2.2) */}
+          <div
+            ref={edgeBloomRef}
+            className="absolute inset-0 pointer-events-none rounded-md z-40 transition-opacity duration-75"
+            style={{ opacity: 0 }}
+          />
+
+          {/* AMOLED Diagnostic Ignition Self-Test Boot Sequence (Task 2.1) */}
+          <AnimatePresence>
+            {isBooting && (
+              <motion.div
+                key="boot-screen"
+                initial={{ opacity: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                className="absolute inset-0 z-50 bg-[#07090E] flex flex-col items-center justify-between p-2 font-mono select-none"
+              >
+                <div className="w-full flex items-center justify-between text-[7.5px] text-gold/90 border-b border-gold/30 pb-0.5">
+                  <span className="tracking-widest font-bold">APX-IQ AVIONICS</span>
+                  <span className="text-emerald-400 font-bold animate-pulse">BOOT // DIAGNOSTIC</span>
+                </div>
+
+                <div className="flex flex-col items-center my-auto">
+                  <div className="text-[32px] font-black font-display tracking-widest text-white/90 drop-shadow-[0_0_12px_rgba(207,163,73,0.7)] animate-pulse leading-none">
+                    888
+                  </div>
+                  <div className="text-[7px] tracking-widest text-silver/70 uppercase mt-1">
+                    SYSTEM SELF-TEST · ALL BUSES OK
+                  </div>
+                </div>
+
+                <div className="w-full grid grid-cols-3 gap-1 text-[6.5px] text-center text-silver/60 pt-0.5 border-t border-white/10">
+                  <span className="text-emerald-400 font-bold">CAN 1M OK</span>
+                  <span className="text-cyan-400 font-bold">IMU 60Hz</span>
+                  <span className="text-amber-400 font-bold">ERS READY</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="relative h-full flex flex-col px-2.5 py-1.5 justify-between">
             {/* ── TOP HEADER: Lap | Mode Indicator | Position ─────────────── */}
@@ -638,25 +736,51 @@ export function CentralTelemetry() {
               </div>
             )}
 
-            {/* ── QUALY MODE ────────────────────────────────────────────── */}
+            {/* ── QUALY / TIME TRIAL MODE ───────────────────────────────── */}
             {dduMode === "QUALY" && (
               <div className="flex-1 flex flex-col justify-around py-0.5 font-mono text-[8px]">
                 <div className="flex items-center justify-between text-neutral-400">
-                  <span className="uppercase text-amber-400 font-bold">SECTOR DELTAS</span>
-                  <span className="text-emerald-400 font-bold">TARGET: POLE</span>
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                    <span className="uppercase text-amber-400 font-bold tracking-wider">
+                      RIVAL SPLIT // TT
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-silver/50">TGT:</span>
+                    <span className="text-gold font-bold">1:11.890</span>
+                    <span ref={qualyDeltaRef} className="font-bold text-emerald-400 ml-1">
+                      -0.000s
+                    </span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-1 text-center">
-                  <div className="p-1 rounded bg-black/60 border border-purple-500/40">
-                    <span className="text-[7px] text-purple-400 block font-bold">S1</span>
-                    <span className="font-bold text-[9px] text-white">18.412s</span>
+                  <div className="p-1 rounded bg-black/60 border border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.15)]">
+                    <div className="flex items-center justify-between px-0.5">
+                      <span className="text-[7px] text-purple-400 font-bold">S1</span>
+                      <span className="text-[6.5px] text-purple-300 font-bold">-0.042</span>
+                    </div>
+                    <span ref={qualyS1Ref} className="font-bold text-[9px] text-white tabular-nums block mt-0.5">
+                      18.274s
+                    </span>
                   </div>
-                  <div className="p-1 rounded bg-black/60 border border-emerald-500/40">
-                    <span className="text-[7px] text-emerald-400 block font-bold">S2</span>
-                    <span className="font-bold text-[9px] text-white">32.890s</span>
+                  <div className="p-1 rounded bg-black/60 border border-emerald-500/50 shadow-[0_0_8px_rgba(34,197,94,0.15)]">
+                    <div className="flex items-center justify-between px-0.5">
+                      <span className="text-[7px] text-emerald-400 font-bold">S2</span>
+                      <span className="text-[6.5px] text-emerald-300 font-bold">-0.021</span>
+                    </div>
+                    <span ref={qualyS2Ref} className="font-bold text-[9px] text-white tabular-nums block mt-0.5">
+                      32.398s
+                    </span>
                   </div>
-                  <div className="p-1 rounded bg-black/60 border border-yellow-500/40">
-                    <span className="text-[7px] text-yellow-400 block font-bold">S3</span>
-                    <span className="font-bold text-[9px] text-white">22.978s</span>
+                  <div className="p-1 rounded bg-black/60 border border-yellow-500/50 shadow-[0_0_8px_rgba(234,179,8,0.15)]">
+                    <div className="flex items-center justify-between px-0.5">
+                      <span className="text-[7px] text-yellow-400 font-bold">S3</span>
+                      <span className="text-[6.5px] text-yellow-300 font-bold">+0.018</span>
+                    </div>
+                    <span ref={qualyS3Ref} className="font-bold text-[9px] text-white tabular-nums block mt-0.5">
+                      21.190s
+                    </span>
                   </div>
                 </div>
               </div>

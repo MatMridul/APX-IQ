@@ -103,13 +103,15 @@ export const TelemetryDeltaChart: React.FC<TelemetryDeltaChartProps> = ({
   const activeDist = hoverDist ?? (isPlaying || playbackDist > 0 ? playbackDist : null);
 
   // Build SVG Path strings and calculate dynamic callouts
-  const { userSpeedPath, ghostSpeedPath, throttlePath, brakePath, callouts, activeProbeData } = useMemo(() => {
+  const { userSpeedPath, ghostSpeedPath, throttlePath, brakePath, gainAreaPath, lossAreaPath, callouts, activeProbeData } = useMemo(() => {
     if (!userTelemetry.length && !ghostTelemetry.length) {
       return {
         userSpeedPath: "",
         ghostSpeedPath: "",
         throttlePath: "",
         brakePath: "",
+        gainAreaPath: "",
+        lossAreaPath: "",
         callouts: [],
         activeProbeData: null,
       };
@@ -248,11 +250,44 @@ export const TelemetryDeltaChart: React.FC<TelemetryDeltaChartProps> = ({
       }
     }
 
+    // Dynamic Differential Shading (Split Delta Fill - Task 3.2)
+    let gainAreaPath = "";
+    let lossAreaPath = "";
+
+    const sampleCount = Math.min(userTelemetry.length, ghostTelemetry.length);
+    if (sampleCount > 1) {
+      for (let i = 0; i < sampleCount - 1; i++) {
+        const u0 = userTelemetry[i];
+        const u1 = userTelemetry[i + 1];
+        const g0 = ghostTelemetry[i];
+        const g1 = ghostTelemetry[i + 1];
+
+        const x0 = getX(u0.distance_m);
+        const x1 = getX(u1.distance_m);
+        const yu0 = getYSpeed(u0.speed_kph);
+        const yu1 = getYSpeed(u1.speed_kph);
+        const yg0 = getYSpeed(g0.speed_kph);
+        const yg1 = getYSpeed(g1.speed_kph);
+
+        // Polygon between the two curves: (x0, yu0) -> (x1, yu1) -> (x1, yg1) -> (x0, yg0) -> Z
+        const quad = `M ${x0.toFixed(1)} ${yu0.toFixed(1)} L ${x1.toFixed(1)} ${yu1.toFixed(1)} L ${x1.toFixed(1)} ${yg1.toFixed(1)} L ${x0.toFixed(1)} ${yg0.toFixed(1)} Z `;
+
+        // In speed terms: higher speed = user ahead / faster
+        if ((u0.speed_kph + u1.speed_kph) >= (g0.speed_kph + g1.speed_kph)) {
+          gainAreaPath += quad;
+        } else {
+          lossAreaPath += quad;
+        }
+      }
+    }
+
     return {
       userSpeedPath: uPath,
       ghostSpeedPath: gPath,
       throttlePath: tPath,
       brakePath: bPath,
+      gainAreaPath,
+      lossAreaPath,
       callouts: computedCallouts,
       activeProbeData: currentHover,
     };
@@ -431,7 +466,47 @@ export const TelemetryDeltaChart: React.FC<TelemetryDeltaChartProps> = ({
             BRK
           </text>
 
+          {/* Defs for Shaders, Gradients & Laser Glow Filters */}
+          <defs>
+            <linearGradient id="delta-gain-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#22C55E" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#22C55E" stopOpacity="0.08" />
+            </linearGradient>
+            <linearGradient id="delta-loss-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#EF4444" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#EF4444" stopOpacity="0.08" />
+            </linearGradient>
+            <linearGradient id="laser-sweep-beam" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#06B6D4" stopOpacity="0" />
+              <stop offset="60%" stopColor="#06B6D4" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="#06B6D4" stopOpacity="0.22" />
+            </linearGradient>
+            <filter id="laser-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
           {/* Telemetry Traces */}
+          {/* Dynamic Differential Shading (Split Delta Fill - Task 3.2) */}
+          {gainAreaPath && (
+            <path
+              d={gainAreaPath}
+              fill="url(#delta-gain-grad)"
+              className="transition-opacity duration-300"
+            />
+          )}
+          {lossAreaPath && (
+            <path
+              d={lossAreaPath}
+              fill="url(#delta-loss-grad)"
+              className="transition-opacity duration-300"
+            />
+          )}
+
           {/* User Throttle Curve (Green) */}
           {throttlePath && (
             <path
@@ -513,19 +588,49 @@ export const TelemetryDeltaChart: React.FC<TelemetryDeltaChartProps> = ({
             );
           })}
 
-          {/* Active Sweep Playhead / Crosshair & Telemetry Readout */}
+          {/* Active Sweep Playhead / Ghost Wave Laser Sweep (Task 3.1) */}
           {activeProbeData && (
             <g>
-              {/* Vertical Sweep Line */}
+              {/* Trailing Phosphor Laser Sweep Wave */}
+              <rect
+                x={Math.max(padding.left, activeProbeData.x - 40)}
+                y={padding.top}
+                width={Math.min(40, activeProbeData.x - padding.left)}
+                height={chartHeight}
+                fill="url(#laser-sweep-beam)"
+                pointerEvents="none"
+              />
+
+              {/* Glowing Laser Vertical Sweep Line */}
               <line
                 x1={activeProbeData.x}
                 y1={padding.top}
                 x2={activeProbeData.x}
                 y2={height - padding.bottom}
-                stroke="#FACC15"
-                strokeWidth={isPlaying ? "1.5" : "1"}
-                strokeOpacity={isPlaying ? "0.8" : "0.5"}
-                strokeDasharray={isPlaying ? "none" : "3 3"}
+                stroke="#06B6D4"
+                strokeWidth={isPlaying ? "2" : "1.2"}
+                strokeOpacity={isPlaying ? "0.9" : "0.7"}
+                filter="url(#laser-glow)"
+              />
+
+              {/* Glowing Particle Head on Ghost Speed Curve */}
+              <circle
+                cx={activeProbeData.x}
+                cy={activeProbeData.yGSpeed}
+                r="7"
+                fill="none"
+                stroke="#06B6D4"
+                strokeWidth="1.2"
+                className="animate-ping origin-center"
+                style={{ transformOrigin: `${activeProbeData.x}px ${activeProbeData.yGSpeed}px` }}
+              />
+              <circle
+                cx={activeProbeData.x}
+                cy={activeProbeData.yGSpeed}
+                r="3.5"
+                fill="#06B6D4"
+                stroke="#FFFFFF"
+                strokeWidth="1.5"
               />
 
               {/* Glowing Indicator Node on User Speed Curve */}
@@ -537,16 +642,6 @@ export const TelemetryDeltaChart: React.FC<TelemetryDeltaChartProps> = ({
                 stroke="#000000"
                 strokeWidth="1.5"
                 className={isPlaying ? "animate-pulse" : ""}
-              />
-
-              {/* Glowing Indicator Node on Ghost Speed Curve */}
-              <circle
-                cx={activeProbeData.x}
-                cy={activeProbeData.yGSpeed}
-                r="3.5"
-                fill="#06B6D4"
-                stroke="#000000"
-                strokeWidth="1.5"
               />
 
               {/* Interactive Tooltip Card */}

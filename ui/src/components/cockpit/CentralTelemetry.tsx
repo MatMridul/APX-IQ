@@ -40,6 +40,7 @@ function PushButton({
   onClick,
   active = false,
   sublabel,
+  radius = 13.5,
 }: {
   x: number;
   y: number;
@@ -49,7 +50,10 @@ function PushButton({
   onClick?: () => void;
   active?: boolean;
   sublabel?: string;
+  radius?: number;
 }) {
+  const capRadius = radius - 3.7;
+  const fontSize = label.length > 3 ? (radius > 14 ? "6.8" : "6.2") : (radius > 14 ? "7.8" : "7.2");
   return (
     <g
       onClick={() => {
@@ -63,22 +67,22 @@ function PushButton({
       )}
     >
       {/* CNC Anodized Aluminum Outer Bezel Collar */}
-      <circle cx={x} cy={y} r={12.5} fill="#090B10" stroke={active ? "#FACC15" : "#242A38"} strokeWidth="1.5" />
-      <circle cx={x} cy={y} r={11.0} fill="#141722" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
+      <circle cx={x} cy={y} r={radius} fill="#090B10" stroke={active ? "#FACC15" : "#242A38"} strokeWidth="1.5" />
+      <circle cx={x} cy={y} r={radius - 1.5} fill="#141722" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
 
       {/* Recessed Button Cavity Depth Ring */}
-      <circle cx={x} cy={y} r={9.5} fill="#06070A" />
+      <circle cx={x} cy={y} r={radius - 3.0} fill="#06070A" />
 
       {/* Tactile Dome Button Cap with Specular Reflection */}
-      <circle cx={x} cy={y} r={8.8} fill={color} />
-      <circle cx={x} cy={y} r={8.8} fill="url(#btn-specular)" />
+      <circle cx={x} cy={y} r={capRadius} fill={color} />
+      <circle cx={x} cy={y} r={capRadius} fill="url(#btn-specular)" />
 
       {/* Active High-Energy Glow Halo */}
       {active && (
         <circle
           cx={x}
           cy={y}
-          r={14}
+          r={radius + 1.8}
           fill="none"
           stroke={color}
           strokeWidth="1.4"
@@ -93,7 +97,7 @@ function PushButton({
         x={x}
         y={y + (sublabel ? 1.5 : 3.0)}
         textAnchor="middle"
-        fontSize={label.length > 3 ? "5.8" : "6.8"}
+        fontSize={fontSize}
         fontFamily="var(--font-mono), monospace"
         fontWeight="900"
         fill={textColor}
@@ -108,7 +112,7 @@ function PushButton({
           x={x}
           y={y + 6.2}
           textAnchor="middle"
-          fontSize="4.2"
+          fontSize="4.4"
           fontFamily="var(--font-mono), monospace"
           fontWeight="700"
           fill="rgba(255,255,255,0.75)"
@@ -147,29 +151,29 @@ function ThumbWheel({
       pointerEvents="auto"
     >
       {/* Outer Housing Slot */}
-      <rect x={x - 4} y={y - 18} width={8} height={36} rx={3} fill="#080A0E" stroke="#252A38" strokeWidth="1" />
+      <rect x={x - 5} y={y - 19} width={10} height={38} rx={3} fill="#080A0E" stroke="#252A38" strokeWidth="1" />
       {/* Cylinder Body */}
-      <rect x={x - 3} y={y - 16} width={6} height={32} rx={2} fill="url(#thumbwheel-gradient)" />
+      <rect x={x - 4} y={y - 17} width={8} height={34} rx={2} fill="url(#thumbwheel-gradient)" />
       {/* Knurled Grip Ridges */}
       {ribs.map((ry) => (
         <line
           key={`rib-${ry}`}
-          x1={x - 3}
-          y1={y - 16 + ry}
-          x2={x + 3}
-          y2={y - 16 + ry}
-          stroke="rgba(255,255,255,0.3)"
-          strokeWidth="0.8"
+          x1={x - 4}
+          y1={y - 17 + ry}
+          x2={x + 4}
+          y2={y - 17 + ry}
+          stroke="rgba(255,255,255,0.35)"
+          strokeWidth="0.9"
         />
       ))}
       {/* Center Position Indicator Dot */}
-      <circle cx={x} cy={y} r={1.5} fill="#FACC15" />
+      <circle cx={x} cy={y} r={1.6} fill="#FACC15" />
       {/* Label */}
       <text
         x={x}
-        y={y + 25}
+        y={y + 26}
         textAnchor="middle"
-        fontSize="5"
+        fontSize="5.2"
         fontFamily="var(--font-mono), monospace"
         fontWeight="800"
         fill="rgba(207,163,73,0.9)"
@@ -179,9 +183,9 @@ function ThumbWheel({
       </text>
       <text
         x={x}
-        y={y + 31}
+        y={y + 32.5}
         textAnchor="middle"
-        fontSize="4.8"
+        fontSize="5.2"
         fontFamily="var(--font-mono), monospace"
         fontWeight="900"
         fill="#FFFFFF"
@@ -659,17 +663,17 @@ export function CentralTelemetry() {
 
           {/* Anti-Glare Visor Eyebrow Hood Above Shift Lights */}
           <path
-            d="M 192 50 C 270 37 450 37 528 50 L 532 56 C 450 45 270 45 188 56 Z"
+            d="M 178 50 C 265 37 455 37 542 50 L 546 56 C 455 45 265 45 174 56 Z"
             fill="#090B10"
             stroke="rgba(207,163,73,0.3)"
             strokeWidth="0.8"
           />
 
-          {/* Shift Light Recessed Channel Pocket (290px Wide) */}
+          {/* Shift Light Recessed Channel Pocket (320px Wide) */}
           <rect
-            x="215"
+            x="200"
             y="54"
-            width="290"
+            width="320"
             height="22"
             rx="4"
             fill="#050608"
@@ -677,11 +681,11 @@ export function CentralTelemetry() {
             strokeWidth="1"
           />
 
-          {/* ── LCD SCREEN MACHINED BEZEL HOUSING (290x156) ─────────────── */}
+          {/* ── LCD SCREEN MACHINED BEZEL HOUSING (320x156) ─────────────── */}
           <rect
-            x="215"
+            x="200"
             y="78"
-            width="290"
+            width="320"
             height="156"
             rx="7"
             fill="#030406"
@@ -692,10 +696,10 @@ export function CentralTelemetry() {
 
           {/* 4 Corner Precision Hex Torx Fasteners */}
           {[
-            [222, 85],
-            [498, 85],
-            [222, 227],
-            [498, 227],
+            [207, 85],
+            [513, 85],
+            [207, 227],
+            [513, 227],
           ].map(([fx, fy], idx) => (
             <g key={idx}>
               <circle cx={fx} cy={fy} r={2.2} fill="#141822" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
@@ -705,9 +709,9 @@ export function CentralTelemetry() {
 
           {/* ── AUTHENTIC PIT WALL REMINDER TAPE STICKER ─────────────────── */}
           <rect
-            x="260"
+            x="245"
             y="240"
-            width="200"
+            width="230"
             height="13"
             rx="2"
             fill="rgba(235,232,224,0.94)"
@@ -730,13 +734,14 @@ export function CentralTelemetry() {
           {/* ── TACTILE PUSHBUTTONS — LEFT CONTROL WING ───────────────────── */}
           {/* DRS Trigger Button (Upper Horn) */}
           <PushButton
-            x={174}
+            x={138}
             y={80}
             label="DRS"
             sublabel="AERO"
             color={drs ? "#10B981" : "#0F382A"}
             textColor={drs ? "#000000" : "#34D399"}
             active={drs}
+            radius={14.5}
             onClick={() => {
               toggleDrs();
             }}
@@ -744,21 +749,23 @@ export function CentralTelemetry() {
 
           {/* RAD (Radio Check) Button */}
           <PushButton
-            x={154}
+            x={120}
             y={118}
             label="RAD"
             color="#475569"
             textColor="#FFFFFF"
+            radius={13.5}
             onClick={() => triggerRadio()}
           />
 
           {/* Guarded Neutral (N) Button */}
           <PushButton
-            x={182}
+            x={152}
             y={118}
             label="N"
             color="#EAB308"
             textColor="#000000"
+            radius={13.5}
             onClick={() => {
               setGear(0);
             }}
@@ -766,7 +773,7 @@ export function CentralTelemetry() {
 
           {/* Vertical Differential Entry Thumbwheel */}
           <ThumbWheel
-            x={198}
+            x={184}
             y={186}
             label="DIFF IN"
             value={`${diffEntry}%`}
@@ -777,60 +784,66 @@ export function CentralTelemetry() {
 
           {/* Brake Bias Fast Toggles (BB- / BB+) */}
           <PushButton
-            x={144}
+            x={120}
             y={166}
             label="BB−"
             color="#DC2626"
             textColor="#FFFFFF"
+            radius={13.5}
             onClick={() => adjustBrakeBias(-0.5)}
           />
           <PushButton
-            x={170}
+            x={152}
             y={166}
             label="BB+"
             color="#16A34A"
             textColor="#FFFFFF"
+            radius={13.5}
             onClick={() => adjustBrakeBias(0.5)}
           />
 
           {/* Fine Tuning Detents (+10 / +1) */}
           <PushButton
-            x={144}
+            x={120}
             y={212}
             label="+10"
             color="#1A1E28"
             textColor="#E2E8F0"
+            radius={13.5}
             onClick={() => adjustBrakeBias(1.0)}
           />
           <PushButton
-            x={170}
+            x={152}
             y={212}
             label="+1"
             color="#1A1E28"
             textColor="#E2E8F0"
+            radius={13.5}
             onClick={() => adjustBrakeBias(0.1)}
           />
 
           {/* ── TACTILE PUSHBUTTONS — RIGHT CONTROL WING ──────────────────── */}
           {/* OT (Overtake Boost) Button (Upper Horn) */}
           <PushButton
-            x={546}
+            x={582}
             y={80}
             label="OT"
             sublabel="PUSH"
             color={overtakeActive ? "#F97316" : "#4A200B"}
             textColor={overtakeActive ? "#000000" : "#FB923C"}
             active={overtakeActive}
+            radius={14.5}
             onClick={() => toggleOvertake()}
           />
 
           {/* PC (Pit Confirm) Button */}
           <PushButton
-            x={538}
+            x={568}
             y={118}
             label="PC"
             color="#CBD5E1"
             textColor="#0F172A"
+            radius={13.5}
             onClick={() => {
               triggerRadio("PIT CONFIRMED: Standing by for box this lap.");
             }}
@@ -838,18 +851,19 @@ export function CentralTelemetry() {
 
           {/* PL (Pit Limiter) Button */}
           <PushButton
-            x={566}
+            x={600}
             y={118}
             label="PL"
             color="#DC2626"
             textColor="#FFFFFF"
             active={pitLimiterActive}
+            radius={13.5}
             onClick={() => togglePitLimiter()}
           />
 
           {/* Vertical Differential Mid-Corner Thumbwheel */}
           <ThumbWheel
-            x={522}
+            x={536}
             y={186}
             label="DIFF MID"
             value={`${diffMid}%`}
@@ -860,47 +874,51 @@ export function CentralTelemetry() {
 
           {/* DRK (Hydration Drink) Button */}
           <PushButton
-            x={550}
+            x={568}
             y={166}
             label="DRK"
             color="#2563EB"
             textColor="#FFFFFF"
+            radius={13.5}
             onClick={() => triggerRadio("DRINK SYSTEM: 250ml electrolyte dispensed.")}
           />
 
           {/* MARK (Telemetry Bookmark) Button */}
           <PushButton
-            x={576}
+            x={600}
             y={166}
             label="MARK"
             color="#0D9488"
             textColor="#FFFFFF"
+            radius={13.5}
             onClick={() => triggerRadio("MARKER: Telemetry anomaly flagged for telemetry team.")}
           />
 
           {/* WET (Rain Weather Map) Button */}
           <PushButton
-            x={550}
+            x={568}
             y={212}
             label="WET"
             color="#4F46E5"
             textColor="#FFFFFF"
+            radius={13.5}
             onClick={() => triggerRadio("MAP WET: Intermediate torque map active.")}
           />
 
           {/* ENG (Engine Map) Button */}
           <PushButton
-            x={576}
+            x={600}
             y={212}
             label="ENG"
             color="#D97706"
             textColor="#FFFFFF"
+            radius={13.5}
             onClick={() => cycleStrat()}
           />
 
           {/* ── LOWER DECK TITANIUM ROTARIES (STRAT, MFD, HPP) ─────────────── */}
           <RotarySwitch
-            x={240}
+            x={230}
             y={286}
             label="STRAT"
             dotAngle={stratAngle}
@@ -918,7 +936,7 @@ export function CentralTelemetry() {
             onClick={() => cycleMfdMode()}
           />
           <RotarySwitch
-            x={480}
+            x={490}
             y={286}
             label="HPP"
             dotAngle={hppAngle}
@@ -950,9 +968,9 @@ export function CentralTelemetry() {
         <div
           className="absolute z-30 pointer-events-none"
           style={{
-            left: "29.86%",
+            left: "27.78%",
             top: "15.4%",
-            width: "40.28%",
+            width: "44.44%",
             height: "6.3%",
           }}
         >
@@ -960,14 +978,14 @@ export function CentralTelemetry() {
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            3. WIDESCREEN HIGH-CONTRAST AMOLED COCKPIT DISPLAY (290x156)
+            3. WIDESCREEN HIGH-CONTRAST AMOLED COCKPIT DISPLAY (320x156)
         ══════════════════════════════════════════════════════════════════ */}
         <div
           className="absolute z-30 rounded-md overflow-hidden select-none pointer-events-auto"
           style={{
-            left: "29.86%",
+            left: "27.78%",
             top: "22.3%",
-            width: "40.28%",
+            width: "44.44%",
             height: "44.6%",
             background: "linear-gradient(180deg, #0C0E13 0%, #060709 100%)",
             border: isBooting ? "1px solid rgba(207,163,73,0.75)" : "1px solid rgba(120,140,180,0.25)",

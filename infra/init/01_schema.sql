@@ -47,7 +47,9 @@ CREATE TABLE laps (
     sector_1_time_ms INT,
     sector_2_time_ms INT,
     sector_3_time_ms INT,
-    is_valid BOOLEAN DEFAULT TRUE
+    is_valid BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_laps_session_lap UNIQUE (session_uid, lap_number)
 );
 
 CREATE TABLE pit_stops (
@@ -155,7 +157,7 @@ CREATE TABLE ghost_telemetry (
 CREATE TABLE user_lap_telemetry (
     user_lap_id SERIAL,
     session_uid NUMERIC(20,0) NOT NULL,  -- Logical link to sessions table
-    driver_id INT NOT NULL,
+    driver_id INT DEFAULT 0,
     lap_number INT NOT NULL,
     distance_m REAL NOT NULL,            -- Meters from start line
     speed_kph REAL,
@@ -168,6 +170,11 @@ CREATE TABLE user_lap_telemetry (
     x REAL,
     y REAL,
     z REAL,
+    tyres_surface_temp REAL[],
+    tyres_inner_temp REAL[],
+    brakes_temp REAL[],
+    ers_store_energy REAL,
+    ers_deploy_mode INT,
     PRIMARY KEY (user_lap_id, distance_m)
 );
 

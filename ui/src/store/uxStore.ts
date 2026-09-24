@@ -59,6 +59,10 @@ interface UxStoreState {
   insightModal: InsightModalState | null;
   isConnectModalOpen: boolean;
   isGuideModalOpen: boolean;
+  isCommandPaletteOpen: boolean;
+  isPuModalOpen: boolean;
+  isFinalClassificationOpen: boolean;
+  isTelemetrySessionModalOpen: boolean;
 
   // Actions
   togglePlay: () => void;
@@ -78,7 +82,7 @@ interface UxStoreState {
   toggleDrsOverride: () => void;
   toggleOvertake: () => void;
   togglePitLimiter: () => void;
-  triggerRadio: () => void;
+  triggerRadio: (customMsg?: string) => void;
   closeRadio: () => void;
 
   // Modal Actions
@@ -90,6 +94,14 @@ interface UxStoreState {
   closeConnectModal: () => void;
   openGuideModal: () => void;
   closeGuideModal: () => void;
+  openCommandPalette: () => void;
+  closeCommandPalette: () => void;
+  openPuModal: () => void;
+  closePuModal: () => void;
+  openFinalClassification: () => void;
+  closeFinalClassification: () => void;
+  openTelemetrySessionModal: () => void;
+  closeTelemetrySessionModal: () => void;
 }
 
 export const useUxStore = create<UxStoreState>((set, get) => ({
@@ -114,6 +126,10 @@ export const useUxStore = create<UxStoreState>((set, get) => ({
   insightModal: null,
   isConnectModalOpen: false,
   isGuideModalOpen: false,
+  isCommandPaletteOpen: false,
+  isPuModalOpen: false,
+  isFinalClassificationOpen: false,
+  isTelemetrySessionModalOpen: false,
 
   togglePlay: () => {
     const next = !get().isPlaying;
@@ -197,7 +213,7 @@ export const useUxStore = create<UxStoreState>((set, get) => ({
     set({ pitLimiterActive: next });
   },
 
-  triggerRadio: () => {
+  triggerRadio: (customMsg?: string) => {
     soundFx.playRadioBeep();
     const messages = [
       "Radio check. Hamilton +0.75s behind with DRS — defend inside on Turn 1.",
@@ -205,7 +221,7 @@ export const useUxStore = create<UxStoreState>((set, get) => ({
       "Engine mode STRAT 7 available for the main straight. Push to pass.",
       "Tyre thermals look stable. FL core temp at 104°C, maintain delta.",
     ];
-    const transcript = messages[Math.floor(Math.random() * messages.length)];
+    const transcript = customMsg ?? messages[Math.floor(Math.random() * messages.length)];
     set({ radioOpen: true, radioTranscript: transcript });
   },
 
@@ -252,5 +268,45 @@ export const useUxStore = create<UxStoreState>((set, get) => ({
   closeGuideModal: () => {
     soundFx.playButtonClick();
     set({ isGuideModalOpen: false });
+  },
+
+  openCommandPalette: () => {
+    soundFx.playButtonClick();
+    set({ isCommandPaletteOpen: true });
+  },
+
+  closeCommandPalette: () => {
+    soundFx.playButtonClick();
+    set({ isCommandPaletteOpen: false });
+  },
+
+  openPuModal: () => {
+    soundFx.playButtonClick();
+    set({ isPuModalOpen: true });
+  },
+
+  closePuModal: () => {
+    soundFx.playButtonClick();
+    set({ isPuModalOpen: false });
+  },
+
+  openFinalClassification: () => {
+    soundFx.playButtonClick();
+    set({ isFinalClassificationOpen: true });
+  },
+
+  closeFinalClassification: () => {
+    soundFx.playButtonClick();
+    set({ isFinalClassificationOpen: false });
+  },
+
+  openTelemetrySessionModal: () => {
+    soundFx.playButtonClick();
+    set({ isTelemetrySessionModalOpen: true });
+  },
+
+  closeTelemetrySessionModal: () => {
+    soundFx.playButtonClick();
+    set({ isTelemetrySessionModalOpen: false });
   },
 }));

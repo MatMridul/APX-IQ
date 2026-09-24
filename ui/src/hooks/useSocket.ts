@@ -22,24 +22,27 @@ export function getSocket(): Socket | null {
 
     if (!globalRef.__apxiqSocket) {
         globalRef.__apxiqSocket = io(SOCKET_URL, {
-            transports: ["websocket", "polling"],
+            transports: ["websocket"],
             reconnection: true,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            reconnectionAttempts: 5,
+            reconnectionDelay: 2500,
+            reconnectionDelayMax: 10000,
+            reconnectionAttempts: 3,
+            autoConnect: true,
         });
 
+        let hasLoggedStandby = false;
         globalRef.__apxiqSocket.on("connect", () => {
-            console.log("[Socket.IO] Connected successfully");
+            console.log("[Socket.IO] Connected to live ingestion server (:3001)");
+            hasLoggedStandby = false;
         });
         globalRef.__apxiqSocket.on("disconnect", () => {
-            console.log("[Socket.IO] Disconnected");
+            // Disconnect handling
         });
-        globalRef.__apxiqSocket.on("connect_error", (error) => {
-            console.warn("[Socket.IO] Ingestion server offline at", SOCKET_URL, error.message);
-        });
-        globalRef.__apxiqSocket.on("error", (error) => {
-            console.warn("[Socket.IO] Error:", error);
+        globalRef.__apxiqSocket.on("connect_error", () => {
+            if (!hasLoggedStandby) {
+                console.info("[Socket.IO] Ingestion daemon standby at " + SOCKET_URL + " (Running client-side sim engine)");
+                hasLoggedStandby = true;
+            }
         });
     }
 

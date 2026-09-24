@@ -81,9 +81,9 @@ jobs:
         working-directory: ui
         run: npm run build
 
-  # ─── 2. Backend Deployment (GCP Cloud Run) ────────────────────────────────────
+  # ─── 2. Backend Deployment (AWS Lambda Serverless Zero-Burn) ──────────────────
   deploy-backend:
-    name: 2. Deploy Backend to GCP Cloud Run
+    name: 2. Deploy Backend to AWS Lambda (Zero-Burn)
     needs: verify
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -93,37 +93,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        if: env.HAS_GCP_SECRET == 'true'
-        uses: google-github-actions/auth@v2
+      - name: Set up Python 3.12
+        if: env.HAS_AWS_SECRET == 'true'
+        uses: actions/setup-python@v5
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          python-version: "3.12"
         env:
-          HAS_GCP_SECRET: ${{ secrets.GCP_SA_KEY != '' }}
+          HAS_AWS_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
 
-      - name: Set up Cloud SDK
-        if: env.HAS_GCP_SECRET == 'true'
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Configure AWS Credentials
+        if: env.HAS_AWS_SECRET == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
         env:
-          HAS_GCP_SECRET: ${{ secrets.GCP_SA_KEY != '' }}
+          HAS_AWS_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
 
-      - name: Deploy to Cloud Run
+      - name: Deploy to AWS Lambda
         id: deploy
-        if: env.HAS_GCP_SECRET == 'true'
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: apx-iq-api
-          source: .
-          region: us-central1
-          flags: |
-            --port=8000
-            --memory=2Gi
-            --min-instances=0
-            --max-instances=2
-            --allow-unauthenticated
-            --set-env-vars=LOG_FORMAT=json,CORS_ORIGINS=*
+        if: env.HAS_AWS_SECRET == 'true'
+        run: |
+          python scripts/deploy_aws_lambda.py --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
         env:
-          HAS_GCP_SECRET: ${{ secrets.GCP_SA_KEY != '' }}
+          HAS_AWS_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # ─── 3. Frontend Deployment (Cloudflare Pages) ─────────────────────────────────
   deploy-frontend:

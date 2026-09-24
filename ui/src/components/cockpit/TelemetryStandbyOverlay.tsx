@@ -63,10 +63,10 @@ export function TelemetryStandbyOverlay({
           </div>
           <button
             onClick={() => setIsDismissed(true)}
-            className="text-neutral-500 hover:text-white transition-colors cursor-pointer p-1"
+            className="p-1 rounded-lg hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer"
             title="Minimize to Corner"
           >
-            <ChevronDown size={15} />
+            <X size={15} />
           </button>
         </div>
 

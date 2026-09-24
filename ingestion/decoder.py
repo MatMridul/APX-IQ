@@ -99,6 +99,8 @@ class PacketDecoder:
                 return module.PacketTyreSetsData.from_buffer_copy(data)
             elif packet_id == getattr(module, "PACKET_ID_TIME_TRIAL", 14) and hasattr(module, "PacketTimeTrialData"):
                 return module.PacketTimeTrialData.from_buffer_copy(data)
+            elif packet_id == getattr(module, "PACKET_ID_FINAL_CLASSIFICATION", 8) and hasattr(module, "PacketFinalClassificationData"):
+                return module.PacketFinalClassificationData.from_buffer_copy(data)
             else:
                 return header
 

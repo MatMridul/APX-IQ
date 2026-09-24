@@ -13,6 +13,7 @@ uint16 = ctypes.c_uint16
 int16 = ctypes.c_int16
 uint32 = ctypes.c_uint32
 float32 = ctypes.c_float
+float64 = ctypes.c_double
 uint64 = ctypes.c_uint64
 
 
@@ -511,6 +512,35 @@ class PacketEventData(ctypes.LittleEndianStructure):
         ('m_header', PacketHeader),
         ('m_eventStringCode', uint8 * 4),
         ('m_eventDetails', EventDataDetails),
+    ]
+
+
+class FinalClassificationData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_position', uint8),              # Finishing position
+        ('m_numLaps', uint8),               # Number of laps completed
+        ('m_gridPosition', uint8),          # Grid position of the car
+        ('m_points', uint8),                # Number of points scored
+        ('m_numPitStops', uint8),           # Number of pit stops made
+        ('m_resultStatus', uint8),          # Result status
+        ('m_bestLapTimeInMS', uint32),      # Best lap time in milliseconds
+        ('m_totalRaceTime', float64),       # Total race time in seconds without penalties
+        ('m_penaltiesTime', uint8),         # Total penalties accumulated in seconds
+        ('m_numPenalties', uint8),          # Number of penalties applied to this driver
+        ('m_numTyreStints', uint8),         # Number of tyre stints up to maximum
+        ('m_tyreStintsActual', uint8 * 8),  # Actual tyres used by this driver
+        ('m_tyreStintsVisual', uint8 * 8),  # Visual tyres used by this driver
+        ('m_tyreStintsEndLaps', uint8 * 8), # The lap number stints end on
+    ]
+
+
+class PacketFinalClassificationData(ctypes.LittleEndianStructure):
+    _pack_ = 1
+    _fields_ = [
+        ('m_header', PacketHeader),
+        ('m_numCars', uint8),
+        ('m_classificationData', FinalClassificationData * 22),
     ]
 
 

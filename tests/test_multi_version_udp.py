@@ -155,3 +155,78 @@ def test_decode_and_adapt_f1_20_participants_data():
     assert part_dict["participants"][1]["name"] == "C. LECLERC"
     assert part_dict["participants"][1]["ai_controlled"] is True
 
+
+def test_decode_and_adapt_f1_25_final_classification():
+    from ingestion import packet_structs_25
+    packet = packet_structs_25.PacketFinalClassificationData()
+    packet.m_header.m_packetFormat = 2025
+    packet.m_header.m_packetId = packet_structs_25.PACKET_ID_FINAL_CLASSIFICATION
+    packet.m_header.m_playerCarIndex = 0
+    packet.m_numCars = 2
+
+    c0 = packet.m_classificationData[0]
+    c0.m_position = 1
+    c0.m_numLaps = 53
+    c0.m_gridPosition = 1
+    c0.m_points = 25
+    c0.m_numPitStops = 1
+    c0.m_resultStatus = 3  # finished
+    c0.m_bestLapTimeInMS = 81240
+    c0.m_totalRaceTime = 5123.456
+    c0.m_penaltiesTime = 0
+    c0.m_numPenalties = 0
+
+    c1 = packet.m_classificationData[1]
+    c1.m_position = 2
+    c1.m_numLaps = 53
+    c1.m_gridPosition = 3
+    c1.m_points = 18
+    c1.m_numPitStops = 2
+    c1.m_resultStatus = 3
+    c1.m_bestLapTimeInMS = 81450
+    c1.m_totalRaceTime = 5127.123
+    c1.m_penaltiesTime = 5
+    c1.m_numPenalties = 1
+
+    raw_bytes = bytes(packet)
+    decoded = PacketDecoder.decode(raw_bytes)
+    assert decoded is not None
+
+    adapter = get_adapter_for_format(2025)
+    fc_dict = adapter.extract_final_classification(decoded)
+    assert fc_dict["num_cars"] == 2
+    assert len(fc_dict["classification"]) == 2
+    assert fc_dict["classification"][0]["position"] == 1
+    assert fc_dict["classification"][0]["points"] == 25
+    assert fc_dict["classification"][0]["best_lap_time_ms"] == 81240
+    assert fc_dict["classification"][1]["position"] == 2
+    assert fc_dict["classification"][1]["penalties_time"] == 5
+
+
+def test_decode_and_adapt_f1_25_motion_ex_aero_downforce():
+    from ingestion import packet_structs_25
+    packet = packet_structs_25.PacketMotionExData()
+    packet.m_header.m_packetFormat = 2025
+    packet.m_header.m_packetId = packet_structs_25.PACKET_ID_MOTION_EX
+    packet.m_header.m_playerCarIndex = 0
+
+    packet.m_wheelVertForce[0] = 3200.0  # RL
+    packet.m_wheelVertForce[1] = 3250.0  # RR
+    packet.m_wheelVertForce[2] = 4100.0  # FL
+    packet.m_wheelVertForce[3] = 4150.0  # FR
+    packet.m_frontAeroHeight = 24.5      # mm
+    packet.m_rearAeroHeight = 58.2       # mm
+    packet.m_chassisPitch = -0.042       # dive
+    packet.m_frontRollAngle = 0.015
+
+    raw_bytes = bytes(packet)
+    decoded = PacketDecoder.decode(raw_bytes)
+    assert decoded is not None
+
+    adapter = get_adapter_for_format(2025)
+    ex_dict = adapter.extract_motion_ex(decoded)
+    assert ex_dict["wheel_vert_force"] == [3200.0, 3250.0, 4100.0, 4150.0]
+    assert ex_dict["front_aero_height"] == 24.5
+    assert pytest.approx(ex_dict["rear_aero_height"], 0.001) == 58.2
+    assert round(ex_dict["chassis_pitch"], 3) == -0.042
+

@@ -1,8 +1,8 @@
-# APX-IQ — Master Cloud Deployment & Zero-Idle-Cost Architecture Guide
+# APX-IQ — Master Cloud Deployment & Zero-Burn Architecture Guide
 
 > **Target Version**: v1.0.0 Release  
-> **Topology**: Cloudflare Pages (Edge Frontend) + Google Cloud Run (Serverless Backend) + Neon Serverless PostgreSQL (Optional Persistence)  
-> **Cost Profile**: **$0.00 / month** when idle (Scale-to-Zero architecture)
+> **Topology**: Cloudflare Pages (Edge Frontend) + AWS Lambda with Lambda Web Adapter (Serverless Backend) + Neon Serverless PostgreSQL (Optional Persistence)  
+> **Cost Profile**: **$0.00 / month** when idle (Scale-to-Zero architecture, 100% credit preserving)
 
 ---
 
@@ -22,20 +22,20 @@ flowchart TD
         CF_Pages["Next.js 16 Static / Edge Workstation\n• 300+ Edge Locations\n• Unlimited Free Egress Bandwidth\n• $0.00 Idle Cost"]
     end
 
-    subgraph GoogleCloud ["☁️ Google Cloud Platform (Scale-to-Zero Compute)"]
-        GCP_Run["GCP Cloud Run (FastAPI Engine)\n• 2GB RAM for FastF1 & Pandas\n• Scales to 0 instances when idle\n• Covered by $10/mo Google AI Credit\n• SSE Streaming for AI Briefings"]
-        Gemini["Google Gemini AI API\n(Race Engineer Briefings)"]
-        GCP_Run --> Gemini
+    subgraph AWSCloud ["☁️ Amazon Web Services (Zero-Burn Serverless)"]
+        LambdaFunc["AWS Lambda Function (FastAPI Container)\n• 1024MB RAM (1 vCPU equivalent)\n• AWS Lambda Web Adapter (Rust HTTP translator)\n• Scales to 0 instances when idle ($0.00)\n• 1,000,000 invocations/mo FREE forever"]
+        FuncURL["Lambda Function URL\n• Direct HTTPS endpoint with CORS\n• No API Gateway or Load Balancer fees"]
+        FuncURL --> LambdaFunc
     end
 
-    subgraph CloudDB ["🗄️ Optional Serverless Database ($0 Idle)"]
-        NeonDB["Neon Serverless PostgreSQL\n• Scales to 0 compute when idle\n• Stores completed laps & reports"]
+    subgraph CloudDB ["🗄️ Serverless Database ($0 Idle)"]
+        NeonDB["Neon Serverless PostgreSQL\n• Scales to 0 compute when idle\n• PgBouncer Connection Pooling (:6543)\n• Stores completed laps & reports"]
     end
 
     User -->|Instant Static UI| CF_Pages
-    CF_Pages -->|REST / SSE Telemetry Math| GCP_Run
-    Bridge -.->|Live Telemetry Uplink| GCP_Run
-    GCP_Run -.->|Optional Persistence| NeonDB
+    CF_Pages -->|REST / SSE Telemetry Math| FuncURL
+    Bridge -.->|Live Telemetry Uplink| CF_Pages
+    LambdaFunc -.->|Pooled SQL Queries| NeonDB
 ```
 
 ---
@@ -46,42 +46,46 @@ If you want users to save custom laps and generated AI reports permanently in th
 
 1. Sign up at [Neon.tech](https://neon.tech) (100% Free Tier, No credit card required).
 2. Create a project named `apx-iq`.
-3. Copy the pooled connection string:
+3. Copy the pooled connection string (port `6543` for serverless environments):
    ```text
-   postgresql://apxiq_owner:PASSWORD@ep-xyz.us-east-2.aws.neon.tech/apx_iq?sslmode=require
+   postgresql://apxiq_owner:PASSWORD@ep-xyz-pooler.ap-south-1.aws.neon.tech/apx_iq?sslmode=require
    ```
 4. *Note: If omitted, the backend automatically operates in lightweight in-memory mode (`InMemoryLapService`).*
 
 ---
 
-## 3. Step 2: Deploy Backend to Google Cloud Run
+## 3. Step 2: Deploy Backend to AWS Lambda (Container Image + Function URL)
 
-Google Cloud Run runs your containerized FastAPI backend, scaling to **0 instances when idle** ($0.00 billed) and spinning up in ~2s on demand.
+AWS Lambda runs your containerized FastAPI backend with **true scale-to-zero ($0 idle cost)**, zero load balancer configuration, built-in TLS/HTTPS via Lambda Function URLs, and native health checking on `/health`.
 
-### A. Deploy via Google Cloud Console
-1. Navigate to [Google Cloud Console $\rightarrow$ Cloud Run](https://console.cloud.google.com/run).
-2. Click **Create Service**.
-3. Select **"Continuously deploy from a repository"** $\rightarrow$ Set up Cloud Build with your GitHub repo (`MatMridul/APX-IQ`).
-4. **Build Configuration**:
-   * Branch: `^main$`
-   * Build Type: **Dockerfile**
-   * Dockerfile path: `/Dockerfile.api`
-5. **Container & Resource Sizing**:
-   * **Port**: `8000`
-   * **Minimum instances**: `0` *(Crucial: guarantees zero charges during idle time)*
-   * **Maximum instances**: `2` *(Safety cap)*
-   * **Memory**: `2 GiB` *(Optimal for FastF1 telemetry matrices and NumPy delta math)*
-   * **CPU**: `1 vCPU`
-   * **CPU Allocation**: Select **"CPU is only allocated during request processing"** (CPU Throttling enabled).
-6. **Environment Variables**:
-   | Variable | Value | Notes |
-   | :--- | :--- | :--- |
-   | `DATABASE_URL` | `postgresql://...` | Connection string from Step 1 (Optional) |
-   | `GEMINI_API_KEY` | `AIzaSy...` | Your Google Gemini API Key |
-   | `CORS_ORIGINS` | `*` | Or specify your Cloudflare Pages domain |
-   | `LOG_FORMAT` | `json` | Production structured logging |
-7. **Security**: Select **"Allow unauthenticated invocations"** (Public API).
-8. Click **Create**. Copy your public Cloud Run URL (e.g., `https://apx-iq-api-xxxxx-uc.a.run.app`).
+### A. Dockerfile Setup (AWS Lambda Web Adapter)
+The container uses the official AWS Lambda Web Adapter to run standard FastAPI inside Lambda with zero code modifications:
+```dockerfile
+COPY --from=public.ecr.aws/awslabs/aws-lambda-web-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
+ENV PORT=8000
+```
+
+### B. Amazon ECR & Lambda Deployment
+1. **Authenticate Docker to Amazon ECR**:
+   ```bash
+   aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin <aws_account_id>.dkr.ecr.ap-south-1.amazonaws.com
+   ```
+2. **Create ECR Repository** (if not already existing):
+   ```bash
+   aws ecr create-repository --repository-name apx-iq-api --region ap-south-1
+   ```
+3. **Build & Push Image**:
+   ```bash
+   docker build -t apx-iq-api:latest .
+   docker tag apx-iq-api:latest <aws_account_id>.dkr.ecr.ap-south-1.amazonaws.com/apx-iq-api:latest
+   docker push <aws_account_id>.dkr.ecr.ap-south-1.amazonaws.com/apx-iq-api:latest
+   ```
+4. **Deploy / Update Lambda Function**:
+   * Function Name: `apx-iq-api`
+   * Image URI: `<aws_account_id>.dkr.ecr.ap-south-1.amazonaws.com/apx-iq-api:latest`
+   * Memory: `1024 MB`
+   * Timeout: `30 seconds`
+   * Enable Function URL with Auth Type `NONE` and CORS enabled.
 
 ---
 
@@ -102,7 +106,7 @@ Cloudflare Pages provides global edge delivery with **unlimited free bandwidth**
 4. **Environment Variables**:
    | Variable | Value | Notes |
    | :--- | :--- | :--- |
-   | `NEXT_PUBLIC_API_URL` | `https://apx-iq-api-xxxxx-uc.a.run.app` | Your Cloud Run Backend URL from Step 2 |
+   | `NEXT_PUBLIC_API_URL` | `https://<unique-id>.lambda-url.ap-south-1.on.aws` | Your AWS Lambda Function URL from Step 2 |
    | `NEXT_PUBLIC_WS_URL` | `http://localhost:3001` | Default local live telemetry port |
    | `NODE_VERSION` | `20` | Node.js 20 LTS |
 5. Click **Save and Deploy**. Your live workstation will be active at `https://apx-iq.pages.dev`.
@@ -113,8 +117,8 @@ Cloudflare Pages provides global edge delivery with **unlimited free bandwidth**
 
 ### Backend (`api/`)
 ```env
-API_PORT=8000
-DATABASE_URL=postgresql://user:pass@ep-xyz.neon.tech/apxiq?sslmode=require
+PORT=8000
+DATABASE_URL=postgresql://user:pass@ep-xyz-pooler.ap-south-1.aws.neon.tech/apx_iq?sslmode=require
 CORS_ORIGINS=*
 GEMINI_API_KEY=AIzaSy...
 LOG_FORMAT=json
@@ -124,7 +128,7 @@ SECRET_KEY=generate-a-secure-random-string-here
 
 ### Frontend (`ui/`)
 ```env
-NEXT_PUBLIC_API_URL=https://apx-iq-api-xxxxx-uc.a.run.app
+NEXT_PUBLIC_API_URL=https://<unique-id>.lambda-url.ap-south-1.on.aws
 NEXT_PUBLIC_WS_URL=http://localhost:3001
 NODE_ENV=production
 ```
@@ -151,10 +155,12 @@ For users driving on a local sim rig who want their telemetry broadcast to the c
 ## 7. Cost & Verification Summary
 
 * **Idle State (No Visitors)**:
-  * Cloudflare Pages: $0.00
-  * GCP Cloud Run (`min-instances: 0`): $0.00
-  * Neon Postgres: $0.00
+  * Cloudflare Pages: **$0.00**
+  * AWS Lambda (`scale-to-0`): **$0.00**
+  * AWS Lambda Function URL: **$0.00** (Free direct HTTPS)
+  * Neon Serverless Postgres: **$0.00**
   * **Total Idle Cost**: **$0.00 / Month**
 * **Active State (Public Launch / LinkedIn Traffic)**:
-  * Cloudflare Pages: $0.00 (Unlimited Bandwidth)
-  * GCP Cloud Run: 100% covered by 2M free monthly requests + $10 Google AI Pro credit pool.
+  * Cloudflare Pages: **$0.00** (Unlimited Bandwidth edge CDN)
+  * AWS Lambda: 100% covered by 1,000,000 free monthly requests.
+  * **Total AWS Credit Burn**: **$0.00** (100% of your $210 credits preserved for other projects).

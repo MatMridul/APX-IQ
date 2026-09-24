@@ -149,6 +149,22 @@ class UniversalPacketAdapter(BasePacketAdapter):
         }
 
     def extract_session(self, packet) -> Dict[str, Any]:
+        forecast_samples = []
+        raw_samples = getattr(packet, "m_weatherForecastSamples", [])
+        num_samples = int(getattr(packet, "m_numWeatherForecastSamples", len(raw_samples)))
+        for i in range(min(num_samples, len(raw_samples))):
+            s = raw_samples[i]
+            forecast_samples.append({
+                "session_type": int(getattr(s, "m_sessionType", 0)),
+                "time_offset": int(getattr(s, "m_timeOffset", 0)),
+                "weather": int(getattr(s, "m_weather", 0)),
+                "track_temp": int(getattr(s, "m_trackTemperature", 0)),
+                "track_temp_change": int(getattr(s, "m_trackTemperatureChange", 0)),
+                "air_temp": int(getattr(s, "m_airTemperature", 0)),
+                "air_temp_change": int(getattr(s, "m_airTemperatureChange", 0)),
+                "rain_percentage": int(getattr(s, "m_rainPercentage", 0)),
+            })
+
         return {
             "weather": int(getattr(packet, "m_weather", 0)),
             "track_temperature": int(getattr(packet, "m_trackTemperature", 0)),
@@ -163,6 +179,7 @@ class UniversalPacketAdapter(BasePacketAdapter):
             "network_game": bool(getattr(packet, "m_networkGame", 0)),
             "formula": int(getattr(packet, "m_formula", 0)),
             "ai_difficulty": int(getattr(packet, "m_aiDifficulty", 0)),
+            "weather_forecast_samples": forecast_samples,
         }
 
     def extract_participants(self, packet) -> Dict[str, Any]:
@@ -332,6 +349,14 @@ class UniversalPacketAdapter(BasePacketAdapter):
             "angular_acceleration_y": float(getattr(packet, "m_angularAccelerationY", 0.0)),
             "angular_acceleration_z": float(getattr(packet, "m_angularAccelerationZ", 0.0)),
             "front_wheels_angle": float(getattr(packet, "m_frontWheelsAngle", 0.0)),
+            "wheel_vert_force": [float(f) for f in getattr(packet, "m_wheelVertForce", [0.0, 0.0, 0.0, 0.0])],
+            "front_aero_height": float(getattr(packet, "m_frontAeroHeight", 0.0)),
+            "rear_aero_height": float(getattr(packet, "m_rearAeroHeight", 0.0)),
+            "front_roll_angle": float(getattr(packet, "m_frontRollAngle", 0.0)),
+            "rear_roll_angle": float(getattr(packet, "m_rearRollAngle", 0.0)),
+            "chassis_yaw": float(getattr(packet, "m_chassisYaw", 0.0)),
+            "chassis_pitch": float(getattr(packet, "m_chassisPitch", 0.0)),
+            "wheel_camber": [float(c) for c in getattr(packet, "m_wheelCamber", [0.0, 0.0, 0.0, 0.0])],
         }
 
     def extract_event(self, packet) -> Dict[str, Any]:
@@ -461,7 +486,36 @@ class UniversalPacketAdapter(BasePacketAdapter):
             "rival": _extract_tt_dataset(getattr(packet, "m_rivalDataSet", None)),
         }
 
+    def extract_final_classification(self, packet) -> Dict[str, Any]:
+        num_cars = int(getattr(packet, "m_numCars", 0))
+        classification = []
+        raw_list = getattr(packet, "m_classificationData", [])
+        for i in range(min(num_cars, len(raw_list))):
+            c = raw_list[i]
+            if hasattr(c, "m_bestLapTimeInMS"):
+                best_ms = int(c.m_bestLapTimeInMS)
+            else:
+                best_ms = int(round(float(getattr(c, "m_bestLapTime", 0.0)) * 1000))
 
+            classification.append({
+                "car_index": i,
+                "position": int(c.m_position),
+                "num_laps": int(c.m_numLaps),
+                "grid_position": int(c.m_gridPosition),
+                "points": int(c.m_points),
+                "num_pit_stops": int(c.m_numPitStops),
+                "result_status": int(c.m_resultStatus),
+                "best_lap_time_ms": best_ms,
+                "total_race_time": float(getattr(c, "m_totalRaceTime", 0.0)),
+                "penalties_time": int(getattr(c, "m_penaltiesTime", 0)),
+                "num_penalties": int(getattr(c, "m_numPenalties", 0)),
+                "num_tyre_stints": int(getattr(c, "m_numTyreStints", 0)),
+            })
+
+        return {
+            "num_cars": num_cars,
+            "classification": classification,
+        }
 
 
 

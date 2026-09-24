@@ -182,6 +182,58 @@ def run_simulator(version: int = 2025, laps: int = 5, hz: int = 60, host: str = 
         except Exception:
             pass
 
+        # 4. Motion Ex Packet (ID=13) — Aero Downforce & Ground Heights
+        if hasattr(struct_mod, "PacketMotionExData"):
+            try:
+                p_mex = struct_mod.PacketMotionExData()
+                p_mex.m_header.m_packetFormat = version
+                p_mex.m_header.m_packetId = struct_mod.PACKET_ID_MOTION_EX
+                p_mex.m_header.m_sessionUID = session_uid
+                p_mex.m_header.m_frameIdentifier = frame_id
+                p_mex.m_header.m_playerCarIndex = player_car_idx
+
+                # Dynamic downforce based on speed (N)
+                dyn_downforce = math.pow(speed_kph / 100.0, 2) * 3200.0
+                p_mex.m_wheelVertForce[0] = dyn_downforce * 0.44 * 0.5
+                p_mex.m_wheelVertForce[1] = dyn_downforce * 0.44 * 0.5
+                p_mex.m_wheelVertForce[2] = dyn_downforce * 0.56 * 0.5
+                p_mex.m_wheelVertForce[3] = dyn_downforce * 0.56 * 0.5
+
+                # Ground effect ride height compression (mm)
+                p_mex.m_frontAeroHeight = max(18.0, 48.0 - (dyn_downforce / 500.0))
+                p_mex.m_rearAeroHeight = max(35.0, 75.0 - (dyn_downforce / 400.0))
+                p_mex.m_chassisPitch = -0.025 if brake > 0.5 else 0.012 if throttle > 0.8 else 0.0
+                p_mex.m_frontRollAngle = 0.035 * math.sin(angle * 3)
+
+                sock.sendto(bytes(p_mex), (host, port))
+            except Exception:
+                pass
+
+        # 5. Car Damage Packet (ID=10) — Every ~10 frames
+        if frame_id % 10 == 0 and hasattr(struct_mod, "PacketCarDamageData"):
+            try:
+                p_dam = struct_mod.PacketCarDamageData()
+                p_dam.m_header.m_packetFormat = version
+                p_dam.m_header.m_packetId = struct_mod.PACKET_ID_CAR_DAMAGE
+                p_dam.m_header.m_sessionUID = session_uid
+                p_dam.m_header.m_frameIdentifier = frame_id
+                p_dam.m_header.m_playerCarIndex = player_car_idx
+
+                d_data = p_dam.m_carDamageData[player_car_idx]
+                for idx in range(4):
+                    d_data.m_tyresWear[idx] = float(4 + (lap_num * 2.5) + idx * 0.5)
+                d_data.m_engineICEWear = 12 + lap_num * 2
+                d_data.m_engineTCWear = 14 + lap_num * 2
+                d_data.m_engineMGUKWear = 9 + lap_num
+                d_data.m_engineMGUHWear = 16 + lap_num * 2
+                d_data.m_engineESWear = 8
+                d_data.m_engineCEWear = 10
+                d_data.m_gearBoxDamage = 6 + lap_num
+
+                sock.sendto(bytes(p_dam), (host, port))
+            except Exception:
+                pass
+
         # Check Lap Crossing
         if lap_dist >= lap_num * track_len:
             last_lap_ms = cur_lap_ms

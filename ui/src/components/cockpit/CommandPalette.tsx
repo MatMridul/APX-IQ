@@ -18,6 +18,8 @@ import {
   Keyboard,
   Gamepad2,
   HelpCircle,
+  Cpu,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePrefs } from "@/lib/cockpit/preferences";
@@ -271,6 +273,30 @@ export function CommandPalette({ isOpen, onClose, onSelectDduMode }: CommandPale
         icon: <HelpCircle size={14} className="text-gold" />,
         action: () => {
           useUxStore.getState().openGuideModal();
+          onClose();
+        },
+      },
+      {
+        id: "act-pu",
+        category: "ACTIONS",
+        title: "FIA Power Unit & Mechanical Reliability Suite",
+        subtitle: "6-Component wear metrics (ICE, TC, MGU-K/H, ES, CE) & fault annunciators",
+        shortcut: "P",
+        icon: <Cpu size={14} className="text-gold" />,
+        action: () => {
+          useUxStore.getState().openPuModal();
+          onClose();
+        },
+      },
+      {
+        id: "act-classification",
+        category: "ACTIONS",
+        title: "Official FIA Final Classification & Points",
+        subtitle: "Packet 8 post-race podium standings, race time deltas & championship points",
+        shortcut: "R",
+        icon: <Trophy size={14} className="text-amber-400" />,
+        action: () => {
+          useUxStore.getState().openFinalClassification();
           onClose();
         },
       },

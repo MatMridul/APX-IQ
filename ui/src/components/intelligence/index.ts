@@ -10,3 +10,4 @@ export { SectorApexMatrix } from "./SectorApexMatrix";
 export { PedalDynamicsProfile } from "./PedalDynamicsProfile";
 export { TyreStrategyWindow } from "./TyreStrategyWindow";
 export { TechnicalDebriefViewer } from "./TechnicalDebriefViewer";
+export { VoicePitWallRadio } from "./VoicePitWallRadio";

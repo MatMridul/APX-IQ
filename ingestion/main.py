@@ -329,6 +329,7 @@ async def packet_processor(listener: TelemetryListener) -> None:
                             "networkGame": session_dict["network_game"],
                             "formula": session_dict["formula"],
                             "aiDifficulty": session_dict["ai_difficulty"],
+                            "weatherForecastSamples": session_dict.get("weather_forecast_samples", []),
                         })
                     recorder.on_session_start(
                         session_uid=session_uid,
@@ -460,6 +461,14 @@ async def packet_processor(listener: TelemetryListener) -> None:
                             "angularAccelerationY": motion_ex_dict["angular_acceleration_y"],
                             "angularAccelerationZ": motion_ex_dict["angular_acceleration_z"],
                             "frontWheelsAngle": motion_ex_dict["front_wheels_angle"],
+                            "wheelVertForce": motion_ex_dict.get("wheel_vert_force", [0.0, 0.0, 0.0, 0.0]),
+                            "frontAeroHeight": motion_ex_dict.get("front_aero_height", 0.0),
+                            "rearAeroHeight": motion_ex_dict.get("rear_aero_height", 0.0),
+                            "frontRollAngle": motion_ex_dict.get("front_roll_angle", 0.0),
+                            "rearRollAngle": motion_ex_dict.get("rear_roll_angle", 0.0),
+                            "chassisYaw": motion_ex_dict.get("chassis_yaw", 0.0),
+                            "chassisPitch": motion_ex_dict.get("chassis_pitch", 0.0),
+                            "wheelCamber": motion_ex_dict.get("wheel_camber", [0.0, 0.0, 0.0, 0.0]),
                         })
 
                 # ── Event (ID=3) ──────────────────────────────────────────────
@@ -546,6 +555,15 @@ async def packet_processor(listener: TelemetryListener) -> None:
                                 "sector3Ms": tt_dict["rival"].get("sector_3_ms"),
                                 "isValid": tt_dict["rival"].get("is_valid"),
                             } if tt_dict.get("rival") else None,
+                        })
+
+                # ── Final Classification (ID=8) ───────────────────────────────
+                elif packet_type_id == 8:
+                    if not settings.stealth_mode:
+                        fc_dict = adapter.extract_final_classification(packet)
+                        await sio.emit("final_classification_update", {
+                            "numCars": fc_dict.get("num_cars", 0),
+                            "classification": fc_dict.get("classification", []),
                         })
 
 

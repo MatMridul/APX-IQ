@@ -3,9 +3,14 @@
 import React, { PropsWithChildren, useState, useEffect } from "react";
 import { Smartphone, X } from "lucide-react";
 import Link from "next/link";
+import { GlobalHeader } from "@/components/common/GlobalHeader";
 import { TyreThermalModal } from "./TyreThermalModal";
 import { AiCoachModal } from "./AiCoachModal";
 import { RadioToast } from "./RadioToast";
+import { PUComponentModal } from "./PUComponentModal";
+import { FinalClassificationModal } from "./FinalClassificationModal";
+import { TelemetrySessionModal } from "./TelemetrySessionModal";
+import { useUxStore } from "@/store/uxStore";
 
 export const DashboardViewport: React.FC<PropsWithChildren> = ({ children }) => {
   const [showMobileBanner, setShowMobileBanner] = useState(false);
@@ -20,7 +25,7 @@ export const DashboardViewport: React.FC<PropsWithChildren> = ({ children }) => 
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-[#020203] p-px overflow-hidden select-none relative">
+    <div className="w-screen h-screen bg-[#020203] flex flex-col p-2 overflow-hidden select-none relative">
       {showMobileBanner && (
         <div className="absolute top-2 left-2 right-2 z-50 p-2.5 rounded-xl bg-neutral-950/95 border border-amber-500/40 shadow-[0_0_25px_rgba(0,0,0,0.9)] backdrop-blur-md flex items-center justify-between text-xs font-mono text-white gap-2">
           <div className="flex items-center gap-2">
@@ -46,12 +51,25 @@ export const DashboardViewport: React.FC<PropsWithChildren> = ({ children }) => 
           </div>
         </div>
       )}
-      <div className="relative w-full h-full">{children}</div>
+
+      {/* ── TIER 1: Unified Master Navigation Header (100% Consistent with All Pages) ── */}
+      <div className="shrink-0 mb-1 z-40 max-w-[1920px] w-full mx-auto">
+        <GlobalHeader activeBreadcrumb="COCKPIT HUD" />
+      </div>
+
+      {/* ── Main Cockpit Canvas Viewport ─────────────────────────────────── */}
+      <div className="relative flex-1 w-full min-h-0">{children}</div>
 
       {/* Interactive Global Modals & Notifications */}
       <TyreThermalModal />
       <AiCoachModal />
       <RadioToast />
+      <PUComponentModal />
+      <FinalClassificationModal />
+      <TelemetrySessionModal
+        isOpen={useUxStore((s) => s.isTelemetrySessionModalOpen)}
+        onClose={useUxStore((s) => s.closeTelemetrySessionModal)}
+      />
     </div>
   );
 };

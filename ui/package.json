@@ -12,6 +12,7 @@
     "@radix-ui/themes": "^3.3.0",
     "@tanstack/react-query": "^5.101.1",
     "@tanstack/react-query-devtools": "^5.101.1",
+    "@types/three": "^0.186.0",
     "clsx": "^2.1.1",
     "d3-interpolate": "^3.0.1",
     "d3-scale": "^4.0.2",
@@ -20,6 +21,7 @@
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^0.563.0",
     "next": "^16.1.6",
+    "playwright": "^1.63.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^9.0.1",
@@ -27,6 +29,7 @@
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.4.0",
+    "three": "^0.186.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

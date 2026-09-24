@@ -1,0 +1,43 @@
+# Git & VCS
+.git
+.gitignore
+
+# Python virtual environments & bytecode
+.venv
+venv
+ENV
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+
+# Frontend UI (isolated build, not needed in API container)
+ui
+
+# Local caches & data
+data
+fastf1_cache
+brag-output*
+graphify-out
+ui-gallery
+
+# Media, 3D assets & screenshots
+*.png
+*.jpg
+*.jpeg
+*.glb
+*.fbx
+*.bin
+
+# Logs & temp files
+*.log
+.system_generated
+brain
+scratch
+
+# Local environment secrets
+.env
+.env.local
+.env.*.local

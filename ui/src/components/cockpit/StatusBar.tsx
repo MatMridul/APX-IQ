@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Radio, Cpu, Sparkles, Gauge, Gamepad2, HelpCircle, Volume2, VolumeX } from "lucide-react";
+import { Activity, Radio, Cpu, Sparkles, Gauge, Gamepad2, HelpCircle, Volume2, VolumeX, Compass, Trophy } from "lucide-react";
 import { SourceBadge, NoSignal } from "./primitives";
 import { scheduler } from "@/lib/cockpit/scheduler";
 import { usePrefs, type MotionLevel, type Density } from "@/lib/cockpit/preferences";
@@ -144,14 +144,16 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
       : null;
 
 
-  const isCockpit = pathname === "/dashboard" || pathname === "/";
+  const isPortal = pathname === "/";
+  const isCockpit = pathname === "/dashboard";
   const isMissionControl = pathname === "/dashboard/intelligence";
+  const isObservability = pathname === "/debug";
 
   return (
     <div className="w-full h-full flex items-center justify-between px-3 py-1 bg-gradient-to-r from-[#0C0C0F]/95 via-[#09090C]/90 to-[#0C0C0F]/95 border-b border-white/[0.08] backdrop-blur-md select-none">
       
       {/* ── LEFT: Brand & Navigation Pill Switcher ─────────────────────── */}
-      <div className="flex items-center gap-3.5">
+      <div className="flex items-center gap-3 shrink-0">
         <Link href="/" className="flex items-center gap-2 group shrink-0" title="APX-IQ Home">
           <span className="font-black italic text-lg tracking-tighter transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(207,163,73,0.6)]">
             <span className="text-gold">APX</span>
@@ -161,50 +163,64 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
         </Link>
 
         {/* Double-Bezel Segmented Navigation Switcher */}
-        <div className="p-0.5 rounded-xl bg-black/40 ring-1 ring-white/10 flex items-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]">
+        <div className="p-0.5 rounded-xl bg-black/40 ring-1 ring-white/10 flex items-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)] shrink-0">
+          <Link
+            href="/"
+            className={cn(
+              "px-2.5 py-1 rounded-[10px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold transition-all duration-200 flex items-center gap-1.5 shrink-0",
+              isPortal
+                ? "bg-gradient-to-r from-gold/25 via-gold/15 to-gold/20 text-gold border border-gold/40 shadow-[0_0_12px_rgba(207,163,73,0.2)]"
+                : "text-silver/60 hover:text-white hover:bg-white/5"
+            )}
+          >
+            <Compass size={11} className={cn(isPortal ? "text-gold" : "text-silver/50")} />
+            <span>Portal</span>
+          </Link>
+
           <Link
             href="/dashboard"
             className={cn(
-              "px-2.5 py-1 rounded-[10px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold transition-all duration-200 flex items-center gap-1.5",
+              "px-2.5 py-1 rounded-[10px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold transition-all duration-200 flex items-center gap-1.5 shrink-0",
               isCockpit
                 ? "bg-gradient-to-r from-gold/25 via-gold/15 to-gold/20 text-gold border border-gold/40 shadow-[0_0_12px_rgba(207,163,73,0.2)]"
                 : "text-silver/60 hover:text-white hover:bg-white/5"
             )}
           >
             <Gauge size={11} className={cn(isCockpit ? "text-gold" : "text-silver/50")} />
-            <span>Cockpit HUD</span>
+            <span>Cockpit</span>
           </Link>
 
           <Link
             href="/dashboard/intelligence"
             className={cn(
-              "px-2.5 py-1 rounded-[10px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold transition-all duration-200 flex items-center gap-1.5",
+              "px-2.5 py-1 rounded-[10px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold transition-all duration-200 flex items-center gap-1.5 shrink-0",
               isMissionControl
                 ? "bg-gradient-to-r from-gold/25 via-gold/15 to-gold/20 text-gold border border-gold/40 shadow-[0_0_12px_rgba(207,163,73,0.2)]"
                 : "text-silver/60 hover:text-white hover:bg-white/5"
             )}
           >
             <Sparkles size={11} className={cn(isMissionControl ? "text-gold" : "text-silver/50")} />
-            <span>Mission Control</span>
+            <span>Mission</span>
           </Link>
 
           <Link
             href="/debug"
             className={cn(
-              "px-2.5 py-1 rounded-[10px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold transition-all duration-200 flex items-center gap-1.5",
-              pathname === "/debug"
+              "px-2.5 py-1 rounded-[10px] text-[10px] font-mono uppercase tracking-[0.14em] font-bold transition-all duration-200 flex items-center gap-1.5 shrink-0",
+              isObservability
                 ? "bg-gradient-to-r from-gold/25 via-gold/15 to-gold/20 text-gold border border-gold/40 shadow-[0_0_12px_rgba(207,163,73,0.2)]"
                 : "text-silver/60 hover:text-white hover:bg-white/5"
             )}
           >
-            <Activity size={11} className={cn(pathname === "/debug" ? "text-gold" : "text-silver/50")} />
-            <span>Observability</span>
+            <Activity size={11} className={cn(isObservability ? "text-gold" : "text-silver/50")} />
+            <span className="hidden xl:inline">Observability</span>
+            <span className="xl:hidden">Debug</span>
           </Link>
         </div>
       </div>
 
       {/* ── CENTER: Telemetry & Session Status Capsule ─────────────────── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 shrink-0">
         {/* Race Flag & Session Timer Capsule */}
         <div className="flex items-center gap-2.5 px-3 py-1 rounded-xl bg-white/[0.03] ring-1 ring-white/[0.08] shadow-[inset_0_1px_1px_rgba(255,255,255,0.04)]">
           <div className="relative flex items-center justify-center w-2.5 h-2.5">
@@ -319,6 +335,16 @@ export function StatusBar({ demoTime = true }: { demoTime?: boolean }) {
               isLive ? "bg-emerald-400" : "bg-amber-400 animate-ping"
             )}
           />
+        </button>
+
+        {/* FIA Classification & Race Results Button */}
+        <button
+          onClick={() => useUxStore.getState().openFinalClassification()}
+          className="px-2 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-amber-300 hover:text-amber-200 text-[9px] font-mono tracking-[0.14em] uppercase transition-all duration-150 active:scale-95 flex items-center gap-1 cursor-pointer"
+          title="Official FIA Final Classification & Points (Packet 8)"
+        >
+          <Trophy size={11} className="text-amber-400" />
+          <span className="hidden sm:inline">RESULTS</span>
         </button>
 
         {/* Platform Guide & Hotkey Manual Button */}

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePrefs } from "@/lib/cockpit/preferences";
+import { useUxStore } from "@/store/uxStore";
 
 interface HotkeyOptions {
   onToggleCommandPalette?: () => void;
@@ -72,6 +73,16 @@ export function useWorkstationHotkeys(options: HotkeyOptions = {}) {
         } else if (e.key === "?" || e.key.toLowerCase() === "h") {
           e.preventDefault();
           options.onToggleGuideModal?.();
+        } else if (e.key.toLowerCase() === "p") {
+          e.preventDefault();
+          const state = useUxStore.getState();
+          if (state.isPuModalOpen) state.closePuModal();
+          else state.openPuModal();
+        } else if (e.key.toLowerCase() === "r") {
+          e.preventDefault();
+          const state = useUxStore.getState();
+          if (state.isFinalClassificationOpen) state.closeFinalClassification();
+          else state.openFinalClassification();
         } else if (e.key.toLowerCase() === "m") {
           // Cycle motion
           const next = motion === "full" ? "reduced" : motion === "reduced" ? "off" : "full";

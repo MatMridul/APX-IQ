@@ -147,7 +147,7 @@ export const SectorApexMatrix: React.FC<SectorApexMatrixProps> = ({
                 >
                   {item.corner}
                 </span>
-                <span className={cn("text-[11px] truncate max-w-[110px]", isCornerActive ? "text-white font-bold" : "text-neutral-300")}>
+                <span className={cn("text-[11px] truncate max-w-[200px]", isCornerActive ? "text-white font-bold" : "text-neutral-300")}>
                   {item.name}
                 </span>
               </div>

@@ -1,0 +1,129 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   APX IQ — Authentic Motorsport Carbon Fibre & Composite Materials Engine
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Carbon Composite Tones */
+  --carbon-950: #0a0b0e;
+  --carbon-900: #101217;
+  --carbon-850: #151820;
+  --carbon-800: #1a1e28;
+  --carbon-700: #262c3a;
+  --carbon-600: #353d4f;
+  
+  /* Titanium & Metallic Fasteners */
+  --titanium-100: #f1f5f9;
+  --titanium-300: #cbd5e1;
+  --titanium-400: #94a3b8;
+  --titanium-500: #64748b;
+  --titanium-border: rgba(203, 213, 225, 0.12);
+  --titanium-border-highlight: rgba(255, 255, 255, 0.22);
+
+  /* APX Monaco Gold */
+  --gold-primary: #d4af37;
+  --gold-glow: rgba(212, 175, 55, 0.35);
+  --gold-border: rgba(212, 175, 55, 0.3);
+
+  /* Aero Cyan & Delta Purple */
+  --aero-cyan: #00f5d4;
+  --aero-cyan-glow: rgba(0, 245, 212, 0.3);
+  --delta-purple: #a855f7;
+  --delta-purple-glow: rgba(168, 85, 247, 0.35);
+}
+
+/* 1. Authentic 2x2 Twill Weave Carbon Fibre */
+.bg-carbon-twill {
+  background-color: #0c0e12;
+  background-image: 
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.04) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.04) 75%),
+    radial-gradient(ellipse at 50% 0%, rgba(25, 30, 42, 0.6) 0%, rgba(10, 11, 14, 0.95) 100%);
+  background-size: 16px 16px, 16px 16px, 16px 16px, 16px 16px, 100% 100%;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px, 0 0;
+}
+
+/* 2. Micro Carbon Monocoque Chassis (Deep, Fine Grain) */
+.bg-carbon-chassis {
+  background-color: #0e1015;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 2px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.015) 0px,
+      rgba(255, 255, 255, 0.015) 1px,
+      transparent 1px,
+      transparent 2px
+    ),
+    radial-gradient(circle at 50% 20%, rgba(26, 31, 44, 0.5) 0%, #0a0b0e 90%);
+}
+
+/* 3. Forged Carbon Composite (Satin Flake Texture) */
+.bg-carbon-forged {
+  background-color: #12151c;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.02) 0%, transparent 40%),
+    linear-gradient(135deg, rgba(20, 24, 34, 0.95) 0%, rgba(12, 14, 19, 0.98) 100%);
+}
+
+/* 4. Carbon Composite Surface & Panel Architecture */
+.carbon-panel {
+  position: relative;
+  background: linear-gradient(145deg, rgba(22, 26, 36, 0.75) 0%, rgba(13, 15, 21, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.16);
+  border-bottom-color: rgba(0, 0, 0, 0.6);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 30px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 1rem;
+}
+
+.carbon-panel-interactive {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.carbon-panel-interactive:hover {
+  border-color: rgba(212, 175, 55, 0.4);
+  border-top-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 14px 40px rgba(0, 0, 0, 0.9),
+    0 0 20px rgba(212, 175, 55, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 5. Laser Beam Dividing Accents */
+.laser-beam-gold {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.8) 50%, transparent 100%);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+.laser-beam-cyan {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 245, 212, 0.8) 50%, transparent 100%);
+  box-shadow: 0 0 10px rgba(0, 245, 212, 0.5);
+}
+
+.laser-beam-purple {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(168, 85, 247, 0.8) 50%, transparent 100%);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+}
+
+/* 6. Titanium Bezel Trim */
+.titanium-bezel {
+  border: 1px solid var(--titanium-border);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}

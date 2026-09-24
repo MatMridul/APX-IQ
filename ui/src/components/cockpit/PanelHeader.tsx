@@ -13,7 +13,7 @@ export function PanelHeader({
   right,
   className = "",
 }: {
-  label: string;
+  label: React.ReactNode;
   right?: React.ReactNode;
   className?: string;
 }) {

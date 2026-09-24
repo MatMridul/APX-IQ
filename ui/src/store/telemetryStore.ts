@@ -24,6 +24,7 @@ import type {
   EventData,
   TyreSetsData,
   TimeTrialData,
+  FinalClassificationData,
   HistoryPoint,
   DerivedMetrics,
 } from "@/hooks/useTelemetry";
@@ -57,10 +58,11 @@ interface TelemetryState {
   carSetups:      CarSetupsData      | null;
   motionEx:       MotionExData       | null;
   event:          EventData          | null;
-  tyreSets:       TyreSetsData       | null;
-  timeTrial:      TimeTrialData      | null;
-  isConnected:    boolean;
-  gameVersion:    string | null;
+  tyreSets:            TyreSetsData            | null;
+  timeTrial:           TimeTrialData           | null;
+  finalClassification: FinalClassificationData | null;
+  isConnected:         boolean;
+  gameVersion:         string | null;
 
   history:  HistoryPoint[];
   derived:  DerivedMetrics;
@@ -77,51 +79,54 @@ interface TelemetryState {
   setCarSetups:      (d: CarSetupsData)      => void;
   setMotionEx:       (d: MotionExData)       => void;
   setEvent:          (d: EventData)          => void;
-  setTyreSets:       (d: TyreSetsData)       => void;
-  setTimeTrial:      (d: TimeTrialData)      => void;
-  setIsConnected:    (v: boolean)            => void;
-  setGameVersion:    (v: string)             => void;
-  pushHistory:       (p: HistoryPoint)       => void;
-  setDerived:        (d: DerivedMetrics)     => void;
+  setTyreSets:            (d: TyreSetsData)            => void;
+  setTimeTrial:           (d: TimeTrialData)           => void;
+  setFinalClassification: (d: FinalClassificationData) => void;
+  setIsConnected:         (v: boolean)                 => void;
+  setGameVersion:         (v: string)                  => void;
+  pushHistory:            (p: HistoryPoint)            => void;
+  setDerived:             (d: DerivedMetrics)          => void;
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
 export const useTelemetryStore = create<TelemetryState>((set) => ({
-  telemetry:      null,
-  lapData:        null,
-  session:        null,
-  carStatus:      null,
-  motion:         null,
-  participants:   [],
-  carDamage:      null,
-  sessionHistory: null,
-  carSetups:      null,
-  motionEx:       null,
-  event:          null,
-  tyreSets:       null,
-  timeTrial:      null,
-  isConnected:    false,
-  gameVersion:    null,
-  history:        [],
-  derived:        initialDerived,
+  telemetry:           null,
+  lapData:             null,
+  session:             null,
+  carStatus:           null,
+  motion:              null,
+  participants:        [],
+  carDamage:           null,
+  sessionHistory:      null,
+  carSetups:           null,
+  motionEx:            null,
+  event:               null,
+  tyreSets:            null,
+  timeTrial:           null,
+  finalClassification: null,
+  isConnected:         false,
+  gameVersion:         null,
+  history:             [],
+  derived:             initialDerived,
 
-  setTelemetry:      (telemetry)      => set({ telemetry }),
-  setLapData:        (lapData)        => set({ lapData }),
-  setSession:        (session)        => set({ session }),
-  setCarStatus:      (carStatus)      => set({ carStatus }),
-  setMotion:         (motion)         => set({ motion }),
-  setParticipants:   (participants)   => set({ participants }),
-  setCarDamage:      (carDamage)      => set({ carDamage }),
-  setSessionHistory: (sessionHistory) => set({ sessionHistory }),
-  setCarSetups:      (carSetups)      => set({ carSetups }),
-  setMotionEx:       (motionEx)       => set({ motionEx }),
-  setEvent:          (event)          => set({ event }),
-  setTyreSets:       (tyreSets)       => set({ tyreSets }),
-  setTimeTrial:      (timeTrial)      => set({ timeTrial }),
-  setIsConnected:    (isConnected)    => set({ isConnected }),
-  setGameVersion:    (gameVersion)    => set({ gameVersion }),
-  setDerived:        (derived)        => set({ derived }),
+  setTelemetry:           (telemetry)           => set({ telemetry }),
+  setLapData:             (lapData)             => set({ lapData }),
+  setSession:             (session)             => set({ session }),
+  setCarStatus:           (carStatus)           => set({ carStatus }),
+  setMotion:              (motion)              => set({ motion }),
+  setParticipants:        (participants)        => set({ participants }),
+  setCarDamage:           (carDamage)           => set({ carDamage }),
+  setSessionHistory:      (sessionHistory)      => set({ sessionHistory }),
+  setCarSetups:           (carSetups)           => set({ carSetups }),
+  setMotionEx:            (motionEx)            => set({ motionEx }),
+  setEvent:               (event)               => set({ event }),
+  setTyreSets:            (tyreSets)            => set({ tyreSets }),
+  setTimeTrial:           (timeTrial)           => set({ timeTrial }),
+  setFinalClassification: (finalClassification) => set({ finalClassification }),
+  setIsConnected:         (isConnected)         => set({ isConnected }),
+  setGameVersion:         (gameVersion)         => set({ gameVersion }),
+  setDerived:             (derived)             => set({ derived }),
 
   pushHistory: (point) =>
     set((state) => ({

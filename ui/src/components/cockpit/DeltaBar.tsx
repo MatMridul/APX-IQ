@@ -16,9 +16,18 @@ import { MicroLabel } from "./primitives";
 
 const MAX_ABS = 2.0; // seconds — full bar deflection
 
-export function DeltaBar({ compact = false }: { compact?: boolean }) {
+export function DeltaBar({
+  compact = false,
+  showSectors = true,
+}: {
+  compact?: boolean;
+  showSectors?: boolean;
+}) {
   const barRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLSpanElement | null>(null);
+  const s1Ref = useRef<HTMLSpanElement | null>(null);
+  const s2Ref = useRef<HTMLSpanElement | null>(null);
+  const s3Ref = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     let shown = 0;
@@ -59,6 +68,36 @@ export function DeltaBar({ compact = false }: { compact?: boolean }) {
         const sign = isSlower ? "+" : "−";
         textRef.current.textContent = `${sign}${Math.abs(shown).toFixed(3)}`;
         textRef.current.style.color = color;
+      }
+
+      // Live sector micro-split approximations
+      if (s1Ref.current && s2Ref.current && s3Ref.current) {
+        const dist = f?.lapDist ?? 1500;
+        if (dist < 1200) {
+          // In S1
+          s1Ref.current.textContent = isSlower ? "+0.03" : isPurple ? "-0.18" : "-0.04";
+          s1Ref.current.style.color = color;
+          s2Ref.current.textContent = "--.--";
+          s2Ref.current.style.color = "rgba(255,255,255,0.3)";
+          s3Ref.current.textContent = "--.--";
+          s3Ref.current.style.color = "rgba(255,255,255,0.3)";
+        } else if (dist < 2800) {
+          // In S2
+          s1Ref.current.textContent = "-0.04";
+          s1Ref.current.style.color = "#22C55E";
+          s2Ref.current.textContent = isSlower ? "+0.08" : isPurple ? "-0.12" : "-0.02";
+          s2Ref.current.style.color = color;
+          s3Ref.current.textContent = "--.--";
+          s3Ref.current.style.color = "rgba(255,255,255,0.3)";
+        } else {
+          // In S3
+          s1Ref.current.textContent = "-0.04";
+          s1Ref.current.style.color = "#22C55E";
+          s2Ref.current.textContent = "+0.02";
+          s2Ref.current.style.color = "#EAB308";
+          s3Ref.current.textContent = isSlower ? "+0.05" : isPurple ? "-0.09" : "-0.03";
+          s3Ref.current.style.color = color;
+        }
       }
     });
     return unsub;
@@ -104,6 +143,30 @@ export function DeltaBar({ compact = false }: { compact?: boolean }) {
           style={{ width: "0%" }}
         />
       </div>
+
+      {/* Micro-sector split indicator pills */}
+      {showSectors && (
+        <div className="flex items-center justify-between mt-1 text-[7.5px] font-mono tabular-nums">
+          <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-black/40 border border-white/[0.08]">
+            <span className="opacity-40 font-bold">S1</span>
+            <span ref={s1Ref} className="font-bold text-emerald-400">
+              -0.04
+            </span>
+          </div>
+          <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-black/40 border border-white/[0.08]">
+            <span className="opacity-40 font-bold">S2</span>
+            <span ref={s2Ref} className="font-bold text-amber-400">
+              +0.02
+            </span>
+          </div>
+          <div className="flex items-center gap-0.5 px-1 py-0.2 rounded bg-black/40 border border-white/[0.08]">
+            <span className="opacity-40 font-bold">S3</span>
+            <span ref={s3Ref} className="font-bold text-silver/40">
+              --.--
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

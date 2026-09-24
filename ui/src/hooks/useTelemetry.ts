@@ -71,6 +71,16 @@ export type SessionData = {
   networkGame?:     boolean;
   formula?:         number;
   aiDifficulty?:    number;
+  weatherForecastSamples?: {
+    sessionType:     number;
+    timeOffset:      number;
+    weather:         number;
+    trackTemp:       number;
+    trackTempChange: number;
+    airTemp:         number;
+    airTempChange:   number;
+    rainPercentage:  number;
+  }[];
 };
 
 export type CarStatusData = {
@@ -220,6 +230,14 @@ export type MotionExData = {
   angularAccelerationY?:   number;
   angularAccelerationZ?:   number;
   frontWheelsAngle?:       number;
+  wheelVertForce?:         number[]; // [RL, RR, FL, FR] vertical force (N)
+  frontAeroHeight?:        number;   // mm
+  rearAeroHeight?:         number;   // mm
+  frontRollAngle?:         number;   // rad
+  rearRollAngle?:          number;   // rad
+  chassisYaw?:             number;   // rad
+  chassisPitch?:           number;   // rad
+  wheelCamber?:            number[]; // [RL, RR, FL, FR]
 };
 
 export type EventData = {
@@ -281,6 +299,26 @@ export type TimeTrialData = {
   rival?:             TimeTrialItem | null;
 };
 
+export type FinalClassificationItem = {
+  carIndex:      number;
+  position:      number;
+  numLaps:       number;
+  gridPosition:  number;
+  points:        number;
+  numPitStops:   number;
+  resultStatus:  number;
+  bestLapTimeMs: number;
+  totalRaceTime: number;
+  penaltiesTime: number;
+  numPenalties:  number;
+  numTyreStints: number;
+};
+
+export type FinalClassificationData = {
+  numCars:        number;
+  classification: FinalClassificationItem[];
+};
+
 
 export type HistoryPoint = {
 
@@ -327,8 +365,9 @@ export function useTelemetry() {
   const setupRef     = useRef<CarSetupsData      | null>(null);
   const motExRef     = useRef<MotionExData       | null>(null);
   const eventRef     = useRef<EventData          | null>(null);
-  const tyreSetsRef  = useRef<TyreSetsData       | null>(null);
-  const timeTrialRef = useRef<TimeTrialData      | null>(null);
+  const tyreSetsRef            = useRef<TyreSetsData            | null>(null);
+  const timeTrialRef           = useRef<TimeTrialData           | null>(null);
+  const finalClassificationRef = useRef<FinalClassificationData | null>(null);
 
   // Session-level accumulators (survive re-renders)
   const sessionMaxSpeed = useRef(0);
@@ -440,46 +479,49 @@ export function useTelemetry() {
     const onCarSetups      = (d: CarSetupsData)      => { setupRef.current     = d; };
     const onMotionEx       = (d: MotionExData)       => { motExRef.current     = d; };
     const onEvent          = (d: EventData)          => { eventRef.current     = d; };
-    const onTyreSets       = (d: TyreSetsData)       => { tyreSetsRef.current  = d; };
-    const onTimeTrial      = (d: TimeTrialData)      => { timeTrialRef.current = d; };
-    const onVersion        = (d: { version: string }) => setGameVersion(d.version);
+    const onTyreSets            = (d: TyreSetsData)            => { tyreSetsRef.current            = d; };
+    const onTimeTrial           = (d: TimeTrialData)           => { timeTrialRef.current           = d; };
+    const onFinalClassification = (d: FinalClassificationData) => { finalClassificationRef.current = d; };
+    const onVersion             = (d: { version: string })     => setGameVersion(d.version);
 
-    socket.on("connect",                onConnect);
-    socket.on("disconnect",             onDisconnect);
-    socket.on("telemetry_update",       onTelemetry);
-    socket.on("lap_update",             onLap);
-    socket.on("session_update",         onSession);
-    socket.on("car_status_update",      onCarStatus);
-    socket.on("motion_update",          onMotion);
-    socket.on("participants_update",    onParticipants);
-    socket.on("car_damage_update",      onCarDamage);
-    socket.on("session_history_update", onSessionHistory);
-    socket.on("car_setups_update",      onCarSetups);
-    socket.on("motion_ex_update",       onMotionEx);
-    socket.on("event_update",           onEvent);
-    socket.on("tyre_sets_update",       onTyreSets);
-    socket.on("time_trial_update",      onTimeTrial);
-    socket.on("game_version",           onVersion);
+    socket.on("connect",                   onConnect);
+    socket.on("disconnect",                onDisconnect);
+    socket.on("telemetry_update",          onTelemetry);
+    socket.on("lap_update",                onLap);
+    socket.on("session_update",            onSession);
+    socket.on("car_status_update",         onCarStatus);
+    socket.on("motion_update",             onMotion);
+    socket.on("participants_update",       onParticipants);
+    socket.on("car_damage_update",         onCarDamage);
+    socket.on("session_history_update",    onSessionHistory);
+    socket.on("car_setups_update",         onCarSetups);
+    socket.on("motion_ex_update",          onMotionEx);
+    socket.on("event_update",              onEvent);
+    socket.on("tyre_sets_update",          onTyreSets);
+    socket.on("time_trial_update",         onTimeTrial);
+    socket.on("final_classification_update", onFinalClassification);
+    socket.on("game_version",              onVersion);
 
     if (socket.connected) setIsConnected(true);
 
     return () => {
-      socket.off("connect",                onConnect);
-      socket.off("disconnect",             onDisconnect);
-      socket.off("telemetry_update",       onTelemetry);
-      socket.off("lap_update",             onLap);
-      socket.off("session_update",         onSession);
-      socket.off("car_status_update",      onCarStatus);
-      socket.off("motion_update",          onMotion);
-      socket.off("participants_update",    onParticipants);
-      socket.off("car_damage_update",      onCarDamage);
-      socket.off("session_history_update", onSessionHistory);
-      socket.off("car_setups_update",      onCarSetups);
-      socket.off("motion_ex_update",       onMotionEx);
-      socket.off("event_update",           onEvent);
-      socket.off("tyre_sets_update",       onTyreSets);
-      socket.off("time_trial_update",      onTimeTrial);
-      socket.off("game_version",           onVersion);
+      socket.off("connect",                   onConnect);
+      socket.off("disconnect",                onDisconnect);
+      socket.off("telemetry_update",          onTelemetry);
+      socket.off("lap_update",                onLap);
+      socket.off("session_update",            onSession);
+      socket.off("car_status_update",         onCarStatus);
+      socket.off("motion_update",             onMotion);
+      socket.off("participants_update",       onParticipants);
+      socket.off("car_damage_update",         onCarDamage);
+      socket.off("session_history_update",    onSessionHistory);
+      socket.off("car_setups_update",         onCarSetups);
+      socket.off("motion_ex_update",          onMotionEx);
+      socket.off("event_update",              onEvent);
+      socket.off("tyre_sets_update",          onTyreSets);
+      socket.off("time_trial_update",         onTimeTrial);
+      socket.off("final_classification_update", onFinalClassification);
+      socket.off("game_version",              onVersion);
     };
   }, [socket]);
 
@@ -491,7 +533,7 @@ export function useTelemetry() {
       const {
         setTelemetry, setLapData, setSession, setCarStatus,
         setMotion, setParticipants, setCarDamage, setSessionHistory,
-        setCarSetups, setMotionEx, setEvent, setTyreSets, setTimeTrial,
+        setCarSetups, setMotionEx, setEvent, setTyreSets, setTimeTrial, setFinalClassification,
         pushHistory, setDerived,
       } = store.getState();
 
@@ -508,6 +550,7 @@ export function useTelemetry() {
       const eventPkt  = eventRef.current;
       const tyreSets  = tyreSetsRef.current;
       const timeTrial = timeTrialRef.current;
+      const fc        = finalClassificationRef.current;
 
       if (cur) {
         const point: HistoryPoint = {
@@ -535,6 +578,7 @@ export function useTelemetry() {
       if (eventPkt)  setEvent(eventPkt);
       if (tyreSets)  setTyreSets(tyreSets);
       if (timeTrial) setTimeTrial(timeTrial);
+      if (fc)        setFinalClassification(fc);
 
       frameId = requestAnimationFrame(loop);
     };

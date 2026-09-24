@@ -476,13 +476,13 @@ export function CentralTelemetry() {
       <div
         className="relative flex items-center justify-center"
         data-testid="wheel-cluster"
-        style={{ aspectRatio: "620/350", width: "100%", height: "100%", maxWidth: "100%" }}
+        style={{ aspectRatio: "720/350", width: "100%", height: "100%", maxWidth: "100%" }}
       >
         {/* ══════════════════════════════════════════════════════════════════
             1. AUTHENTIC WIDESCREEN F1 STEERING WHEEL MONOCOQUE (SVG CHASSIS)
         ══════════════════════════════════════════════════════════════════ */}
         <svg
-          viewBox="0 0 620 350"
+          viewBox="0 0 720 350"
           className="absolute inset-0 w-full h-full drop-shadow-[0_22px_45px_rgba(0,0,0,0.95)] z-20 pointer-events-auto"
           aria-label="F1 Racing Steering Wheel"
         >
@@ -556,23 +556,23 @@ export function CentralTelemetry() {
             pointerEvents="auto"
           >
             <path
-              d="M 44 72 C 14 96 8 152 14 196 C 16 210 28 218 42 212 L 70 200 L 74 82 Z"
+              d="M 38 72 C 8 96 2 152 8 196 C 10 210 22 218 36 212 L 64 200 L 68 82 Z"
               fill="url(#paddle-carbon)"
               stroke="rgba(207,163,73,0.5)"
               strokeWidth="1.4"
               className="group-hover:brightness-125 transition-all"
             />
             <path
-              d="M 40 78 C 18 100 14 150 18 190 C 20 200 28 206 38 202 L 58 194"
+              d="M 34 78 C 12 100 8 150 12 190 C 14 200 22 206 32 202 L 52 194"
               fill="none"
               stroke="rgba(255,255,255,0.28)"
               strokeWidth="1.2"
             />
-            <line x1={18} y1={130} x2={34} y2={130} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={18} y1={145} x2={34} y2={145} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={18} y1={160} x2={34} y2={160} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={12} y1={130} x2={28} y2={130} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={12} y1={145} x2={28} y2={145} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={12} y1={160} x2={28} y2={160} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
             <text
-              x={25}
+              x={19}
               y={108}
               textAnchor="middle"
               fontSize="14"
@@ -595,23 +595,23 @@ export function CentralTelemetry() {
             pointerEvents="auto"
           >
             <path
-              d="M 576 72 C 606 96 612 152 606 196 C 604 210 592 218 578 212 L 550 200 L 546 82 Z"
+              d="M 682 72 C 712 96 718 152 712 196 C 710 210 698 218 684 212 L 656 200 L 652 82 Z"
               fill="url(#paddle-carbon)"
               stroke="rgba(207,163,73,0.5)"
               strokeWidth="1.4"
               className="group-hover:brightness-125 transition-all"
             />
             <path
-              d="M 580 78 C 602 100 606 150 602 190 C 600 200 592 206 582 202 L 562 194"
+              d="M 686 78 C 708 100 712 150 708 190 C 706 200 698 206 688 202 L 668 194"
               fill="none"
               stroke="rgba(255,255,255,0.28)"
               strokeWidth="1.2"
             />
-            <line x1={586} y1={130} x2={602} y2={130} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={586} y1={145} x2={602} y2={145} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1={586} y1={160} x2={602} y2={160} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={692} y1={130} x2={708} y2={130} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={692} y1={145} x2={708} y2={145} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
+            <line x1={692} y1={160} x2={708} y2={160} stroke="rgba(255,255,255,0.2)" strokeWidth="1.8" strokeLinecap="round" />
             <text
-              x={595}
+              x={701}
               y={108}
               textAnchor="middle"
               fontSize="14"
@@ -627,14 +627,14 @@ export function CentralTelemetry() {
           {/* ── ERGONOMIC SCULPTED ALCANTARA GRIPS ───────────────────────── */}
           {/* Left Grip: Molded Thumb Pocket & Ergonomic Waist */}
           <path
-            d="M 104 68 C 76 56 46 70 38 104 C 32 132 44 166 46 192 C 48 224 34 262 42 288 C 50 318 84 322 100 302 L 104 68 Z"
+            d="M 96 68 C 68 56 38 70 30 104 C 24 132 36 166 38 192 C 40 224 26 262 34 288 C 42 318 76 322 92 302 L 96 68 Z"
             fill="url(#grip-alcantara-l)"
             stroke="rgba(207,163,73,0.42)"
             strokeWidth="1.3"
           />
           {/* Right Grip: Molded Thumb Pocket & Ergonomic Waist */}
           <path
-            d="M 516 68 C 544 56 574 70 582 104 C 588 132 576 166 574 192 C 572 224 586 262 578 288 C 570 318 536 322 520 302 L 516 68 Z"
+            d="M 624 68 C 652 56 682 70 690 104 C 696 132 684 166 682 192 C 680 224 694 262 686 288 C 678 318 644 322 628 302 L 624 68 Z"
             fill="url(#grip-alcantara-r)"
             stroke="rgba(207,163,73,0.42)"
             strokeWidth="1.3"
@@ -643,15 +643,15 @@ export function CentralTelemetry() {
           {/* Ergonomic Alcantara Grip Finger Ribs & Stitches */}
           {[96, 122, 148, 174, 200, 226, 252, 276].map((gy) => (
             <g key={gy}>
-              <line x1={46} y1={gy} x2={96} y2={gy + 5} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
-              <line x1={524} y1={gy + 5} x2={574} y2={gy} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
+              <line x1={36} y1={gy} x2={90} y2={gy + 5} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
+              <line x1={630} y1={gy + 5} x2={684} y2={gy} stroke="rgba(255,255,255,0.08)" strokeWidth="2.2" strokeLinecap="round" />
             </g>
           ))}
 
           {/* ── CARBON FIBER CHASSIS MONOCOQUE ───────────────────────────── */}
           {/* Main Monocoque Body with Glare Visor Brow */}
           <path
-            d="M 104 52 C 180 34 440 34 516 52 L 524 252 C 488 306 438 332 410 332 L 210 332 C 182 332 132 306 96 252 Z"
+            d="M 96 52 C 200 34 520 34 624 52 L 632 252 C 586 306 508 332 470 332 L 250 332 C 212 332 134 306 88 252 Z"
             fill="url(#carbon-monocoque)"
             stroke="rgba(207,163,73,0.5)"
             strokeWidth="1.4"
@@ -659,7 +659,7 @@ export function CentralTelemetry() {
 
           {/* Anti-Glare Visor Eyebrow Hood Above Shift Lights */}
           <path
-            d="M 142 50 C 220 37 400 37 478 50 L 482 56 C 400 45 220 45 138 56 Z"
+            d="M 192 50 C 270 37 450 37 528 50 L 532 56 C 450 45 270 45 188 56 Z"
             fill="#090B10"
             stroke="rgba(207,163,73,0.3)"
             strokeWidth="0.8"
@@ -667,7 +667,7 @@ export function CentralTelemetry() {
 
           {/* Shift Light Recessed Channel Pocket (290px Wide) */}
           <rect
-            x="165"
+            x="215"
             y="54"
             width="290"
             height="22"
@@ -679,7 +679,7 @@ export function CentralTelemetry() {
 
           {/* ── LCD SCREEN MACHINED BEZEL HOUSING (290x156) ─────────────── */}
           <rect
-            x="165"
+            x="215"
             y="78"
             width="290"
             height="156"
@@ -692,10 +692,10 @@ export function CentralTelemetry() {
 
           {/* 4 Corner Precision Hex Torx Fasteners */}
           {[
-            [172, 85],
-            [448, 85],
-            [172, 227],
-            [448, 227],
+            [222, 85],
+            [498, 85],
+            [222, 227],
+            [498, 227],
           ].map(([fx, fy], idx) => (
             <g key={idx}>
               <circle cx={fx} cy={fy} r={2.2} fill="#141822" stroke="rgba(255,255,255,0.25)" strokeWidth="0.6" />
@@ -705,7 +705,7 @@ export function CentralTelemetry() {
 
           {/* ── AUTHENTIC PIT WALL REMINDER TAPE STICKER ─────────────────── */}
           <rect
-            x="210"
+            x="260"
             y="240"
             width="200"
             height="13"
@@ -715,7 +715,7 @@ export function CentralTelemetry() {
             strokeWidth="0.5"
           />
           <text
-            x="310"
+            x="360"
             y="249.5"
             textAnchor="middle"
             fontSize="6.5"
@@ -730,7 +730,7 @@ export function CentralTelemetry() {
           {/* ── TACTILE PUSHBUTTONS — LEFT CONTROL WING ───────────────────── */}
           {/* DRS Trigger Button (Upper Horn) */}
           <PushButton
-            x={124}
+            x={174}
             y={80}
             label="DRS"
             sublabel="AERO"
@@ -744,7 +744,7 @@ export function CentralTelemetry() {
 
           {/* RAD (Radio Check) Button */}
           <PushButton
-            x={104}
+            x={154}
             y={118}
             label="RAD"
             color="#475569"
@@ -754,7 +754,7 @@ export function CentralTelemetry() {
 
           {/* Guarded Neutral (N) Button */}
           <PushButton
-            x={132}
+            x={182}
             y={118}
             label="N"
             color="#EAB308"
@@ -766,7 +766,7 @@ export function CentralTelemetry() {
 
           {/* Vertical Differential Entry Thumbwheel */}
           <ThumbWheel
-            x={148}
+            x={198}
             y={186}
             label="DIFF IN"
             value={`${diffEntry}%`}
@@ -777,7 +777,7 @@ export function CentralTelemetry() {
 
           {/* Brake Bias Fast Toggles (BB- / BB+) */}
           <PushButton
-            x={94}
+            x={144}
             y={166}
             label="BB−"
             color="#DC2626"
@@ -785,7 +785,7 @@ export function CentralTelemetry() {
             onClick={() => adjustBrakeBias(-0.5)}
           />
           <PushButton
-            x={120}
+            x={170}
             y={166}
             label="BB+"
             color="#16A34A"
@@ -795,7 +795,7 @@ export function CentralTelemetry() {
 
           {/* Fine Tuning Detents (+10 / +1) */}
           <PushButton
-            x={94}
+            x={144}
             y={212}
             label="+10"
             color="#1A1E28"
@@ -803,7 +803,7 @@ export function CentralTelemetry() {
             onClick={() => adjustBrakeBias(1.0)}
           />
           <PushButton
-            x={120}
+            x={170}
             y={212}
             label="+1"
             color="#1A1E28"
@@ -814,7 +814,7 @@ export function CentralTelemetry() {
           {/* ── TACTILE PUSHBUTTONS — RIGHT CONTROL WING ──────────────────── */}
           {/* OT (Overtake Boost) Button (Upper Horn) */}
           <PushButton
-            x={496}
+            x={546}
             y={80}
             label="OT"
             sublabel="PUSH"
@@ -826,7 +826,7 @@ export function CentralTelemetry() {
 
           {/* PC (Pit Confirm) Button */}
           <PushButton
-            x={488}
+            x={538}
             y={118}
             label="PC"
             color="#CBD5E1"
@@ -838,7 +838,7 @@ export function CentralTelemetry() {
 
           {/* PL (Pit Limiter) Button */}
           <PushButton
-            x={516}
+            x={566}
             y={118}
             label="PL"
             color="#DC2626"
@@ -849,7 +849,7 @@ export function CentralTelemetry() {
 
           {/* Vertical Differential Mid-Corner Thumbwheel */}
           <ThumbWheel
-            x={472}
+            x={522}
             y={186}
             label="DIFF MID"
             value={`${diffMid}%`}
@@ -860,7 +860,7 @@ export function CentralTelemetry() {
 
           {/* DRK (Hydration Drink) Button */}
           <PushButton
-            x={500}
+            x={550}
             y={166}
             label="DRK"
             color="#2563EB"
@@ -870,7 +870,7 @@ export function CentralTelemetry() {
 
           {/* MARK (Telemetry Bookmark) Button */}
           <PushButton
-            x={526}
+            x={576}
             y={166}
             label="MARK"
             color="#0D9488"
@@ -880,7 +880,7 @@ export function CentralTelemetry() {
 
           {/* WET (Rain Weather Map) Button */}
           <PushButton
-            x={500}
+            x={550}
             y={212}
             label="WET"
             color="#4F46E5"
@@ -890,7 +890,7 @@ export function CentralTelemetry() {
 
           {/* ENG (Engine Map) Button */}
           <PushButton
-            x={526}
+            x={576}
             y={212}
             label="ENG"
             color="#D97706"
@@ -900,7 +900,7 @@ export function CentralTelemetry() {
 
           {/* ── LOWER DECK TITANIUM ROTARIES (STRAT, MFD, HPP) ─────────────── */}
           <RotarySwitch
-            x={190}
+            x={240}
             y={286}
             label="STRAT"
             dotAngle={stratAngle}
@@ -909,7 +909,7 @@ export function CentralTelemetry() {
             onClick={() => cycleStrat()}
           />
           <RotarySwitch
-            x={310}
+            x={360}
             y={286}
             label="MFD"
             dotAngle={mfdAngle}
@@ -918,7 +918,7 @@ export function CentralTelemetry() {
             onClick={() => cycleMfdMode()}
           />
           <RotarySwitch
-            x={430}
+            x={480}
             y={286}
             label="HPP"
             dotAngle={hppAngle}
@@ -928,14 +928,14 @@ export function CentralTelemetry() {
           />
 
           {/* Center Quick-Release Boss with PCD Bolt Pattern */}
-          <circle cx={310} cy={330} r={8.0} fill="#0B0D12" stroke="rgba(207,163,73,0.5)" strokeWidth="1.2" />
-          <circle cx={310} cy={330} r={4.0} fill="#141822" stroke="rgba(207,163,73,0.3)" strokeWidth="0.8" />
+          <circle cx={360} cy={330} r={8.0} fill="#0B0D12" stroke="rgba(207,163,73,0.5)" strokeWidth="1.2" />
+          <circle cx={360} cy={330} r={4.0} fill="#141822" stroke="rgba(207,163,73,0.3)" strokeWidth="0.8" />
           {[0, 60, 120, 180, 240, 300].map((deg) => {
             const rad = (deg * Math.PI) / 180;
             return (
               <circle
                 key={`boss-bolt-${deg}`}
-                cx={310 + Math.cos(rad) * 6.2}
+                cx={360 + Math.cos(rad) * 6.2}
                 cy={330 + Math.sin(rad) * 6.2}
                 r={0.7}
                 fill="#FACC15"
@@ -950,9 +950,9 @@ export function CentralTelemetry() {
         <div
           className="absolute z-30 pointer-events-none"
           style={{
-            left: "26.6%",
+            left: "29.86%",
             top: "15.4%",
-            width: "46.8%",
+            width: "40.28%",
             height: "6.3%",
           }}
         >
@@ -965,9 +965,9 @@ export function CentralTelemetry() {
         <div
           className="absolute z-30 rounded-md overflow-hidden select-none pointer-events-auto"
           style={{
-            left: "26.6%",
+            left: "29.86%",
             top: "22.3%",
-            width: "46.8%",
+            width: "40.28%",
             height: "44.6%",
             background: "linear-gradient(180deg, #0C0E13 0%, #060709 100%)",
             border: isBooting ? "1px solid rgba(207,163,73,0.75)" : "1px solid rgba(120,140,180,0.25)",

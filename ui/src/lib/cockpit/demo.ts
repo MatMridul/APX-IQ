@@ -61,8 +61,8 @@ function speedAt(dist: number): number {
   return 200;
 }
 
-// Discrete gear speed bands (kph)
-const GEAR_BOUNDS = [0, 85, 125, 165, 205, 245, 280, 315, 360];
+// Discrete gear speed bands (kph) - calibrated to modern F1 turbo-hybrid 8-speed gearbox
+const GEAR_BOUNDS = [0, 90, 130, 170, 210, 248, 280, 305, 345];
 
 function getGear(speed: number): number {
   if (speed < 5) return 0;
@@ -78,12 +78,14 @@ function getRpm(speed: number, gear: number): { rpm: number; rpmPct: number } {
   const maxSpd = GEAR_BOUNDS[gear];
   const frac = Math.min(1, Math.max(0, (speed - minSpd) / Math.max(1, maxSpd - minSpd)));
   
-  // Powerband: 9,000 to 12,800 RPM (shift light territory at >11,800)
-  const minRpm = 8800;
-  const maxRpm = 12900;
-  const rpm = minRpm + (maxRpm - minRpm) * Math.pow(frac, 0.95);
-  const rpmPct = Math.min(1, Math.max(0, (rpm - minRpm) / (maxRpm - minRpm)));
-  return { rpm: Math.round(rpm), rpmPct };
+  // Powerband: 9,200 to 12,850 RPM
+  const minRpm = 9200;
+  const maxRpm = 12850;
+  const rpm = minRpm + (maxRpm - minRpm) * Math.pow(frac, 0.88);
+  
+  // Progressive shift light illumination across the gear powerband
+  const shiftPct = Math.min(1, Math.max(0, (frac - 0.15) / 0.75));
+  return { rpm: Math.round(rpm), rpmPct: shiftPct };
 }
 
 export function demoFrame(t: number): Frame {
@@ -114,9 +116,13 @@ export function demoFrame(t: number): Frame {
   } else if (dv > 2) {
     brake = 0;
     throttle = Math.min(1.0, Math.max(0.2, 0.4 + (dv / 35)));
+  } else if (speed > 220) {
+    // High-speed straight: full throttle
+    brake = 0;
+    throttle = 1.0;
   } else {
     brake = 0;
-    throttle = 0.25 + 0.1 * Math.sin(lapDist / 20);
+    throttle = 0.55 + 0.1 * Math.sin(lapDist / 20);
   }
 
   const gear = getGear(speed);

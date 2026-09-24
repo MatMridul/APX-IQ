@@ -8,16 +8,15 @@ import { LED_RAMP } from "@/design/system";
 import { usePrefs } from "@/lib/cockpit/preferences";
 
 /**
- * F1 shift-light engine — 15 LEDs, progressive green→red→blue fill,
- * limiter flash with hysteresis, upshift white blink (design/MOTION.md).
- * Canvas-rendered on the shared scheduler; React never re-renders for
- * light state.
+ * Authentic F1 Shift Light Array — 15 Precision High-Output LEDs
+ * 
+ * Progressive bank sequence:
+ *  - 5 Vivid Emerald Greens (Indices 0–4)
+ *  - 5 High-Visibility Reds (Indices 5–9)
+ *  - 5 Electric Blues (Indices 10–14)
+ *  - Full limiter white-out strobe with hysteresis
  *
- * Layouts: straight row (default) or `arc` — LEDs curved over the gear
- * digit like a real wheel face.
- *
- * Motion levels: off → steady fill, no flashes; reduced → flashes
- * become steady highlight, no glow; full → everything.
+ * Canvas-rendered on the shared 60 Hz scheduler; React never re-renders for light state.
  */
 
 const N = 15;
@@ -87,7 +86,7 @@ export function ShiftLights({
 
     const litCount = Math.round(revLightsPct * N);
 
-    // LED centers — straight row or arc (real wheel: LEDs curve over gear)
+    // LED centers with authentic F1 bank grouping (5 Greens, 5 Reds, 5 Blues)
     const centers: Array<{ x: number; y: number; d: number }> = [];
     if (arc) {
       const R = h * 2.9;
@@ -100,42 +99,78 @@ export function ShiftLights({
         centers.push({ x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, d });
       }
     } else {
-      const pad = 4;
-      const gap = 5;
-      const d = Math.max(1, Math.min((w - pad * 2 - gap * (N - 1)) / N, h - 6));
-      const total = d * N + gap * (N - 1);
-      const x0 = (w - total) / 2;
+      const d = Math.max(6, Math.min(10.5, h - 8));
+      const regularGap = 4;
+      const groupGap = 9; // authentic bank separation
+      
+      let totalWidth = 0;
       for (let i = 0; i < N; i++) {
-        centers.push({ x: x0 + i * (d + gap) + d / 2, y: h / 2, d });
+        totalWidth += d;
+        if (i < N - 1) totalWidth += (i === 4 || i === 9) ? groupGap : regularGap;
+      }
+      
+      let currentX = (w - totalWidth) / 2;
+      for (let i = 0; i < N; i++) {
+        centers.push({ x: currentX + d / 2, y: h / 2, d });
+        currentX += d + ((i === 4 || i === 9) ? groupGap : regularGap);
       }
     }
 
     for (let i = 0; i < N; i++) {
       const [r, g, b] = ledColor(i);
       const { x, y, d } = centers[i];
+      const radius = d / 2;
 
-      let fill: string;
+      const isLit = i < litCount;
+      const isShiftAlert = limiterOn.current || upshift;
+
+      // Outer CNC Bezel Collar
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 1.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#0A0D14";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // Recessed Lens Cavity
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#040507";
+      ctx.fill();
+
+      // Core Lens Fill & Bloom
+      let coreColor: string;
       let glow = 0;
 
-      if (limiterOn.current || upshift) {
-        fill = flashOn ? LED_RAMP.white : `rgba(248,250,252,${LED_RAMP.unlitAlpha})`;
-        glow = flashOn && level === "full" ? 14 : 0;
-      } else if (i < litCount) {
-        fill = `rgb(${r},${g},${b})`;
-        glow = level === "full" && i >= litCount - 3 ? 8 : 0;
+      if (isShiftAlert) {
+        coreColor = flashOn ? "#FFFFFF" : "rgba(240, 245, 255, 0.22)";
+        glow = flashOn ? 16 : 0;
+      } else if (isLit) {
+        coreColor = `rgb(${r}, ${g}, ${b})`;
+        glow = 12;
       } else {
-        fill = `rgba(${r},${g},${b},${LED_RAMP.unlitAlpha})`;
+        coreColor = `rgba(${r}, ${g}, ${b}, 0.24)`;
       }
 
       ctx.beginPath();
-      ctx.arc(x, y, d / 2, 0, Math.PI * 2);
-      ctx.fillStyle = fill;
-      ctx.fill();
-      if (glow > 0) {
-        ctx.shadowColor = fill;
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = coreColor;
+      if (glow > 0 && level === "full") {
+        ctx.shadowColor = coreColor;
         ctx.shadowBlur = glow;
+      }
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Specular Reflection Dome Highlight
+      if (radius > 3) {
+        ctx.beginPath();
+        ctx.arc(x - radius * 0.3, y - radius * 0.3, radius * 0.32, 0, Math.PI * 2);
+        ctx.fillStyle = isLit || (isShiftAlert && flashOn)
+          ? "rgba(255, 255, 255, 0.8)"
+          : "rgba(255, 255, 255, 0.22)";
         ctx.fill();
-        ctx.shadowBlur = 0;
       }
     }
   });

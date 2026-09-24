@@ -12,14 +12,41 @@ async function main() {
   await bbPlus.click();
   await page.waitForTimeout(200);
   await bbPlus.click();
-  await page.waitForTimeout(200);
-
-  // Click DRS button
+  // Click DRS button to activate aerodynamic halo
   const drsBtn = wheel.locator("text=DRS");
   await drsBtn.click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(500);
+
+  // Screenshot 1: RACE Mode with new paddles & DRS halo
   await wheel.screenshot({ path: "screenshot_wheel_focused.png" });
-  console.log("Saved screenshot_wheel_focused.png after click interactions");
+  console.log("Saved screenshot_wheel_focused.png");
+
+  // Click MFD to switch to QUALY mode
+  const mfdRotary = wheel.locator("text=MFD");
+  await mfdRotary.click();
+  await page.waitForTimeout(300);
+  await wheel.screenshot({ path: "screenshot_wheel_qualy.png" });
+  console.log("Saved screenshot_wheel_qualy.png");
+
+  // Click MFD to switch to TYRES mode
+  await mfdRotary.click();
+  await page.waitForTimeout(300);
+  await wheel.screenshot({ path: "screenshot_wheel_tyres.png" });
+  console.log("Saved screenshot_wheel_tyres.png");
+
+  // Click MFD to switch to CHASSIS mode
+  await mfdRotary.click();
+  await page.waitForTimeout(300);
+  await wheel.screenshot({ path: "screenshot_wheel_chassis.png" });
+  console.log("Saved screenshot_wheel_chassis.png");
+
+  // Click PL to test Pit Limiter overlay
+  const plBtn = wheel.locator("text=PL");
+  await plBtn.click();
+  await page.waitForTimeout(300);
+  await wheel.screenshot({ path: "screenshot_wheel_pitlimiter.png" });
+  console.log("Saved screenshot_wheel_pitlimiter.png");
+
   await browser.close();
 }
 

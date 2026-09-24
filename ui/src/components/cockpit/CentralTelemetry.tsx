@@ -52,75 +52,127 @@ function PushButton({
   sublabel?: string;
   radius?: number;
 }) {
+  const [isPressed, setIsPressed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [flashFeedback, setFlashFeedback] = useState(false);
+
   const capRadius = radius - 3.7;
   const fontSize = label.length > 3 ? (radius > 14 ? "6.8" : "6.2") : (radius > 14 ? "7.8" : "7.2");
+
+  const handleClick = () => {
+    soundFx.playButtonClick();
+    setFlashFeedback(true);
+    setTimeout(() => setFlashFeedback(false), 220);
+    onClick?.();
+  };
+
   return (
     <g
-      onClick={() => {
-        soundFx.playButtonClick();
-        onClick?.();
+      onClick={handleClick}
+      onMouseDown={() => setIsPressed(true)}
+      onMouseUp={() => setIsPressed(false)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setIsPressed(false);
       }}
       pointerEvents="auto"
-      className={cn(
-        "cursor-pointer transition-transform duration-75 hover:scale-105 active:scale-90 origin-center select-none",
-        active && "animate-pulse"
-      )}
+      className="cursor-pointer select-none"
     >
-      {/* CNC Anodized Aluminum Outer Bezel Collar */}
-      <circle cx={x} cy={y} r={radius} fill="#090B10" stroke={active ? "#FACC15" : "#242A38"} strokeWidth="1.5" />
-      <circle cx={x} cy={y} r={radius - 1.5} fill="#141722" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
+      {/* ── 1. FIXED OUTER CNC ANODIZED BEZEL COLLAR (Bolted to Carbon Monocoque) ── */}
+      {/* Stationary outer collar — never scales, wobbles, or distorts */}
+      <circle
+        cx={x}
+        cy={y}
+        r={radius}
+        fill="#090B10"
+        stroke={
+          active
+            ? color
+            : flashFeedback
+            ? "#FFFFFF"
+            : isHovered
+            ? "rgba(207,163,73,0.85)"
+            : "#242A38"
+        }
+        strokeWidth={active || flashFeedback ? "1.8" : isHovered ? "1.6" : "1.2"}
+        style={{
+          filter: active
+            ? `drop-shadow(0 0 6px ${color})`
+            : flashFeedback
+            ? "drop-shadow(0 0 8px rgba(255,255,255,0.85))"
+            : isHovered
+            ? "drop-shadow(0 0 4px rgba(207,163,73,0.5))"
+            : "none",
+          transition: "stroke 120ms ease, filter 120ms ease",
+        }}
+      />
+      <circle
+        cx={x}
+        cy={y}
+        r={radius - 1.5}
+        fill="#141722"
+        stroke={isHovered ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.12)"}
+        strokeWidth="0.8"
+      />
 
       {/* Recessed Button Cavity Depth Ring */}
       <circle cx={x} cy={y} r={radius - 3.0} fill="#06070A" />
 
-      {/* Tactile Dome Button Cap with Specular Reflection */}
-      <circle cx={x} cy={y} r={capRadius} fill={color} />
-      <circle cx={x} cy={y} r={capRadius} fill="url(#btn-specular)" />
-
-      {/* Active High-Energy Glow Halo */}
-      {active && (
+      {/* ── 2. MECHANICAL ACTUATOR CAP (Depresses 1.3px on Click) ── */}
+      <g
+        transform={isPressed ? `translate(0, 1.3)` : "translate(0, 0)"}
+        style={{
+          transition: isPressed
+            ? "transform 40ms cubic-bezier(0, 0, 0.2, 1)"
+            : "transform 140ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          filter: isHovered ? "brightness(1.15)" : "brightness(1.0)",
+        }}
+      >
+        {/* Tactile Dome Button Cap */}
+        <circle cx={x} cy={y} r={capRadius} fill={color} />
+        {/* Specular Highlight Dome */}
         <circle
           cx={x}
           cy={y}
-          r={radius + 1.8}
-          fill="none"
-          stroke={color}
-          strokeWidth="1.4"
-          opacity="0.75"
-          className="animate-ping origin-center"
-          style={{ transformOrigin: `${x}px ${y}px` }}
+          r={capRadius}
+          fill="url(#btn-specular)"
+          opacity={isPressed ? "0.2" : isHovered ? "0.6" : "0.4"}
         />
-      )}
 
-      {/* Laser-etched Actuator Label */}
-      <text
-        x={x}
-        y={y + (sublabel ? 1.5 : 3.0)}
-        textAnchor="middle"
-        fontSize={fontSize}
-        fontFamily="var(--font-mono), monospace"
-        fontWeight="900"
-        fill={textColor}
-        style={{ letterSpacing: "0.04em" }}
-      >
-        {label}
-      </text>
-
-      {/* Optional Miniature Sub-Label */}
-      {sublabel && (
+        {/* Laser-etched Actuator Label */}
         <text
           x={x}
-          y={y + 6.2}
+          y={y + (sublabel ? 1.5 : 3.0)}
           textAnchor="middle"
-          fontSize="4.4"
+          fontSize={fontSize}
           fontFamily="var(--font-mono), monospace"
-          fontWeight="700"
-          fill="rgba(255,255,255,0.75)"
-          style={{ letterSpacing: "0.02em" }}
+          fontWeight="900"
+          fill={textColor}
+          style={{
+            letterSpacing: "0.04em",
+            textShadow: active || flashFeedback ? "0 0 6px rgba(255,255,255,0.7)" : "0 1px 2px rgba(0,0,0,0.8)",
+          }}
         >
-          {sublabel}
+          {label}
         </text>
-      )}
+
+        {/* Optional Miniature Sub-Label */}
+        {sublabel && (
+          <text
+            x={x}
+            y={y + 6.2}
+            textAnchor="middle"
+            fontSize="4.4"
+            fontFamily="var(--font-mono), monospace"
+            fontWeight="700"
+            fill="rgba(255,255,255,0.85)"
+            style={{ letterSpacing: "0.02em" }}
+          >
+            {sublabel}
+          </text>
+        )}
+      </g>
     </g>
   );
 }
@@ -140,32 +192,67 @@ function ThumbWheel({
   value: string | number;
   onClick?: () => void;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [rollOffset, setRollOffset] = useState(0);
+
   const ribs = [0, 4, 8, 12, 16, 20, 24, 28, 32];
+
+  const handleClick = () => {
+    soundFx.playRotaryClick();
+    setRollOffset((prev) => (prev + 4) % 16);
+    onClick?.();
+  };
+
   return (
     <g
-      onClick={() => {
-        soundFx.playRotaryClick();
-        onClick?.();
-      }}
-      className="cursor-pointer select-none group transition-transform active:scale-95 origin-center"
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="cursor-pointer select-none group"
       pointerEvents="auto"
     >
-      {/* Outer Housing Slot */}
-      <rect x={x - 5} y={y - 19} width={10} height={38} rx={3} fill="#080A0E" stroke="#252A38" strokeWidth="1" />
+      {/* Outer Housing Slot with Chamfer Highlight on Hover */}
+      <rect
+        x={x - 5}
+        y={y - 19}
+        width={10}
+        height={38}
+        rx={3}
+        fill="#080A0E"
+        stroke={isHovered ? "rgba(207,163,73,0.75)" : "#252A38"}
+        strokeWidth="1.2"
+        style={{
+          filter: isHovered ? "drop-shadow(0 0 4px rgba(207,163,73,0.4))" : "none",
+          transition: "stroke 120ms ease, filter 120ms ease",
+        }}
+      />
       {/* Cylinder Body */}
-      <rect x={x - 4} y={y - 17} width={8} height={34} rx={2} fill="url(#thumbwheel-gradient)" />
-      {/* Knurled Grip Ridges */}
-      {ribs.map((ry) => (
-        <line
-          key={`rib-${ry}`}
-          x1={x - 4}
-          y1={y - 17 + ry}
-          x2={x + 4}
-          y2={y - 17 + ry}
-          stroke="rgba(255,255,255,0.35)"
-          strokeWidth="0.9"
-        />
-      ))}
+      <rect
+        x={x - 4}
+        y={y - 17}
+        width={8}
+        height={34}
+        rx={2}
+        fill="url(#thumbwheel-gradient)"
+        style={{
+          filter: isHovered ? "brightness(1.18)" : "brightness(1.0)",
+          transition: "filter 120ms ease",
+        }}
+      />
+      {/* Knurled Grip Ridges with Physical Rolling Step */}
+      <g style={{ transform: `translateY(${rollOffset * 0.25}px)`, transition: "transform 100ms ease-out" }}>
+        {ribs.map((ry) => (
+          <line
+            key={`rib-${ry}`}
+            x1={x - 4}
+            y1={y - 17 + ry}
+            x2={x + 4}
+            y2={y - 17 + ry}
+            stroke="rgba(255,255,255,0.38)"
+            strokeWidth="0.9"
+          />
+        ))}
+      </g>
       {/* Center Position Indicator Dot */}
       <circle cx={x} cy={y} r={1.6} fill="#FACC15" />
       {/* Label */}
@@ -176,7 +263,7 @@ function ThumbWheel({
         fontSize="5.2"
         fontFamily="var(--font-mono), monospace"
         fontWeight="800"
-        fill="rgba(207,163,73,0.9)"
+        fill={isHovered ? "#FACC15" : "rgba(207,163,73,0.9)"}
         letterSpacing="0.4"
       >
         {label}
@@ -215,6 +302,7 @@ function RotarySwitch({
   onClick?: () => void;
   options?: string[];
 }) {
+  const [isHovered, setIsHovered] = useState(false);
   const numSteps = options ? options.length : 11;
   const knurls = Array.from({ length: 24 }, (_, i) => i);
 
@@ -224,8 +312,10 @@ function RotarySwitch({
         soundFx.playRotaryClick();
         onClick?.();
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       pointerEvents="auto"
-      className="cursor-pointer select-none group transition-transform active:scale-95 origin-center"
+      className="cursor-pointer select-none group"
     >
       {/* Outer Fluted Knurling Teeth */}
       {knurls.map((i) => {
@@ -556,7 +646,7 @@ export function CentralTelemetry() {
               soundFx.playGearShift(false);
               setGear((g) => Math.max(1, g - 1));
             }}
-            className="cursor-pointer group select-none"
+            className="cursor-pointer group select-none active:translate-x-1 transition-transform duration-75"
             pointerEvents="auto"
           >
             <path
@@ -595,7 +685,7 @@ export function CentralTelemetry() {
               soundFx.playGearShift(true);
               setGear((g) => Math.min(8, g + 1));
             }}
-            className="cursor-pointer group select-none"
+            className="cursor-pointer group select-none active:-translate-x-1 transition-transform duration-75"
             pointerEvents="auto"
           >
             <path

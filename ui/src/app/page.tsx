@@ -18,6 +18,8 @@ import {
   HelpCircle,
   Volume2,
   VolumeX,
+  Menu,
+  X,
 } from "lucide-react";
 import { soundFx } from "@/lib/cockpit/soundFx";
 import { cn } from "@/lib/utils";
@@ -114,6 +116,7 @@ const CAPABILITIES = [
 export default function Home() {
   const [activeStage, setActiveStage] = useState<"3D_TWIN" | "WAVEFORMS" | "MONACO_TOUR" | "VOICE_RADIO">("3D_TWIN");
   const [scrollNorm, setScrollNorm] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const session = useTelemetryStore((s) => s.session);
   const liveTelemetry = useTelemetryStore((s) => s.telemetry);
@@ -204,7 +207,7 @@ export default function Home() {
 
             <Link
               href="/dashboard"
-              className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-amber-400 hover:text-black border border-white/10 hover:border-amber-400 text-neutral-200 text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
+              className="hidden md:flex px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-amber-400 hover:text-black border border-white/10 hover:border-amber-400 text-neutral-200 text-[10px] font-mono font-bold uppercase tracking-wider transition-all items-center gap-1.5"
             >
               <Gauge size={13} />
               <span>COCKPIT HUD</span>
@@ -212,10 +215,10 @@ export default function Home() {
 
             <Link
               href="/dashboard/intelligence"
-              className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-purple-500 hover:text-white border border-white/10 hover:border-purple-400 text-neutral-200 text-[10px] font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
+              className="hidden md:flex px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-purple-500 hover:text-white border border-white/10 hover:border-purple-400 text-neutral-200 text-[10px] font-mono font-bold uppercase tracking-wider transition-all items-center gap-1.5"
             >
               <Sparkles size={13} className="text-amber-400" />
-              <span className="hidden sm:inline">MISSION CONTROL</span>
+              <span>MISSION CONTROL</span>
             </Link>
 
             <button
@@ -231,13 +234,58 @@ export default function Home() {
 
             <button
               onClick={openGuide}
-              className="p-2 rounded-lg bg-black/50 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-all cursor-pointer"
+              className="hidden md:flex p-2 rounded-lg bg-black/50 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-all cursor-pointer"
               title="Platform Guide"
             >
               <HelpCircle size={14} />
             </button>
+
+            {/* Mobile hamburger toggle */}
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              className="md:hidden p-2 rounded-lg bg-black/50 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-all cursor-pointer"
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
           </div>
         </div>
+
+        {/* ── Mobile Menu Slide-Down Panel ── */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-white/[0.08] bg-[#06080d]/95 backdrop-blur-xl px-4 py-4 flex flex-col gap-3">
+            <Link
+              href="/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.06] hover:bg-amber-400 hover:text-black border border-white/10 hover:border-amber-400 text-neutral-200 text-xs font-mono font-bold uppercase tracking-wider transition-all"
+            >
+              <Gauge size={14} />
+              <span>COCKPIT HUD</span>
+            </Link>
+            <Link
+              href="/dashboard/intelligence"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.06] hover:bg-purple-500 hover:text-white border border-white/10 hover:border-purple-400 text-neutral-200 text-xs font-mono font-bold uppercase tracking-wider transition-all"
+            >
+              <Sparkles size={14} className="text-amber-400" />
+              <span>MISSION CONTROL</span>
+            </Link>
+            <button
+              onClick={() => { openConnect(); setMobileMenuOpen(false); }}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer"
+            >
+              <Gamepad2 size={14} />
+              <span>PAIR F1 GAME</span>
+            </button>
+            <button
+              onClick={() => { openGuide(); setMobileMenuOpen(false); }}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-neutral-400 hover:text-white text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer"
+            >
+              <HelpCircle size={14} />
+              <span>PLATFORM GUIDE</span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* ── 3. CENTERED, TIGHTLY FRAMED CONTENT VIEWPORT ───────────────── */}
@@ -251,13 +299,13 @@ export default function Home() {
           className="text-center max-w-4xl mx-auto flex flex-col items-center pt-4 sm:pt-8"
         >
           {/* Animated Status Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold tracking-widest mb-6 shadow-[0_0_20px_rgba(245,158,11,0.15)]">
-            <Radio size={13} className="animate-pulse" />
-            <span>60Hz HARDWARE UDP MOTORSPORT TELEMETRY · EA SPORTS F1 2020 – 2025</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[9px] sm:text-[10px] font-mono font-bold tracking-widest mb-6 shadow-[0_0_20px_rgba(245,158,11,0.15)] max-w-full overflow-hidden">
+            <Radio size={13} className="animate-pulse shrink-0" />
+            <span className="truncate">60Hz UDP TELEMETRY · EA SPORTS F1 2020–2025</span>
           </div>
 
           {/* Master Hero Title */}
-          <h1 className="relative text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-white uppercase font-display leading-[1.05] drop-shadow-[0_10px_35px_rgba(0,0,0,0.9)] overflow-hidden">
+          <h1 className="relative text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-white uppercase font-display leading-[1.05] drop-shadow-[0_10px_35px_rgba(0,0,0,0.9)] overflow-hidden">
             REAL-TIME MOTORSPORT <br />
             <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 filter drop-shadow-[0_0_30px_rgba(245,158,11,0.4)]">
               TELEMETRY &amp; STRATEGY OS
@@ -590,7 +638,7 @@ export default function Home() {
 
         {/* ── 10. ENTERPRISE FOOTER ─────────────────────────────────────── */}
         <footer className="w-full py-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/[0.08] text-[10px] font-mono text-neutral-400 tracking-wider">
-          <span>APX IQ · REAL-TIME MOTORSPORT INTELLIGENCE PLATFORM · STABLE V1.0.0</span>
+          <span>© 2026 APX IQ · REAL-TIME MOTORSPORT INTELLIGENCE PLATFORM · STABLE V1.0.0</span>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="text-neutral-400 hover:text-amber-400 transition-colors uppercase underline underline-offset-4">
               Privacy &amp; Data Policy

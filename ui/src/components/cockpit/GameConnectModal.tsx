@@ -147,6 +147,32 @@ export function GameConnectModal({ isOpen, onClose, onOpenGuide }: GameConnectMo
             </div>
           </div>
 
+          {/* ── Connection Success Banner ── */}
+          {isConnected && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-mono text-xs">
+              <Wifi size={15} className="shrink-0" />
+              <div>
+                <div className="font-bold uppercase tracking-wider">F1 GAME CONNECTED — 60Hz STREAM ACTIVE</div>
+                <div className="text-emerald-400/70 text-[11px] mt-0.5">
+                  {gameVersion ? `EA Sports F1 ${gameVersion} · ` : ""}Binary UDP telemetry ingestion nominal.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Connection Not Established Warning ── */}
+          {!isConnected && !socket?.connected && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-mono text-xs">
+              <WifiOff size={15} className="shrink-0" />
+              <div>
+                <div className="font-bold uppercase tracking-wider">BRIDGE NOT REACHABLE</div>
+                <div className="text-red-400/70 text-[11px] mt-0.5">
+                  Local ingestion service is offline. Start <code className="text-red-300">python run_ingestion.py</code> and ensure port 3001 is open.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Platform Tab Selector */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">

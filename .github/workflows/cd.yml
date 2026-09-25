@@ -53,7 +53,7 @@ jobs:
 
       - name: Run PostgreSQL Integration Tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/apxiq_test
+          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5433/apxiq_test
         run: |
           alembic upgrade head
           pytest -m integration -v --tb=short
@@ -144,7 +144,7 @@ jobs:
       - name: Build Next.js for Production
         working-directory: ui
         env:
-          NEXT_PUBLIC_API_URL: ${{ needs.deploy-backend.outputs.backend_url || 'https://apx-iq-api-uc.a.run.app' }}
+          NEXT_PUBLIC_API_URL: ${{ needs.deploy-backend.outputs.backend_url || 'https://jidu3ftfeggs2x7bh7zatpcauu0cukuy.lambda-url.ap-south-1.on.aws' }}
           NEXT_PUBLIC_WS_URL: http://localhost:3001
         run: npm run build
 

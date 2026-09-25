@@ -20,7 +20,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 
 SERVICE_NAME = "apx-iq-api"
 REPOSITORY_NAME = "apx-iq-api"
@@ -122,7 +121,7 @@ def build_and_push_image(ecr_uri: str, region: str, account_id: str):
     run_cmd(["docker", "build", "-t", tag_latest, "."], capture=False)
 
     # Push container
-    print(f"  → Pushing Docker image to ECR...")
+    print("  → Pushing Docker image to ECR...")
     run_cmd(["docker", "push", tag_latest], capture=False)
     print("  ✅ Image pushed successfully.")
 

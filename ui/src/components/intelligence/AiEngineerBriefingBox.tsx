@@ -36,7 +36,8 @@ export const AiEngineerBriefingBox: React.FC<AiEngineerBriefingBoxProps> = ({
 
   // Typewriter teletype character streaming (Task 3.3)
   useEffect(() => {
-    setStreamedLength(0);
+    // Defer reset to avoid synchronous setState within effect body
+    const reset = setTimeout(() => setStreamedLength(0), 0);
     const interval = setInterval(() => {
       setStreamedLength((prev) => {
         if (prev >= summary.length) {
@@ -46,7 +47,10 @@ export const AiEngineerBriefingBox: React.FC<AiEngineerBriefingBoxProps> = ({
         return prev + 1;
       });
     }, 20);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(reset);
+      clearInterval(interval);
+    };
   }, [summary]);
 
   const handlePlayRadio = (customText?: string) => {

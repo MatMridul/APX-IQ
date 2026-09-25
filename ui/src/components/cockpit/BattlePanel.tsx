@@ -208,7 +208,9 @@ export function BattlePanel() {
 
   useEffect(() => {
     if (isTimeTrialSession) {
-      setPanelMode("RIVAL");
+      // Defer state update to avoid synchronous setState within effect body
+      const t = setTimeout(() => setPanelMode("RIVAL"), 0);
+      return () => clearTimeout(t);
     }
   }, [isTimeTrialSession]);
 

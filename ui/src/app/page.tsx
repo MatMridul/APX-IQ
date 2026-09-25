@@ -369,7 +369,7 @@ export default function Home() {
                   key={tab.id}
                   onClick={() => {
                     soundFx.playButtonClick();
-                    setActiveStage(tab.id as any);
+                    setActiveStage(tab.id as "3D_TWIN" | "WAVEFORMS" | "MONACO_TOUR" | "VOICE_RADIO");
                   }}
                   className="relative px-3.5 py-2 rounded-xl transition-colors cursor-pointer flex items-center gap-2 font-mono text-xs font-bold"
                 >

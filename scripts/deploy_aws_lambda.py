@@ -124,7 +124,6 @@ def build_and_push_image(ecr_uri: str, region: str):
 def ensure_lambda_role(account_id: str) -> str:
     """Ensure IAM execution role for Lambda exists."""
     print(f"\n🛡️ Step 4: Checking IAM execution role '{ROLE_NAME}'...")
-    role_arn = f"arn:aws:iam::{account_id}:role/{ROLE_NAME}"
     check = run_cmd(["aws", "iam", "get-role", "--role-name", ROLE_NAME, "--output", "json"], check=False)
     try:
         data = json.loads(check)
@@ -248,7 +247,7 @@ def deploy_lambda_function(image_uri: str, role_arn: str, region: str) -> str:
         print(f"  ✅ Function URL created: {func_url}")
 
     # Add public invoke permission for Function URL
-    perm_check = run_cmd([
+    run_cmd([
         "aws", "lambda", "add-permission",
         "--function-name", FUNCTION_NAME,
         "--statement-id", "FunctionURLAllowPublicAccess",
@@ -281,8 +280,8 @@ def main():
     print("🎉 DEPLOYMENT COMPLETE!")
     print(f"🔗 Public API URL: {func_url}")
     print(f"🏥 Health Check:   {func_url}health")
-    print(f"💰 Idle Cost:      $0.00 / month (Scale-to-Zero)")
-    print(f"🛡️ Credits Burned: $0.00 (100% of $210 preserved)")
+    print("💰 Idle Cost:      $0.00 / month (Scale-to-Zero)")
+    print("🛡️ Credits Burned: $0.00 (100% of $210 preserved)")
     print("=" * 60)
     print(f"\nNext: Set NEXT_PUBLIC_API_URL={func_url} in Cloudflare Pages!")
 

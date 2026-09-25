@@ -394,7 +394,8 @@ export function CarDigitalTwin3D({
 
     // 8. Load Optimized Formula 1 GLB CAD Asset
     const loader = new GLTFLoader();
-    setModelLoading(true);
+    // Defer to avoid synchronous setState within effect body
+    setTimeout(() => setModelLoading(true), 0);
 
     loader.load(
       "/models/ferrari_sf1000.glb",

@@ -196,6 +196,16 @@ def deploy_lambda_function(image_uri: str, role_arn: str, region: str) -> str:
         ])
         print("  ⏳ Waiting for function update to complete...")
         run_cmd(["aws", "lambda", "wait", "function-updated", "--function-name", FUNCTION_NAME, "--region", region])
+        print("  ℹ️ Updating Lambda function configuration (environment variables)...")
+        run_cmd([
+            "aws", "lambda", "update-function-configuration",
+            "--function-name", FUNCTION_NAME,
+            "--environment", json.dumps(env_vars),
+            "--region", region,
+            "--output", "json",
+        ])
+        print("  ⏳ Waiting for configuration update to complete...")
+        run_cmd(["aws", "lambda", "wait", "function-updated", "--function-name", FUNCTION_NAME, "--region", region])
     except Exception:
         print(f"  ℹ️ Creating new Lambda function '{FUNCTION_NAME}'...")
         run_cmd([
@@ -246,7 +256,7 @@ def deploy_lambda_function(image_uri: str, role_arn: str, region: str) -> str:
         func_url = url_data["FunctionUrl"]
         print(f"  ✅ Function URL created: {func_url}")
 
-    # Add public invoke permission for Function URL
+    # Add public invoke permissions for Function URL
     run_cmd([
         "aws", "lambda", "add-permission",
         "--function-name", FUNCTION_NAME,
@@ -254,6 +264,14 @@ def deploy_lambda_function(image_uri: str, role_arn: str, region: str) -> str:
         "--action", "lambda:InvokeFunctionUrl",
         "--principal", "*",
         "--function-url-auth-type", "NONE",
+        "--region", region,
+    ], check=False)
+    run_cmd([
+        "aws", "lambda", "add-permission",
+        "--function-name", FUNCTION_NAME,
+        "--statement-id", "FunctionURLAllowPublicInvokeFunction",
+        "--action", "lambda:InvokeFunction",
+        "--principal", "*",
         "--region", region,
     ], check=False)
 

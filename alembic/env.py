@@ -25,7 +25,12 @@ config = context.config
 # Override sqlalchemy.url from environment
 database_url = os.getenv("DATABASE_URL", "")
 if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+    sync_url = database_url
+    if sync_url.startswith("postgresql://"):
+        sync_url = sync_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    elif sync_url.startswith("postgres://"):
+        sync_url = sync_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    config.set_main_option("sqlalchemy.url", sync_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

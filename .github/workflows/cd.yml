@@ -53,7 +53,7 @@ jobs:
 
       - name: Run PostgreSQL Integration Tests
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5433/apxiq_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/apxiq_test
         run: |
           alembic upgrade head
           pytest -m integration -v --tb=short

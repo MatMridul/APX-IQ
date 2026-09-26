@@ -66,12 +66,12 @@ jobs:
 
       - name: Apply migrations to service database
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5433/apxiq_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/apxiq_test
         run: alembic upgrade head
 
       - name: Integration tests (real PostgreSQL round-trips)
         env:
-          DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5433/apxiq_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/apxiq_test
         run: pytest -m integration -v --tb=short
 
       - name: Dependency vulnerability audit (report only)

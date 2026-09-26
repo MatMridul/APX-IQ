@@ -48,6 +48,12 @@ class Database:
             )
             return
 
+        # asyncpg requires postgresql:// or postgres:// scheme
+        if dsn.startswith('postgresql+'):
+            dsn = 'postgresql://' + dsn.split('://', 1)[1]
+        elif dsn.startswith('postgres+'):
+            dsn = 'postgres://' + dsn.split('://', 1)[1]
+
         try:
             self._pool = await asyncpg.create_pool(
                 dsn,

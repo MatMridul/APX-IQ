@@ -54,3 +54,11 @@ Thumbs.db
 graphify-out/
 ui-gallery/
 brag-output*/
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.csv
+.neon
+.neon/
